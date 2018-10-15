@@ -16,3 +16,5 @@ b :- fail.
 
 test3 :-
    true; b -> write("t");write("f").
+
+:- write("a"), write("b").
