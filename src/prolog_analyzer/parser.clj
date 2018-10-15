@@ -44,6 +44,9 @@
 "
    :output-format :hiccup))
 
+(defn parse
+  (insta/parse prolog-parser str))
+
 (def test-parser2
   (insta/parser
    "<S> = Or
