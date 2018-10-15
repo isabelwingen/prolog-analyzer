@@ -3,10 +3,18 @@
             [clojure.test :as t]))
 
 
-;; "foo(A,B) :- bar(B,A)."
+
+
 
 
 (deftest parse-string-test
   (testing "Parsing of Prolog clauses"
-    (are [x y] (= (sut/parse-string x) y)
-      "foo(A,B)" [{:type :fact :value {:name "foo" :args [{:type :var :value "A"}, {:type :var :value "B"}]}}])))
+    (are [x y] (= x (sut/prolog-parser y))
+      '({:tag :Fact
+         :content ({:tag :Name :content ("foo")}
+                   {:tag :Args :content ({:tag :Var :content ("A")} {:tag :Var :content ("B")})})})
+      ;({:type :Fact :content ({:tag :Name :content ("foo")}{:tag :Args :content ({:tag :Var :content ("A")} {:tag :Var :content ("B")})})})
+      "foo(A,B)."
+      '({:tag :Fact :content ({:tag :Name :content ("a")})})
+      "a."
+      )))

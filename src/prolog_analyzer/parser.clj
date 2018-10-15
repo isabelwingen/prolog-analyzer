@@ -5,29 +5,48 @@
 
 (def prolog-parser
   (insta/parser
-   "<S> = ((Rule <Ws>) | (Fact <Ws>) | (DirectCall <Ws>) | <Single-Line-Comment> | <Multi-Line-Comment>)*
-    Rule = Head <Ws> <':-'> <Ws> Body <'.'>
-    Fact = Name Arglist? <'.'>
-    Single-Line-Comment = <'%'> #'.*\n'
-    Multi-Line-Comment = <'/*'> #'.*' <'*/'>
-    DirectCall = <':-'> Fact <'.'>
-    Goal = Name Arglist?
-    Head = Name Arglist?
-    <BodyElement> = Goal | <'!'> | ControlPredicate
-    <ControlPredicate> = '!' | 'false' | 'true' | 'repeat' | Not | Or | If
+   "<S> = ((Rule <OptionalWs>) | (Fact <OptionalWs>) | <Single-Line-Comment> | <Multi-Line-Comment>)*
+    Rule = Head <OptionalWs> <':-'> <OptionalWs> Body <Period>
+    Fact = Name Arglist? <Period>
+    Compound = Name Arglist
+    Goal = Name Arglist? | Cut | True | False | Fail | Not | If
+    <Goals> = Goal (<Komma> Goal)*
+    Head = Goal
+    Body = Expr
+    <Expr> = Or
+    Or = Or <Semicolon> Or* | <'('> Or <')'> | And
+    And = And <Komma> And | <OpenBracket> And <CloseBracket> | <OpenBracket> Or <CloseBracket> <Komma> And | And <Komma> <OpenBracket> Or <CloseBracket> | Goal
+    <Arglist> = <OpenBracket> Args <CloseBracket>
+    Args = Arg (<Komma> Arg)*
+    <Arg> = Var | Atom | Number | Arg SpecialChar Arg | Compound
+    Cut = <'!'>
+    True = <'true'>
+    False = <'false'>
+    Fail = <'fail'>
+    Repeat = <'repeat'>
     Not = <'not('> Goal <')'>
-    Or = Body <Ws>* <';'> <Ws>* Body (<Ws>* <';'> <Ws>* Body)*
-    If = 'if'
-    Body = BodyElement (<','> <Ws> BodyElement)*
-    <Arglist> = <'('> Args <')'>
-    Args = Arg (<','> Arg)*
-    <Arg> = Var | Atom | Number
+    If = Body <OptionalWs> <'->'> <OptionalWs> Body <Semicolon> Body | <'('> If <')'>
+    SpecialChar = '-' | '/'
     Var = #'[A-Z][a-zA-Z0-9_]*'
     Name = #'[a-z][a-zA-Z0-9_]*'
     Atom = #'[a-z][a-zA-Z0-9_]*'
     Number = #'[0-9]*'
+    Komma = <OptionalWs> <','> <OptionalWs>
+    Semicolon = <OptionalWs> <';'> <OptionalWs>
+    Period = <OptionalWs> <'.'> <OptionalWs>
+    OpenBracket = <'('>
+    CloseBracket = <')'>
     <Ws> = #'\\s+'
+    <OptionalWs> = #'\\s*'
+    Single-Line-Comment = #'%.*\n'
+    Multi-Line-Comment = '/*' #'.*' '*/'
 "
    :output-format :hiccup))
 
-(prolog-analyzer.parser/prolog-parser (slurp "resources/parse-example.pl"))
+(def test-parser2
+  (insta/parser
+   "<S> = Or
+  Or = Or <';'> Or | <'('> Or <')'> | And
+  And = And <','> And | A | <'('> And <')'> | <'('> Or <')'> <','> And | And <','> <'('> Or <')'>
+    A = #'^\\s' | <'('> A <')'>"
+   :output-format :enlive))
