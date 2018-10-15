@@ -5,9 +5,10 @@
 
 (def prolog-parser
   (insta/parser
-   "<S> = ((Rule <OptionalWs>) | (Fact <OptionalWs>) | <Single-Line-Comment> | <Multi-Line-Comment>)*
-    Rule = Goal <OptionalWs> StartOfBody <OptionalWs> Goals <Period>
+   "<S> = ((Rule <OptionalWs>) | (Fact <OptionalWs>) | (DirectCall <OptionalWs>) | <Single-Line-Comment> | <Multi-Line-Comment>)*
+    Rule = Goal StartOfBody Goals <Period>
     Fact = Name Arglist? <Period>
+    DirectCall = <StartOfBody> Goals <Period>
     Compound = Name Arglist
     Goal = If | Name Arglist? | Cut | True | False | Fail | Not
     <Goals> = Goal | Goals (Komma | Semicolon) Goals | InBrackets
@@ -33,7 +34,7 @@
     Period = <OptionalWs> <'.'> <OptionalWs>
     OpenBracket = <'('>
     CloseBracket = <')'>
-    StartOfBody = <':-'>
+    StartOfBody = <OptionalWs> <':-'> <OptionalWs>
     Then = <OptionalWs> <'->'> <OptionalWs>
     Else = <Semicolon>
     <Ws> = #'\\s+'
