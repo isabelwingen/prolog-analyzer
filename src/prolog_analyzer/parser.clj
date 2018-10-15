@@ -6,18 +6,14 @@
 (def prolog-parser
   (insta/parser
    "<S> = ((Rule <OptionalWs>) | (Fact <OptionalWs>) | <Single-Line-Comment> | <Multi-Line-Comment>)*
-    Rule = Head <OptionalWs> <':-'> <OptionalWs> Body <Period>
+    Rule = Goal <OptionalWs> StartOfBody <OptionalWs> Goals <Period>
     Fact = Name Arglist? <Period>
     Compound = Name Arglist
-    Goal = Name Arglist? | Cut | True | False | Fail | Not | If
-    <Goals> = Goal (<Komma> Goal)*
-    Head = Goal
-    Body = Expr
-    <Expr> = Or
-    Or = Or <Semicolon> Or* | <'('> Or <')'> | And
-    And = And <Komma> And | <OpenBracket> And <CloseBracket> | <OpenBracket> Or <CloseBracket> <Komma> And | And <Komma> <OpenBracket> Or <CloseBracket> | Goal
+    Goal = If | Name Arglist? | Cut | True | False | Fail | Not
+    <Goals> = Goal | Goals (Komma | Semicolon) Goals | InBrackets
+    InBrackets = <OpenBracket> Goals <CloseBracket>
     <Arglist> = <OpenBracket> Args <CloseBracket>
-    Args = Arg (<Komma> Arg)*
+    Args = Arg (Komma Arg)*
     <Arg> = Var | Atom | Number | Arg SpecialChar Arg | Compound
     Cut = <'!'>
     True = <'true'>
@@ -25,7 +21,8 @@
     Fail = <'fail'>
     Repeat = <'repeat'>
     Not = <'not('> Goal <')'>
-    If = Body <OptionalWs> <'->'> <OptionalWs> Body <Semicolon> Body | <'('> If <')'>
+    If = <OpenBracket> AndListOfGoals Then AndListOfGoals Else AndListOfGoals <CloseBracket>
+    <AndListOfGoals> = Goal | AndListOfGoals Komma AndListOfGoals | InBrackets
     SpecialChar = '-' | '/'
     Var = #'[A-Z][a-zA-Z0-9_]*'
     Name = #'[a-z][a-zA-Z0-9_]*'
@@ -36,6 +33,9 @@
     Period = <OptionalWs> <'.'> <OptionalWs>
     OpenBracket = <'('>
     CloseBracket = <')'>
+    StartOfBody = <':-'>
+    Then = <OptionalWs> <'->'> <OptionalWs>
+    Else = <Semicolon>
     <Ws> = #'\\s+'
     <OptionalWs> = #'\\s*'
     Single-Line-Comment = #'%.*\n'
