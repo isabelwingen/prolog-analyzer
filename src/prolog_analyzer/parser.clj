@@ -26,8 +26,10 @@
     <Terms> = Term (<Komma> Term)*
     <Term> = Var | Atom | Number | Compound | List
     Compound = Functor Arglist | Term SpecialChar Term
-    List = EmptyList | <'['> <OptionalWs> Terms <OptionalWs> <']'> | <'['> Terms <'|'> List  <']'>
+    List = EmptyList | ExplizitList  | HeadTailList
     EmptyList = <'['> <']'>
+    HeadTailList = <'['> Terms <'|'> (List | Var) <']'>
+    ExplizitList = <'['> <OptionalWs> Terms <OptionalWs> <']'>
     Cut = <'!'>
     True = <'true'>
     False = <'false'>
@@ -38,7 +40,7 @@
     <AndListOfGoals> = Goal | AndListOfGoals Komma AndListOfGoals | InBrackets
     SpecialChar = '-' | '/'
 
-    Var = #'[A-Z][a-zA-Z0-9_]*'
+    Var = #'[A-Z_][a-zA-Z0-9_]*'
     Functor = #'[a-z][a-zA-Z0-9_]*'
     Name = #'[a-z][a-zA-Z0-9_]*'
     Atom = #'[a-z][a-zA-Z0-9_]*'
@@ -54,7 +56,6 @@
     Else = <Semicolon>
 
     <OptionalWs> = #'\\s*'
-
     Single-Line-Comment = #'%.*\n'
     Multi-Line-Comment = '/*' #'.*' '*/'
 "
@@ -63,10 +64,9 @@
 (defn parse [str]
   (insta/parse prolog-parser str))
 
-(def test-parser2
+(def test-parser
   (insta/parser
-   "<S> = Or
-  Or = Or <';'> Or | <'('> Or <')'> | And
-  And = And <','> And | A | <'('> And <')'> | <'('> Or <')'> <','> And | And <','> <'('> Or <')'>
-    A = #'^\\s' | <'('> A <')'>"
-   :output-format :enlive))
+   "<S> = #'[A-Z_]'"))
+
+
+(defn post-processing [tree])
