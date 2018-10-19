@@ -1,11 +1,11 @@
 (ns prolog-analyzer.parser-test
   (:require [prolog-analyzer.parser :as sut]
-            [clojure.test :as t]))
+            [clojure.test :refer :all]))
 
 
 (def reference-map
   {"foo(a)" [:Fact [:Name "foo"] [:Args [:Atom "a"]]]
-   "bar(b,X)" [:Fact [:Name "bar"] [:Args [:Atom "b"] [:Komma] [:Var "X"]]]})
+   "bar(b,X)" [:Fact [:Name "bar"] [:Args [:Atom "b"] [:Var "X"]]]})
 
 
 
@@ -13,20 +13,20 @@
   (testing "Simple Facts"
     (are [x y] (= x (sut/prolog-parser y :start :Fact))
       [:Fact [:Name "asdasdasd"]] "asdasdasd."
-      [:Fact [:Name "foo"] [:Args [:Atom "a"]]] "foo(a)."
-      [:Fact [:Name "bar"] [:Args [:Atom "b"] [:Komma] [:Var "X"]]] "bar(b,X).")))
+      [:Fact [:Name "foo"] [:Arglist [:Atom "a"]]] "foo(a)."
+      [:Fact [:Name "bar"] [:Arglist [:Atom "b"] [:Var "X"]]] "bar(b,X).")))
 
 (deftest parse-prolog2
   (testing "Simple Rules"
     (are [x y] (= x (sut/prolog-parser y :start :Rule))
       [:Rule
-       [:Goal [:Name "foo"] [:Args [:Atom "a"]]]
+       [:Goal [:Name "foo"] [:Arglist [:Atom "a"]]]
        [:StartOfBody]
-       [:Goal [:Name "bar"] [:Args [:Atom "b"] [:Komma] [:Var "X"]]]]
+       [:Goal [:Name "bar"] [:Arglist [:Atom "b"] [:Var "X"]]]]
       "foo(a) :- bar(b,X)."
       ;;
       [:Rule
-       [:Goal [:Name "foo"] [:Args [:Var "A"] [:Komma] [:Var "B"]]]
+       [:Goal [:Name "foo"] [:Arglist [:Var "A"] [:Var "B"]]]
        [:StartOfBody]
        [:Goal [:Name "a"]]
        [:Semicolon]
@@ -71,3 +71,4 @@
        [:Goal [:Name "e"]]]
       )))
 
+ 

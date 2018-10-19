@@ -9,13 +9,25 @@
     Rule = Goal StartOfBody Goals <Period>
     Fact = Name Arglist? <Period>
     DirectCall = <StartOfBody> Goals <Period>
-    Compound = Name Arglist
-    Goal = If | Name Arglist? | Cut | True | False | Fail | Not
+
     <Goals> = Goal | Goals (Komma | Semicolon) Goals | InBrackets
+    Goal = If | Name Arglist? | Cut | True | False | Fail | Not | Assignment
     InBrackets = <OpenBracket> Goals <CloseBracket>
-    <Arglist> = <OpenBracket> Args <CloseBracket>
-    Args = Arg (Komma Arg)*
-    <Arg> = Var | Atom | Number | Arg SpecialChar Arg | Compound
+
+    <Assignment> = IsAssignment | UnifyAssignment
+
+    UnifyAssignment = Term <OptionalWs> <'='> <OptionalWs> Term
+
+    IsAssignment = Term <OptionalWs> <'is'> <OptionalWs> Expr
+    Expr = Term | Expr Op Expr | <OpenBracket> Expr <CloseBracket>
+    Op = <OptionalWs> ('+' | '-' | '*' | '**' | '^') <OptionalWs>
+
+    Arglist = <OpenBracket> Terms <CloseBracket>
+    <Terms> = Term (<Komma> Term)*
+    <Term> = Var | Atom | Number | Compound | List
+    Compound = Functor Arglist | Term SpecialChar Term
+    List = EmptyList | <'['> <OptionalWs> Terms <OptionalWs> <']'> | <'['> Terms <'|'> List  <']'>
+    EmptyList = <'['> <']'>
     Cut = <'!'>
     True = <'true'>
     False = <'false'>
@@ -25,10 +37,13 @@
     If = <OpenBracket> AndListOfGoals Then AndListOfGoals Else AndListOfGoals <CloseBracket>
     <AndListOfGoals> = Goal | AndListOfGoals Komma AndListOfGoals | InBrackets
     SpecialChar = '-' | '/'
+
     Var = #'[A-Z][a-zA-Z0-9_]*'
+    Functor = #'[a-z][a-zA-Z0-9_]*'
     Name = #'[a-z][a-zA-Z0-9_]*'
     Atom = #'[a-z][a-zA-Z0-9_]*'
-    Number = #'[0-9]*'
+    Number = #'[0-9]+'
+
     Komma = <OptionalWs> <','> <OptionalWs>
     Semicolon = <OptionalWs> <';'> <OptionalWs>
     Period = <OptionalWs> <'.'> <OptionalWs>
@@ -37,14 +52,15 @@
     StartOfBody = <OptionalWs> <':-'> <OptionalWs>
     Then = <OptionalWs> <'->'> <OptionalWs>
     Else = <Semicolon>
-    <Ws> = #'\\s+'
+
     <OptionalWs> = #'\\s*'
+
     Single-Line-Comment = #'%.*\n'
     Multi-Line-Comment = '/*' #'.*' '*/'
 "
    :output-format :hiccup))
 
-(defn parse
+(defn parse [str]
   (insta/parse prolog-parser str))
 
 (def test-parser2
