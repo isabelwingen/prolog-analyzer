@@ -1,13 +1,14 @@
 (ns prolog-analyzer.parser
   (:require [instaparse.core :as insta]
-            [clojure.pprint :refer [pprint]]))
+            [clojure.pprint :refer [pprint]]
+            [clojure.tools.logging :as log]))
 
 
 (def prolog-parser
   (insta/parser
    "<S> = <OptionalWs> (Rule <Single-Line-Comment>?| Fact | DirectCall | <Single-Line-Comment> | <Multi-Line-Comment> | <OptionalWs>) ((<Ws> | <Single-Line-Comment> ) S)?
 
-    Rule = Goal StartOfBody Goals <Period>
+    Rule = Name Arglist? StartOfBody Goals <Period>
     Fact = Name Arglist? <Period>
     DirectCall = <StartOfBody> Goals <Period>
 
@@ -62,13 +63,21 @@
 "
    :output-format :hiccup))
 
+
+(defmulti post-processing insta/failure?)
+
+(defmethod post-processing true [failure]
+  failure)
+
+(defmethod post-processing false [result]
+  result)
+
 (defn parse [string]
-  (let [p (str string "\n")]
-    (insta/parse prolog-parser p)))
+  (insta/parse prolog-parser (str string "\n")))
 
-(def test-parser
-  (insta/parser
-   "<S> = #'[A-Z_]'"))
+(defn process-source [file]
+  (-> file
+      slurp
+      parse
+      post-processing))
 
-
-(defn post-processing [tree])
