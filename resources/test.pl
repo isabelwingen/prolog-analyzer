@@ -1,4 +1,7 @@
-test(X) :- 
+a .
+b .
+
+test(X) :-
   a;b,c -> 
      write("then"),
      nl, X = b
@@ -18,3 +21,4 @@ test3 :-
    true; b -> write("t");write("f").
 
 :- write("a"), write("b").
+%Comment
