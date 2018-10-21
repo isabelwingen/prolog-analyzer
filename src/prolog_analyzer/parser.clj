@@ -5,7 +5,8 @@
 
 (def prolog-parser
   (insta/parser
-   "<S> = ((Rule <OptionalWs>) | (Fact <OptionalWs>) | (DirectCall <OptionalWs>) | <Single-Line-Comment> | <Multi-Line-Comment>)*
+   "<S> = <OptionalWs> (Rule <Single-Line-Comment>?| Fact | DirectCall | <Single-Line-Comment> | <Multi-Line-Comment> | <OptionalWs>) ((<Ws> | <Single-Line-Comment> ) S)?
+
     Rule = Goal StartOfBody Goals <Period>
     Fact = Name Arglist? <Period>
     DirectCall = <StartOfBody> Goals <Period>
@@ -48,21 +49,22 @@
 
     Komma = <OptionalWs> <','> <OptionalWs>
     Semicolon = <OptionalWs> <';'> <OptionalWs>
-    Period = <OptionalWs> <'.'> <OptionalWs>
+    Period = <OptionalWs> <'.'>
     OpenBracket = <'('>
     CloseBracket = <')'>
     StartOfBody = <OptionalWs> <':-'> <OptionalWs>
     Then = <OptionalWs> <'->'> <OptionalWs>
     Else = <Semicolon>
-
+    <Ws> = #'\\s+'
     <OptionalWs> = #'\\s*'
     Single-Line-Comment = #'%.*\n'
     Multi-Line-Comment = '/*' #'.*' '*/'
 "
    :output-format :hiccup))
 
-(defn parse [str]
-  (insta/parse prolog-parser str))
+(defn parse [string]
+  (let [p (str string "\n")]
+    (insta/parse prolog-parser p)))
 
 (def test-parser
   (insta/parser
