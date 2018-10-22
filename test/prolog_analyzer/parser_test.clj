@@ -133,6 +133,7 @@
                         :module :user}]}})
       )))
 
+
 (deftest transform-to-map-test
   (testing "Test, if the different components are correctly transformed to a map"
     (are [x y z] (= z (sut/transform-to-map (sut/prolog-parser x :start y)))
@@ -271,3 +272,21 @@
                                          {:goal "d", :arity 0, :arglist [], :module :user}]}}
       )))
 
+ 
+
+(deftest transform-to-map-not-clausel
+  (testing "Transforming of not"
+    (are [x y] (= y (sut/transform-to-map (sut/prolog-parser x :start :Rule)))
+      "foo :- not(bar(a,b))." {"foo" {:arity 0
+                                      :arglist []
+                                      :body [{:goal :not
+                                              :body [{:goal "bar"
+                                                      :arity 2
+                                                      :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]
+                                                      :module :user}]}]}})))
+
+(deftest transform-direct-call
+  (testing "Transforming of direct calls"
+    (are [x y] (= y (sut/transform-to-map (sut/prolog-parser x :start :DirectCall)))
+      ":- foo(a,b), bar(c)." {:direct-call {:body [{:goal "foo" :arity 2 :arglist [{:term "a" :type :atom} {:term "b" :type :atom}] :module :user}
+                                                  {:goal "bar" :arity 1 :arglist [{:term "c" :type :atom}] :module :user}]}})))
