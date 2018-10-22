@@ -114,6 +114,7 @@
       )))
 
 
+(sut/process-string "foo(a,x) :- c(X),d.")
 
 (deftest process-rule
   (testing "testing processing of rule"
@@ -222,7 +223,51 @@
 
       )))
 
-(sut/transform-to-map (sut/prolog-parser "[1,2|L]" :start :List))
-(sut/prolog-parser "[1|[2,3]]" :start :List)
-(sut/prolog-parser "[1,2,3]" :start :List)
-(sut/prolog-parser "[]" :start :List)
+(deftest transform-to-map-with-brackets
+  (testing "Transforming of rule with brackets in the body"
+    (are [x y] (= y (sut/transform-to-map (sut/prolog-parser x :start :Rule)))
+      "foo :- (a,b)." {"foo" {:arity 0
+                              :arglist []
+                              :body [{:goal :in-brackets
+                                      :body [{:goal "a" :arity 0 :arglist [] :module :user}
+                                             {:goal "b" :arity 0 :arglist [] :module :user}]}]}} )))
+(deftest transform-to-map-semicolon
+  (testing "Transforming to clojure structures of rule-bodies with semicolons"
+    (are [x y] (= y (sut/transform-to-map (sut/prolog-parser x :start :Rule)))
+      "foo :- a,b,c." {"foo" {:arity 0
+                              :arglist []
+                              :body [{:goal "a" :arity 0 :arglist [] :module :user}
+                                     {:goal "b" :arity 0 :arglist [] :module :user}
+                                     {:goal "c" :arity 0 :arglist [] :module :user}]}}
+      "foo :- a;b." {"foo" {:arity 0
+                            :arglist []
+                            :body [{:goal :or
+                                    :arity 2
+                                    :arglist [[{:goal "a" :arity 0 :arglist [] :module :user}]
+                                              [{:goal "b" :arity 0 :arglist [] :module :user}]]}]}}
+      "foo :- a;b;c." {"foo" {:arity 0
+                              :arglist []
+                              :body [{:goal :or
+                                      :arity 3
+                                      :arglist [[{:goal "a" :arity 0 :arglist [] :module :user}]
+                                                [{:goal "b" :arity 0 :arglist [] :module :user}]
+                                                [{:goal "c" :arity 0 :arglist [] :module :user}]]}]}}
+      "foo :- a,b;c,d." {"foo" {:arity 0
+                                :arglist []
+                                :body [{:goal :or
+                                        :arity 2
+                                        :arglist [[{:goal "a" :arity 0 :arglist [] :module :user}
+                                                   {:goal "b" :arity 0 :arglist [] :module :user}]
+                                                  [{:goal "c" :arity 0 :arglist [] :module :user}
+                                                   {:goal "d" :arity 0 :arglist [] :module :user}]]}]}}
+      "foo :- a,(b;c),d." {"foo" {:arity 0
+                                  :arglist []
+                                  :body [{:goal "a", :arity 0, :arglist [], :module :user}
+                                         {:goal :in-brackets
+                                          :body [{:goal :or
+                                                  :arity 2
+                                                  :arglist [[{:goal "b", :arity 0, :arglist [], :module :user}]
+                                                            [{:goal "c", :arity 0, :arglist [], :module :user}]]}]}
+                                         {:goal "d", :arity 0, :arglist [], :module :user}]}}
+      )))
+
