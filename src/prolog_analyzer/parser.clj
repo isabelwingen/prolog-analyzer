@@ -21,7 +21,7 @@
     UnifyAssignment = Term <OptionalWs> <'='> <OptionalWs> Term
 
     IsAssignment = Term <OptionalWs> <'is'> <OptionalWs> Expr
-    Expr = Term | Expr Op Expr | <OpenBracket> Expr <CloseBracket>
+    Expr = Var | <Number> | <Compound> | <Expr> <Op> <Expr> | <OpenBracket> <Expr> <CloseBracket>
     Op = <OptionalWs> ('+' | '-' | '*' | '**' | '^') <OptionalWs>
 
     Arglist = <OpenBracket> Terms <CloseBracket>
@@ -64,13 +64,55 @@
    :output-format :hiccup))
 
 
+(defmulti tree-to-map (fn [tree] [(first tree) (= :Arglist (get-in tree [2 0]))]))
+
+;(defmethod tree-to-map [:Fact false] [[_ [_ functor]]]
+;  {[functor []] [[]]})
+(defmethod tree-to-map [:Fact true] [[_ [_ functor] [_ & arglist]]]
+  {[functor arglist] [[]]})
+(defmethod tree-to-map [:Rule false] [[_ [_ functor] [_] & body]]
+  {[functor []] [body]})
+(defmethod tree-to-map [:Rule true] [[_ [_ functor] [_ & arglist] [_] & body]]
+  {[functor arglist] [body]})
+(defmethod tree-to-map [:DirectCall false] [[_ & body]]
+  {[:direct []] [body]})
+(defmethod tree-to-map :default [tree]
+  {})
+
+
+
+
 (defmulti post-processing insta/failure?)
+(defmulti post-processing-tree first)
 
 (defmethod post-processing true [failure]
-  failure)
+  '())
 
 (defmethod post-processing false [result]
-  result)
+  (map post-processing-tree result))
+
+
+(defn has-args? [tree]
+  (= :Arglist (get-in tree [2 0])))
+
+(defn get-args [tree]
+  (if (has-args? tree)
+    (rest (get tree 2))
+    []))
+
+(defmethod post-processing-tree :Fact [tree]
+  (if (has-args? tree)
+    (update tree 2 (fn [[x & remaining]] (apply vector x (map post-processing-tree remaining))))
+    (assoc tree 2 [])))
+
+(defmethod post-processing-tree :default [tree]
+  tree)
+
+(defn transform-to-map [result]
+  (reduce
+   (fn [m tree]
+     (merge-with into m (tree-to-map tree)))
+   {} result))
 
 (defn parse [string]
   (insta/parse prolog-parser (str string "\n")))
@@ -79,5 +121,6 @@
   (-> file
       slurp
       parse
-      post-processing))
+      post-processing
+      transform-to-map))
 
