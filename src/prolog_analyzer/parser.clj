@@ -63,20 +63,22 @@
    :output-format :hiccup))
 
 
-(defn error-handling [result]
+(defn- error-handling [result]
   (if (insta/failure? result)
-    '()
+    (do
+      (log/error result)
+      '())
     result))
 
-(defn has-args? [tree]
+(defn- has-args? [tree]
   (= :Arglist (get-in tree [2 0])))
 
-(defn get-args [tree]
+(defn- get-args [tree]
   (if (has-args? tree)
     (rest (get tree 2))
     []))
 
-(defn add-arglist [tree]
+(defn- add-arglist [tree]
   (if (has-args? tree)
     tree
     (let [[before after] (split-at 2 tree)]
@@ -97,16 +99,18 @@
               :body []}}))
 
 
-
+(defmethod transform-to-map :Number [[_ value]]
+  {:term value
+   :type :number})
 (defmethod transform-to-map :Atom [[_ functor]]
-  {:type :atom
-   :name functor
-   :dom :atom})
-
+  {:term functor
+   :type :atom})
 (defmethod transform-to-map :Var [[_ functor]]
-  {:type :var
-   :name functor
-   :dom :var})
+  (if (= "_" functor)
+    {:term :anonymous
+     :type :var}
+    {:term functor
+     :type :var}))
 
 (defmethod transform-to-map :Goal [tree]
   (if (= :Name (get-in tree [1 0]))
@@ -114,42 +118,57 @@
       {:goal functor
        :arity (count arglist)
        :arglist (vec (map transform-to-map arglist))
-       :type :normal})
+       :module :user})
     (let [[_ [& x]] tree]
       (transform-to-map x))
     ))
 
-(defmethod transform-to-map :IsAssignment [tree]
-  (let [[_ left & right] tree
-        transformed-left (transform-to-map left)
-        transformed-right (map transform-to-map right)]
-    (if (= 1 (count right))
-      {:goal :unify-assignment
-       :arity 2
-       :arglist [transformed-left (first transformed-right)]}
-      {:goal :is-assignment
-       :arity (inc (count transformed-right))
-       :arglist (concat [transformed-left] transformed-right)})))
+(defmethod transform-to-map :Komma [_]
+  {:delimiter :komma})
 
-(-> "foo :- X is A+B+2." parse post-processing)
+(defmethod transform-to-map :Semicolon [_]
+  {:delimiter :semicolon})
+
+(defmethod transform-to-map :IsAssignment [[_ left & right]]
+  {:goal :is-assignment
+   :left (transform-to-map left)
+   :right (map transform-to-map right)
+   :module :built-in})
+
+(defmethod transform-to-map :UnifyAssignment [[_ left right]]
+  {:goal :unify-assignment
+   :left (transform-to-map left)
+   :right (transform-to-map right)
+   :module :built-in})
+
+(parse "foo :- X=3.")
+(defmethod transform-to-map :Cut [_]
+  {:goal :Cut
+   :arity 0
+   :arglist []
+   :module :built-in})
+
 (defmethod transform-to-map :default [tree]
   (when (not (nil? tree)) 
     (log/warn (str "when transforming the parse-tree for " (first tree) " no matching method was found!")))
   tree)
 
-(defn post-processing [list-of-preds]
+(defn- post-processing [list-of-preds]
   (map transform-to-map list-of-preds))
 
 (defn parse [string]
   (insta/parse prolog-parser (str string "\n")))
 
-(defn process-source [file]
-  (-> file
-      slurp
+(defn process-string [string]
+  (-> string
       parse
       error-handling
       post-processing))
 
-(process-source "resources/test.pl")
-(-> "foo :- X is A+2." parse post-processing)
-(first nil)
+
+(defn process-source [file]
+  (-> file
+      slurp
+      process-string))
+
+
