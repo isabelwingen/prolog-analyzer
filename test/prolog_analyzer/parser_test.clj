@@ -79,7 +79,7 @@
       )))
 
 (deftest parse-if
-  (testing "If"
+  (testing "Parsing of If"
     (are [y x] (= x (sut/prolog-parser y :start :If))
       "(a -> c ; d)"
       [:If
@@ -113,5 +113,116 @@
        [:Goal [:Name "e"]]]
       )))
 
- 
- 
+
+
+(deftest process-rule
+  (testing "testing processing of rule"
+    (are [y x] (= x (sut/process-string y))
+      "foo(a,X) :- c(X),d."
+      '({"foo" {:arity 2
+                :arglist [{:term "a", :type :atom}
+                          {:term "X", :type :var}]
+                :body [{:goal "c"
+                        :arity 1
+                        :arglist [{:term "X", :type :var}]
+                        :module :user}
+                       {:goal "d"
+                        :arity 0
+                        :arglist []
+                        :module :user}]}})
+      )))
+
+(deftest transform-to-map-test
+  (testing "Test, if the different components are correctly transformed to a map"
+    (are [x y z] (= z (sut/transform-to-map (sut/prolog-parser x :start y)))
+      "a" :Atom {:term "a", :type :atom}
+      "X" :Var {:term "X", :type :var}
+      "_" :Var {:term :anonymous, :type :var}
+      "123" :Number {:term "123", :type, :number}
+      "foo(a,b)" :Goal {:goal "foo"
+                        :arity 2
+                        :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]
+                        :module :user}
+      "!" :Goal {:goal :Cut
+                 :arity 0
+                 :arglist []
+                 :module :built-in}
+      "X is Y+2" :Goal {:goal :is-assignment
+                        :left {:term "X" :type :var}
+                        :right [{:term "Y" :type :var}
+                                {:term "2" :type :number}]
+                        :module :built-in}
+      "X = 3" :Goal {:goal :unify-assignment
+                     :left {:term "X" :type :var}
+                     :right {:term "3" :type :number}
+                     :module :built-in}
+      "foo(a,b,c)" :Compound {:term "foo"
+                              :type :compound
+                              :arity 3
+                              :arglist [{:term "a" :type :atom}
+                                        {:term "b" :type :atom}
+                                        {:term "c" :type :atom}]
+                              :infix false}
+      "foo(a,bar(b,c))" :Compound {:term "foo"
+                                   :type :compound
+                                   :arity 2
+                                   :arglist [{:term "a" :type :atom}
+                                             {:term "bar"
+                                              :type :compound
+                                              :arity 2
+                                              :arglist [{:term "b" :type :atom}
+                                                        {:term "c" :type :atom}]
+                                              :infix false}]
+                                   :infix false}
+
+      "A/B/C" :Compound {:term "/"
+                         :type :compound
+                         :arity 2
+                         :arglist [{:term "A" :type :var}
+                                   {:term "/" :type :compound
+                                    :arity 2
+                                    :arglist [{:term "B" :type :var}
+                                              {:term "C" :type :var}]
+                                    :infix true}]
+                         :infix true}
+      "[H|T]" :List {:term :list
+                     :type :list
+                     :head [{:term "H", :type :var}]
+                     :tail {:term "T", :type :var}}
+      "[1,2|T]" :List {:term :list
+                       :type :list
+                       :head [{:term "1" :type :number}
+                              {:term "2" :type :number}]
+                       :tail {:term "T" :type :var}}
+      "[1,2,3]" :List {:term :list
+                       :type :list
+                       :content [{:term "1" :type :number}
+                                 {:term "2" :type :number}
+                                 {:term "3" :type :number}]}
+      "[1,2|[3,4]]" :List {:term :list
+                           :type :list
+                           :head [{:term "1" :type :number}
+                                  {:term "2" :type :number}]
+                           :tail {:term :list
+                                  :type :list
+                                  :content [{:term "3" :type :number}
+                                            {:term "4" :type :number}]}}
+      "[]" :List {:term :list
+                  :type :list}
+      "[1]" :List {:term :list
+                   :type :list
+                   :content [{:term "1" :type :number}]}
+      "(a,b -> c,d ; e,f)" :If {:goal :if
+                                :cond [{:goal "a" :arity 0 :arglist [] :module :user}
+                                       {:goal "b" :arity 0 :arglist [] :module :user}]
+                                :then [{:goal "c" :arity 0 :arglist [] :module :user}
+                                       {:goal "d" :arity 0 :arglist [] :module :user}]
+                                :else [{:goal "e" :arity 0 :arglist [] :module :user}
+                                       {:goal "f" :arity 0 :arglist [] :module :user}]}
+
+      )))
+
+(sut/transform-to-map (sut/prolog-parser "[1,2|L]" :start :List))
+(sut/prolog-parser "[1|[2,3]]" :start :List)
+(sut/prolog-parser "[1,2,3]" :start :List)
+(sut/prolog-parser "[]" :start :List)
