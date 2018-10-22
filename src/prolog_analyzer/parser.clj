@@ -84,14 +84,28 @@
     (let [[before after] (split-at 2 tree)]
       (vec (concat before [[:Arglist]] after)))))
 
+(defn split-at-first-delimiter [goals]
+  (split-with #(not (contains? % :delimiter)) goals))
 
-(defn transform-body [body]
-  (pprint body)
-  (remove #(contains? % :delimiter) body))
+(defn split-at-semicolons [goals]
+  (let [[left right] (split-with #(not (= :semicolon (:delimiter %))) goals)
+        right (rest right)]
+    (if (empty? right)
+      [left]
+      (vec (concat [left] (split-at-semicolons right))))))
 
+(defn transform-body [goals]
+  (let [filtered (vec (remove #(= :komma (:delimiter %)) goals))
+        and-parts (vec (split-at-semicolons filtered))]
+    (if (> (count and-parts) 1)
+      [{:goal :or
+        :arity (count and-parts)
+        :arglist (vec and-parts)}]
+      filtered)))
+
+(transform-to-map (prolog-parser "foo :- (a,b->c,d;e,f)." :start :Rule))
 (defmulti transform-to-map first)
 
-(transform-to-map (first (parse "foo :- a,b.")))
 (defmethod transform-to-map :Rule [tree]
   (let [[_ [_ functor] [_ & arglist] & body] (add-arglist tree)]
     {functor {:arity (count arglist)
@@ -164,6 +178,10 @@
       (transform-to-map x))
     ))
 
+(defmethod transform-to-map :InBrackets [[_ & body]]
+  {:goal :in-brackets
+   :body (vec (transform-body (map transform-to-map body)))})
+
 (defmethod transform-to-map :If [[_ & body]]
   (let [[cond remaining] (split-with (complement #{[:Then]}) body)
         [then else] (split-with (complement #{[:Else]}) remaining)
@@ -195,7 +213,6 @@
    :right (transform-to-map right)
    :module :built-in})
 
-(parse "foo :- X=3.")
 (defmethod transform-to-map :Cut [_]
   {:goal :Cut
    :arity 0
