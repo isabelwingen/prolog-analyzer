@@ -8,7 +8,7 @@
   (insta/parser
    "<S> = <OptionalWs> (Rule <Single-Line-Comment>?| Fact | DirectCall | <Single-Line-Comment> | <Multi-Line-Comment> | <OptionalWs>) ((<Ws> | <Single-Line-Comment> ) S)?
 
-    Rule = Name Arglist? StartOfBody Goals <Period>
+    Rule = Name Arglist? <StartOfBody> Goals <Period>
     Fact = Name Arglist? <Period>
     DirectCall = <StartOfBody> Goals <Period>
 
@@ -19,9 +19,8 @@
     <Assignment> = IsAssignment | UnifyAssignment
 
     UnifyAssignment = Term <OptionalWs> <'='> <OptionalWs> Term
-
     IsAssignment = Term <OptionalWs> <'is'> <OptionalWs> Expr
-    Expr = Var | <Number> | <Compound> | <Expr> <Op> <Expr> | <OpenBracket> <Expr> <CloseBracket>
+    <Expr> = Var | Number | Expr <Op> Expr | <OpenBracket> Expr <CloseBracket>
     Op = <OptionalWs> ('+' | '-' | '*' | '**' | '^') <OptionalWs>
 
     Arglist = <OpenBracket> Terms <CloseBracket>
@@ -64,33 +63,10 @@
    :output-format :hiccup))
 
 
-(defmulti tree-to-map (fn [tree] [(first tree) (= :Arglist (get-in tree [2 0]))]))
-
-;(defmethod tree-to-map [:Fact false] [[_ [_ functor]]]
-;  {[functor []] [[]]})
-(defmethod tree-to-map [:Fact true] [[_ [_ functor] [_ & arglist]]]
-  {[functor arglist] [[]]})
-(defmethod tree-to-map [:Rule false] [[_ [_ functor] [_] & body]]
-  {[functor []] [body]})
-(defmethod tree-to-map [:Rule true] [[_ [_ functor] [_ & arglist] [_] & body]]
-  {[functor arglist] [body]})
-(defmethod tree-to-map [:DirectCall false] [[_ & body]]
-  {[:direct []] [body]})
-(defmethod tree-to-map :default [tree]
-  {})
-
-
-
-
-(defmulti post-processing insta/failure?)
-(defmulti post-processing-tree first)
-
-(defmethod post-processing true [failure]
-  '())
-
-(defmethod post-processing false [result]
-  (map post-processing-tree result))
-
+(defn error-handling [result]
+  (if (insta/failure? result)
+    '()
+    result))
 
 (defn has-args? [tree]
   (= :Arglist (get-in tree [2 0])))
@@ -100,19 +76,69 @@
     (rest (get tree 2))
     []))
 
-(defmethod post-processing-tree :Fact [tree]
+(defn add-arglist [tree]
   (if (has-args? tree)
-    (update tree 2 (fn [[x & remaining]] (apply vector x (map post-processing-tree remaining))))
-    (assoc tree 2 [])))
+    tree
+    (let [[before after] (split-at 2 tree)]
+      (vec (concat before [[:Arglist]] after)))))
 
-(defmethod post-processing-tree :default [tree]
+(defmulti transform-to-map first)
+
+(defmethod transform-to-map :Rule [tree]
+  (let [[_ [_ functor] [_ & arglist] & body] (add-arglist tree)]
+    {functor {:arity (count arglist)
+              :arglist (vec (map transform-to-map arglist))
+              :body (vec (map transform-to-map body))}}))
+
+(defmethod transform-to-map :Fact [tree]
+  (let [[_ [_ functor] [_ & arglist]] (add-arglist tree)]
+    {functor {:arity (count arglist)
+              :arglist (vec (map transform-to-map arglist))
+              :body []}}))
+
+
+
+(defmethod transform-to-map :Atom [[_ functor]]
+  {:type :atom
+   :name functor
+   :dom :atom})
+
+(defmethod transform-to-map :Var [[_ functor]]
+  {:type :var
+   :name functor
+   :dom :var})
+
+(defmethod transform-to-map :Goal [tree]
+  (if (= :Name (get-in tree [1 0]))
+    (let [[_ [_ functor] [_ & arglist]] (add-arglist tree)]
+      {:goal functor
+       :arity (count arglist)
+       :arglist (vec (map transform-to-map arglist))
+       :type :normal})
+    (let [[_ [& x]] tree]
+      (transform-to-map x))
+    ))
+
+(defmethod transform-to-map :IsAssignment [tree]
+  (let [[_ left & right] tree
+        transformed-left (transform-to-map left)
+        transformed-right (map transform-to-map right)]
+    (if (= 1 (count right))
+      {:goal :unify-assignment
+       :arity 2
+       :arglist [transformed-left (first transformed-right)]}
+      {:goal :is-assignment
+       :arity (inc (count transformed-right))
+       :arglist (concat [transformed-left] transformed-right)})))
+
+(-> "foo :- X is A+B+2." parse post-processing)
+(defmethod transform-to-map :default [tree]
+  (when (not (nil? tree)) 
+    (log/warn (str "when transforming the parse-tree for " (first tree) " no matching method was found!")))
   tree)
 
-(defn transform-to-map [result]
-  (reduce
-   (fn [m tree]
-     (merge-with into m (tree-to-map tree)))
-   {} result))
+(defn post-processing [list-of-preds]
+  (map transform-to-map list-of-preds))
 
 (defn parse [string]
   (insta/parse prolog-parser (str string "\n")))
@@ -121,6 +147,9 @@
   (-> file
       slurp
       parse
-      post-processing
-      transform-to-map))
+      error-handling
+      post-processing))
 
+(process-source "resources/test.pl")
+(-> "foo :- X is A+2." parse post-processing)
+(first nil)

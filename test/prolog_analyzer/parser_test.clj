@@ -51,12 +51,10 @@
   (testing "Simple Rules"
     (are [x y] (= x (sut/prolog-parser y :start :Rule))
       [:Rule [:Name "foo"] [:Arglist [:Atom "a"]]
-       [:StartOfBody]
        [:Goal [:Name "bar"] [:Arglist [:Atom "b"] [:Var "X"]]]]
       "foo(a) :- bar(b,X)."
       ;;
       [:Rule [:Name "foo"] [:Arglist [:Var "A"] [:Var "B"]]
-       [:StartOfBody]
        [:Goal [:Name "a"]]
        [:Semicolon]
        [:Goal [:Name "b"]]
