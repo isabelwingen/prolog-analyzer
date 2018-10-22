@@ -27,10 +27,10 @@
     <Terms> = Term (<Komma> Term)*
     <Term> = Var | Atom | Number | Compound | List
     Compound = Functor Arglist | Term SpecialChar Term
-    List = EmptyList | ExplizitList  | HeadTailList
+    List = EmptyList | ExplicitList  | HeadTailList
     EmptyList = <'['> <']'>
     HeadTailList = <'['> Terms <'|'> (List | Var) <']'>
-    ExplizitList = <'['> <OptionalWs> Terms <OptionalWs> <']'>
+    ExplicitList = <'['> <OptionalWs> Terms <OptionalWs> <']'>
     Cut = <'!'>
     True = <'true'>
     False = <'false'>
@@ -84,13 +84,19 @@
     (let [[before after] (split-at 2 tree)]
       (vec (concat before [[:Arglist]] after)))))
 
+
+(defn transform-body [body]
+  (pprint body)
+  (remove #(contains? % :delimiter) body))
+
 (defmulti transform-to-map first)
 
+(transform-to-map (first (parse "foo :- a,b.")))
 (defmethod transform-to-map :Rule [tree]
   (let [[_ [_ functor] [_ & arglist] & body] (add-arglist tree)]
     {functor {:arity (count arglist)
               :arglist (vec (map transform-to-map arglist))
-              :body (vec (map transform-to-map body))}}))
+              :body (vec (transform-body (map transform-to-map body)))}}))
 
 (defmethod transform-to-map :Fact [tree]
   (let [[_ [_ functor] [_ & arglist]] (add-arglist tree)]
@@ -111,6 +117,41 @@
      :type :var}
     {:term functor
      :type :var}))
+(defmethod transform-to-map :Compound [tree]
+  (if (= :Functor (get-in tree [1 0]))
+    (let [[_ [_ functor] [_ & arglist]] tree]
+      {:term functor
+       :type :compound
+       :arity (count arglist)
+       :arglist (vec (map transform-to-map arglist))
+       :infix false})
+    (let [[_ left [_ special-char] right] tree]
+      {:term special-char
+       :type :compound
+       :arity 2
+       :arglist [(transform-to-map left) (transform-to-map right)]
+       :infix true})))
+
+(defmethod transform-to-map :List [[_ l]]
+  (transform-to-map l))
+
+
+(defmethod transform-to-map :HeadTailList [[_ & tree]]
+  (let [tail (transform-to-map (last tree))
+        head (map transform-to-map (reverse (rest (reverse tree))))]
+    {:term :list
+     :type :list
+     :head (vec head)
+     :tail tail}))
+
+(defmethod transform-to-map :ExplicitList [[_ & tree]]
+  {:term :list
+   :type :list
+   :content (vec (map transform-to-map tree))})
+
+(defmethod transform-to-map :EmptyList [_]
+  {:term :list
+   :type :list})
 
 (defmethod transform-to-map :Goal [tree]
   (if (= :Name (get-in tree [1 0]))
@@ -123,6 +164,19 @@
       (transform-to-map x))
     ))
 
+(defmethod transform-to-map :If [[_ & body]]
+  (let [[cond remaining] (split-with (complement #{[:Then]}) body)
+        [then else] (split-with (complement #{[:Else]}) remaining)
+        cond (vec (transform-body (map transform-to-map cond)))
+        then (vec (transform-body (map transform-to-map (rest then))))
+        else (vec (transform-body (map transform-to-map (rest else))))]
+    {:goal :if
+     :cond cond
+     :then then
+     :else else}
+    ))
+
+(filter (complement #{[:Komma]}) [1 [:Komma] 2 3])
 (defmethod transform-to-map :Komma [_]
   {:delimiter :komma})
 
