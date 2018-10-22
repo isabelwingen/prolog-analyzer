@@ -36,7 +36,7 @@
     False = <'false'>
     Fail = <'fail'>
     Repeat = <'repeat'>
-    Not = <'not('> Goal <')'>
+    Not = <'not('> <OptionalWs> Goal <OptionalWs> <')'> | <'\\\\+'> <OptionalWs> Goal
     If = <OpenBracket> AndListOfGoals Then AndListOfGoals Else AndListOfGoals <CloseBracket>
     <AndListOfGoals> = Goal | AndListOfGoals Komma AndListOfGoals | InBrackets
     SpecialChar = '-' | '/'
@@ -61,7 +61,6 @@
     Multi-Line-Comment = '/*' #'.*' '*/'
 "
    :output-format :hiccup))
-
 
 (defn- error-handling [result]
   (if (insta/failure? result)
@@ -103,7 +102,6 @@
         :arglist (vec and-parts)}]
       filtered)))
 
-(transform-to-map (prolog-parser "foo :- (a,b->c,d;e,f)." :start :Rule))
 (defmulti transform-to-map first)
 
 (defmethod transform-to-map :Rule [tree]
@@ -118,6 +116,8 @@
               :arglist (vec (map transform-to-map arglist))
               :body []}}))
 
+(defmethod transform-to-map :DirectCall [[_ & body]]
+  {:direct-call {:body (vec (transform-body (map transform-to-map body)))}})
 
 (defmethod transform-to-map :Number [[_ value]]
   {:term value
@@ -181,6 +181,10 @@
 (defmethod transform-to-map :InBrackets [[_ & body]]
   {:goal :in-brackets
    :body (vec (transform-body (map transform-to-map body)))})
+
+(defmethod transform-to-map :Not [[_ goal]]
+  {:goal :not
+   :body [(transform-to-map goal)]})
 
 (defmethod transform-to-map :If [[_ & body]]
   (let [[cond remaining] (split-with (complement #{[:Then]}) body)
