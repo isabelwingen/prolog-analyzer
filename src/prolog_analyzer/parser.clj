@@ -62,13 +62,6 @@
 "
    :output-format :hiccup))
 
-(defn- error-handling [result]
-  (if (insta/failure? result)
-    (do
-      (log/error result)
-      '())
-    result))
-
 (defn- has-args? [tree]
   (= :Arglist (get-in tree [2 0])))
 
@@ -228,12 +221,19 @@
     (log/warn (str "when tranforming the parse-tree for " (first tree) " no matching method was found!")))
   tree)
 
+(defn- error-handling [error-object]
+  (log/error error-object)
+  error-object
+  )
+
 (defn- post-processing [list-of-preds]
-  (->> list-of-preds
-       (map transform-to-map)
-       (map first)
-       (map (fn [[k v]] {k [v]}))
-       (apply (partial merge-with into))))
+  (if (insta/failure? list-of-preds)
+    (error-handling list-of-preds)
+    (->> list-of-preds
+         (map transform-to-map)
+         (map first)
+         (map (fn [[k v]] {k [v]}))
+         (apply (partial merge-with into)))))
 
 ;;(apply (partial merge-with into) (map (comp (fn [[k v]] {k [v]}) first) (map transform-to-map list-of-preds)))
 
@@ -243,7 +243,6 @@
 (defn process-string [string]
   (-> string
       parse
-      error-handling
       post-processing))
 
 
@@ -251,11 +250,3 @@
   (-> file
       slurp
       process-string))
-
-
-(defn f [[x y]]
-  (println [x y]))
-
-(process-string "foo(a,b). foo(c,d). bar(X).")
-((comp first rest) [1 2 3 4])
-
