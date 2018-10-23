@@ -50,8 +50,8 @@
     Komma = <OptionalWs> <','> <OptionalWs>
     Semicolon = <OptionalWs> <';'> <OptionalWs>
     Period = <OptionalWs> <'.'>
-    OpenBracket = <'('>
-    CloseBracket = <')'>
+    OpenBracket = <OptionalWs> <'('> <OptionalWs>
+    CloseBracket = <OptionalWs> <')'> <OptionalWs>
     StartOfBody = <OptionalWs> <':-'> <OptionalWs>
     Then = <OptionalWs> <'->'> <OptionalWs>
     Else = <Semicolon>
@@ -225,11 +225,17 @@
 
 (defmethod transform-to-map :default [tree]
   (when (not (nil? tree)) 
-    (log/warn (str "when transforming the parse-tree for " (first tree) " no matching method was found!")))
+    (log/warn (str "when tranforming the parse-tree for " (first tree) " no matching method was found!")))
   tree)
 
 (defn- post-processing [list-of-preds]
-  (map transform-to-map list-of-preds))
+  (->> list-of-preds
+       (map transform-to-map)
+       (map first)
+       (map (fn [[k v]] {k [v]}))
+       (apply (partial merge-with into))))
+
+;;(apply (partial merge-with into) (map (comp (fn [[k v]] {k [v]}) first) (map transform-to-map list-of-preds)))
 
 (defn parse [string]
   (insta/parse prolog-parser (str string "\n")))
@@ -246,4 +252,10 @@
       slurp
       process-string))
 
+
+(defn f [[x y]]
+  (println [x y]))
+
+(process-string "foo(a,b). foo(c,d). bar(X).")
+((comp first rest) [1 2 3 4])
 
