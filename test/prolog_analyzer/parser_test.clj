@@ -131,6 +131,37 @@
                        :arity 0
                        :arglist []
                        :module :user}]}]}
+      "foo(a,X) :- a(X). foo(b,X) :- b(X). a(X) :- X = [T], b(T). b(T) :- T = []."
+      {"foo" [{:arity 2
+               :arglist [{:term "a" :type :atom}
+                         {:term "X" :type :var}]
+               :body [{:goal "a"
+                       :arity 1
+                       :arglist [{:term "X" :type :var}]
+                       :module :user}]}
+              {:arity 2
+               :arglist [{:term "b" :type :atom}
+                         {:term "X" :type :var}]
+               :body [{:goal "b"
+                       :arity 1
+                       :arglist [{:term "X" :type :var}]
+                       :module :user}]}]
+       "a" [{:arity 1
+             :arglist [{:term "X" :type :var}]
+             :body [{:goal :unify-assignment
+                     :left {:term "X" :type :var}
+                     :right {:term :list :type :list :content [{:term "T" :type :var}]}
+                     :module :built-in}
+                    {:goal "b"
+                     :arity 1
+                     :arglist [{:term "T" :type :var}]
+                     :module :user}]}]
+       "b" [{:arity 1
+             :arglist [{:term "T" :type :var}]
+             :body [{:goal :unify-assignment
+                     :left {:term "T" :type :var}
+                     :right {:term :list :type :list}
+                     :module :built-in}]}]}
       )))
 
 
