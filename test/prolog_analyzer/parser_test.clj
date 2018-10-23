@@ -120,17 +120,17 @@
   (testing "testing processing of rule"
     (are [y x] (= x (sut/process-string y))
       "foo(a,X) :- c(X),d."
-      '({"foo" {:arity 2
-                :arglist [{:term "a", :type :atom}
-                          {:term "X", :type :var}]
-                :body [{:goal "c"
-                        :arity 1
-                        :arglist [{:term "X", :type :var}]
-                        :module :user}
-                       {:goal "d"
-                        :arity 0
-                        :arglist []
-                        :module :user}]}})
+      {"foo" [{:arity 2
+               :arglist [{:term "a", :type :atom}
+                         {:term "X", :type :var}]
+               :body [{:goal "c"
+                       :arity 1
+                       :arglist [{:term "X", :type :var}]
+                       :module :user}
+                      {:goal "d"
+                       :arity 0
+                       :arglist []
+                       :module :user}]}]}
       )))
 
 
