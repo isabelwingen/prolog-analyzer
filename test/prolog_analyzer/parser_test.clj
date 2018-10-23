@@ -1,5 +1,7 @@
 (ns prolog-analyzer.parser-test
   (:require [prolog-analyzer.parser :as sut]
+            [clojure.pprint :refer [pprint]]
+            [instaparse.core :as insta]
             [clojure.test :refer :all]))
 
 
@@ -321,3 +323,30 @@
     (are [x y] (= y (sut/transform-to-map (sut/prolog-parser x :start :DirectCall)))
       ":- foo(a,b), bar(c)." {:direct-call {:body [{:goal "foo" :arity 2 :arglist [{:term "a" :type :atom} {:term "b" :type :atom}] :module :user}
                                                   {:goal "bar" :arity 1 :arglist [{:term "c" :type :atom}] :module :user}]}})))
+
+
+(deftest error-handling
+  (testing "handling of errors"
+    (is (contains? 
+         (sut/process-string "I am wrong!")
+         :index))))
+
+;; Todo: Improve handling
+;; Provide prolog-source-files.txt which contains URLs/Paths of Prolog source files
+(deftest parse-real-code
+  (let [l (clojure.string/split-lines (try
+                                        (slurp "resources/prolog-source-files.txt")
+                                        (catch Exception e "")))]
+    (doseq [line l]
+      (let [result (test-source line)]
+        (is (true? result) (str "error in file " line " in line " result))))))
+
+
+(defn- test-source [source]
+  (let [result (sut/process-source source)
+        cat (slurp source)
+        lines (clojure.string/split-lines cat)]
+    (if (insta/failure? result)
+      (pr-str (get lines (dec (:line result))))
+      true)))
+
