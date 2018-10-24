@@ -343,12 +343,11 @@
 
 ;; Todo: Improve handling
 ;; Provide prolog-source-files.txt which contains URLs/Paths of Prolog source files
-(deftest parse-real-code
-  (let [l (clojure.string/split-lines (try
-                                        (slurp "resources/prolog-source-files.txt")
-                                        (catch Exception e "")))]
-    (doseq [line l]
-      (let [result (test-source line)]
-        (is (true? result) (str "error in file " line " in line " result))))))
-
+(comment (deftest parse-real-code
+           (let [l (clojure.string/split-lines (try
+                                                 (slurp "resources/prolog-source-files.txt")
+                                                 (catch Exception e "")))]
+             (doseq [line l]
+               (let [result (test-source line)]
+                 (is (true? result) (str "error in file " line " in line " result)))))))
 
