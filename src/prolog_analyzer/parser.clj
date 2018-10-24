@@ -5,15 +5,17 @@
 
 
 (def prolog-parser
-  (insta/parser
-   "<S> = <OptionalWs> (Rule <Single-Line-Comment>?| Fact | DirectCall | <Single-Line-Comment> | <Multi-Line-Comment> | <OptionalWs>) ((<Ws> | <Single-Line-Comment> ) S)?
+   (insta/parser
+    "<S> = <OptionalWs> (Rule <Comment>? | Fact | DirectCall | <Comment> | <OptionalWs>) ((<Ws> | <Single-Line-Comment> ) S)?
 
     Rule = Name Arglist? <StartOfBody> Goals <Period>
     Fact = Name Arglist? <Period>
     DirectCall = <StartOfBody> Goals <Period>
+    <Comment> = <Single-Line-Comment> <OptionalWs> | <Multi-Line-Comment> <OptionalWs>
 
-    <Goals> = Goal | Goals (Komma | Semicolon) Goals | InBrackets
-    Goal = If | Name Arglist? | Cut | True | False | Fail | Not | Assignment
+    <Goals> = Goal <Comment>* | Goals (Komma | Semicolon) <Comment>* Goals | InBrackets
+    Goal = If | Module? Name Arglist? | Cut | True | False | Fail | Not | Assignment
+    Module = Name <':'>
     InBrackets = <OpenBracket> Goals <CloseBracket>
 
     <Assignment> = IsAssignment | UnifyAssignment
@@ -24,12 +26,12 @@
     Op = <OptionalWs> ('+' | '-' | '*' | '**' | '^') <OptionalWs>
 
     Arglist = <OpenBracket> Terms <CloseBracket>
-    <Terms> = Term (<Komma> Term)*
-    <Term> = Var | Atom | Number | Compound | List
+    <Terms> = Term <Comment>* (<Komma> <Comment>* Term)* <Comment>*
+    <Term> = Var | Atom | Number | Compound | List | String
     Compound = Functor Arglist | Term SpecialChar Term
     List = EmptyList | ExplicitList  | HeadTailList
     EmptyList = <'['> <']'>
-    HeadTailList = <'['> Terms <'|'> (List | Var) <']'>
+    HeadTailList = <'['> <OptionalWs> Terms <OptionalWs> <'|'> <OptionalWs> (List | Var) <OptionalWs> <']'>
     ExplicitList = <'['> <OptionalWs> Terms <OptionalWs> <']'>
     Cut = <'!'>
     True = <'true'>
@@ -39,9 +41,10 @@
     Not = <'not('> <OptionalWs> Goal <OptionalWs> <')'> | <'\\\\+'> <OptionalWs> Goal
     If = <OpenBracket> AndListOfGoals Then AndListOfGoals Else AndListOfGoals <CloseBracket>
     <AndListOfGoals> = Goal | AndListOfGoals Komma AndListOfGoals | InBrackets
-    SpecialChar = '-' | '/'
+    SpecialChar = #'[^A-Za-z0-9_,;\\(\\)<>=]'
 
     Var = #'[A-Z_][a-zA-Z0-9_]*'
+    String = <'\\''> #'[^\\']*' <'\\''>
     Functor = #'[a-z][a-zA-Z0-9_]*'
     Name = #'[a-z][a-zA-Z0-9_]*'
     Atom = #'[a-z][a-zA-Z0-9_]*'
@@ -49,7 +52,7 @@
 
     Komma = <OptionalWs> <','> <OptionalWs>
     Semicolon = <OptionalWs> <';'> <OptionalWs>
-    Period = <OptionalWs> <'.'>
+    Period = <OptionalWs> <'.'> <Comment>*
     OpenBracket = <OptionalWs> <'('> <OptionalWs>
     CloseBracket = <OptionalWs> <')'> <OptionalWs>
     StartOfBody = <OptionalWs> <':-'> <OptionalWs>
@@ -57,10 +60,14 @@
     Else = <Semicolon>
     <Ws> = #'\\s+'
     <OptionalWs> = #'\\s*'
-    Single-Line-Comment = #'%.*\n'
-    Multi-Line-Comment = '/*' #'.*' '*/'
+    Single-Line-Comment = <OptionalWs> #'%.*\n'
+    Multi-Line-Comment = <OptionalWs> #'/\\*+[^*]*\\*+(?:[^/*][^*]*\\*+)*/'
 "
-   :output-format :hiccup))
+  :output-format :hiccup))
+(prolog-parser
+"foo([a,
+      b,
+      c]).")
 
 (defn- has-args? [tree]
   (= :Arglist (get-in tree [2 0])))
@@ -70,10 +77,10 @@
     (rest (get tree 2))
     []))
 
-(defn- add-arglist [tree]
+(defn- add-arglist [tree pos]
   (if (has-args? tree)
     tree
-    (let [[before after] (split-at 2 tree)]
+    (let [[before after] (split-at pos tree)]
       (vec (concat before [[:Arglist]] after)))))
 
 (defn split-at-first-delimiter [goals]
@@ -98,13 +105,13 @@
 (defmulti transform-to-map first)
 
 (defmethod transform-to-map :Rule [tree]
-  (let [[_ [_ functor] [_ & arglist] & body] (add-arglist tree)]
+  (let [[_ [_ functor] [_ & arglist] & body] (add-arglist tree 2)]
     {functor {:arity (count arglist)
               :arglist (vec (map transform-to-map arglist))
               :body (vec (transform-body (map transform-to-map body)))}}))
 
 (defmethod transform-to-map :Fact [tree]
-  (let [[_ [_ functor] [_ & arglist]] (add-arglist tree)]
+  (let [[_ [_ functor] [_ & arglist]] (add-arglist tree 2)]
     {functor {:arity (count arglist)
               :arglist (vec (map transform-to-map arglist))
               :body []}}))
@@ -118,6 +125,9 @@
 (defmethod transform-to-map :Atom [[_ functor]]
   {:term functor
    :type :atom})
+(defmethod transform-to-map :String [[_ functor]]
+    {:term functor
+     :type :string})
 (defmethod transform-to-map :Var [[_ functor]]
   (if (= "_" functor)
     {:term :anonymous
@@ -161,15 +171,19 @@
    :type :list})
 
 (defmethod transform-to-map :Goal [tree]
-  (if (= :Name (get-in tree [1 0]))
-    (let [[_ [_ functor] [_ & arglist]] (add-arglist tree)]
-      {:goal functor
-       :arity (count arglist)
-       :arglist (vec (map transform-to-map arglist))
-       :module :user})
+  (case (get-in tree [1 0])
+    :Name (let [[_ [_ functor] [_ & arglist]] (add-arglist tree 2)]
+            {:goal functor
+             :arity (count arglist)
+             :arglist (vec (map transform-to-map arglist))
+             :module :user})
+    :Module (let [[_ [_ [_ module]] [_ functor] [_ & arglist]] (add-arglist tree 3)]
+              {:goal functor
+               :arity (count arglist)
+               :arglist (vec (map transform-to-map arglist))
+               :module module})
     (let [[_ [& x]] tree]
-      (transform-to-map x))
-    ))
+      (transform-to-map x))))
 
 (defmethod transform-to-map :InBrackets [[_ & body]]
   {:goal :in-brackets
@@ -250,3 +264,6 @@
   (-> file
       slurp
       process-string))
+
+
+(prolog-parser "+" :start :SpecialChar)
