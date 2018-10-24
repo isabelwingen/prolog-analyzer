@@ -331,6 +331,16 @@
          (sut/process-string "I am wrong!")
          :index))))
 
+
+(defn- test-source [source]
+  (let [result (sut/process-source source)
+        cat (slurp source)
+        lines (clojure.string/split-lines cat)]
+    (if (insta/failure? result)
+      (pr-str (get lines (dec (:line result))))
+      true)))
+
+
 ;; Todo: Improve handling
 ;; Provide prolog-source-files.txt which contains URLs/Paths of Prolog source files
 (deftest parse-real-code
@@ -341,12 +351,4 @@
       (let [result (test-source line)]
         (is (true? result) (str "error in file " line " in line " result))))))
 
-
-(defn- test-source [source]
-  (let [result (sut/process-source source)
-        cat (slurp source)
-        lines (clojure.string/split-lines cat)]
-    (if (insta/failure? result)
-      (pr-str (get lines (dec (:line result))))
-      true)))
 
