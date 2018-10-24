@@ -29,7 +29,12 @@
       '([:Fact [:Name "c"]], [:Fact [:Name "d"]], [:Fact [:Name "e"]])
       "c.%This is a comment at the end of line\n%Another comment\nd.%In-Line Comment\ne.\n\n"
       '([:Fact [:Name "f"]])
-      "f.\n\n%End of File-Comment")))
+      "f.\n\n%End of File-Comment"
+      '([:Fact [:Name "foo"] [:Arglist [:List [:ExplicitList [:Atom "a"] [:Atom "b"] [:Atom "c"]]]]])
+"foo([a,
+      b,
+      %hallo
+      c]). %hallo")))
 
 (deftest parse-error
   (testing "Parsing things, that are wrong"
@@ -337,7 +342,7 @@
   (let [l (clojure.string/split-lines (try
                                         (slurp "resources/prolog-source-files.txt")
                                         (catch Exception e "")))]
-    (doseq [line l]
+    (doseq [line (take 10 l)]
       (let [result (test-source line)]
         (is (true? result) (str "error in file " line " in line " result))))))
 
@@ -349,4 +354,3 @@
     (if (insta/failure? result)
       (pr-str (get lines (dec (:line result))))
       true)))
-
