@@ -20,18 +20,41 @@
       "\n%Second Line Comment\n"
       "         "
       "\t\t\t")))
+(deftest parse-wrong
+  (testing "result parsing wrong things"
+    (are [x] (contains? (sut/parse x) :reason)
+      "a :-"
+      "foo(a,b)"
+      "a.b"
+      "a :- b"
+      "a.b.c"
+      "foo(a,)."
+      "foo(a,b"
+      "foo a b.")))
 
 (deftest parse-with-comment
   (testing "Parsing text with comments"
-    (are [x y] (= x (sut/parse y))
-      '([:Fact [:Name "a"]], [:Fact [:Name "b"]])
+    (are [x y] (= y (sut/parse x))
       "a.\n%This is a comment\nb."
-      '([:Fact [:Name "c"]], [:Fact [:Name "d"]], [:Fact [:Name "e"]])
+      '([:Fact [:Name "a"]], [:Fact [:Name "b"]])
       "c.%This is a comment at the end of line\n%Another comment\nd.%In-Line Comment\ne.\n\n"
+      '([:Fact [:Name "c"]], [:Fact [:Name "d"]], [:Fact [:Name "e"]])
+      "f.\n\n%End of File-Comment"
       '([:Fact [:Name "f"]])
-      "f.\n\n%End of File-Comment")))
+      ":- module(a, [arg1,
+                     % comment
+                     arg2])."
+      '([:DirectCall
+         [:Goal
+          [:Name "module"]
+          [:Arglist [:Atom "a"] [:List [:ExplicitList [:Atom "arg1"] [:Atom "arg2"]]]]]])
+      "foo(a,
+          % comment
+          b)."
+      '([:Fact [:Name "foo"] [:Arglist [:Atom "a"] [:Atom "b"]]])
+      )))
 
-;; Test for parsing the component
+(sut/parse ":- module(a, [a,b]).")
 (deftest parse-facts
   (testing "Simple Facts"
     (are [x y] (= x (sut/prolog-parser y :start :Fact))
@@ -105,14 +128,3 @@
        [:Goal [:Name "e"]]]
       )))
 
-(deftest parse-wrong
-  (testing "result parsing wrong things"
-    (are [x] (= '() (sut/parse x))
-      "a :-"
-      "foo(a,b)"
-      "a.b"
-      "a :- b"
-      "a.b.c"
-      "foo(a,)."
-      "foo(a,b"
-      "foo a b.")))
