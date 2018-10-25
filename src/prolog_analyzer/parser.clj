@@ -6,7 +6,8 @@
 
 (def prolog-parser
   (insta/parser
-   "<S> = <OptionalWs> (Rule <Single-Line-Comment>?| Fact | DirectCall | <Single-Line-Comment> | <Multi-Line-Comment> | <OptionalWs>) ((<Ws> | <Single-Line-Comment> ) S)?
+   "<S> = <OptionalWs> (Rule | Fact | DirectCall | <Comment> | <OptionalWs>) ((<Ws> | <Comment>) S)?
+    <Comment> = <Single-Line-Comment> | <Multi-Line-Comment>
 
     Rule = Name Arglist? <StartOfBody> Goals <Period>
     Fact = Name Arglist? <Period>
@@ -56,7 +57,7 @@
     Then = <OptionalWs> <'->'> <OptionalWs>
     Else = <Semicolon>
     <Ws> = #'\\s+'
-    <OptionalWs> = #'\\s*'
+    <OptionalWs> = (#'\\s*' <Comment>*)*
     Single-Line-Comment = #'%.*\n'
     Multi-Line-Comment = '/*' #'.*' '*/'
 "
@@ -68,7 +69,10 @@
     (if (insta/failure? result)
       (do
         (log/error result)
-        '())
+        result)
       result)
     ))
 
+(parse ":- module(a, [arg1,
+                      % comment
+                      arg2]).")
