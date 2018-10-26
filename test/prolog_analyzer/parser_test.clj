@@ -52,6 +52,8 @@
           % comment
           b)."
       '([:Fact [:Name "foo"] [:Arglist [:Atom "a"] [:Atom "b"]]])
+      "/* the c interface */"
+      '()
       )))
 
 (deftest parse-facts
@@ -67,12 +69,11 @@
       [:Rule [:Name "foo"] [:Arglist [:Atom "a"]]
        [:Goal [:Name "bar"] [:Arglist [:Atom "b"] [:Var "X"]]]]
       "foo(a) :- bar(b,X)."
-      ;;
       [:Rule [:Name "foo"] [:Arglist [:Var "A"] [:Var "B"]]
        [:Goal [:Name "a"]]
        [:Semicolon]
        [:Goal [:Name "b"]]
-       [:Komma]
+       [:Komma] 
        [:Goal [:Name "e"]]]
       "foo(A,B) :- a;b,e."
       )))
@@ -126,3 +127,76 @@
        [:Else]
        [:Goal [:Name "e"]]]
       )))
+
+(deftest parse-special-direct-call
+  (are [y x] (= x (sut/prolog-parser y :start :DirectCall))
+    ":- dynamic foo/2, bar/3."
+    [:DirectCall
+     [:Dynamic
+      [:Declaration [:Name "foo"] [:Arity "2"]]
+      [:Declaration [:Name "bar"] [:Arity "3"]]]]
+    ":- meta_predicate cltl2ba(+,+), bar."
+    [:DirectCall
+     [:Metapredicate
+      [:Metagoal [:Name "cltl2ba"] [:Arglist [:Atom "+"] [:Atom "+"]]]
+      [:Metagoal [:Name "bar"]]
+      ]]))
+
+(deftest parse-abnormalities
+  (are [y x] (= x (sut/parse y))
+    "foo(+term)."
+    '([:Fact [:Name "foo"] [:Arglist [:Compound [:SpecialChar_Compound "+"] [:Atom "term"]]]])
+    "cltl2ba(+,+)."
+    '([:Fact [:Name "cltl2ba"] [:Arglist [:Atom "+"] [:Atom "+"]]])
+    "foo(a,(b,c))."
+    '([:Fact [:Name "foo"] [:Arglist [:Atom "a"] [:Inner [:Atom "b"] [:Atom "c"]]]])
+    "foo :- a -> b; c."
+    '([:Rule [:Name "foo"]
+       [:Goal [:Name "a"]]
+       [:IfArrow]
+       [:Goal [:Name "b"]]
+       [:Semicolon]
+       [:Goal [:Name "c"]]])
+    "foo :- (2 < 3 -> a;b)."
+    '([:Rule
+       [:Name "foo"]
+       [:Goal
+        [:If 
+         [:Goal [:BoolExpr [:Number "2"] [:Number "3"]]]
+         [:Then]
+         [:Goal [:Name "a"]]
+         [:Else]
+         [:Goal [:Name "b"]]]]])))
+
+(sut/prolog-parser "(2<3 -> b;c)" :start :If)
+
+(defn- test-source [source]
+  (let [cat (slurp source)
+        result (sut/parse cat)
+        lines (clojure.string/split-lines cat)]
+    (if (insta/failure? result)
+      (pr-str (get lines (dec (:line result))))
+      true)))
+
+
+;; Todo: Improve handling
+;; Provide prolog-source-files.txt which contains URLs/Paths of Prolog source files
+(defn- parse-real-code []
+  (let [l (clojure.string/split-lines (try
+                                        (slurp "resources/prolog-source-files.txt")
+                                        (catch Exception e "")))]
+    (doseq [line (take 5 l)]
+      (let [result (test-source line)]
+        (is (true? result) (str "error in file " line " in line " result))))))
+
+(parse-real-code)
+
+(sut/parse "foo :- goal(a,b).")
+(def x
+  "timer_det_call(PP,Call) :- %print(call(PP,Call)),nl,
+                              start_timer(PP,entry),
+                              if(call(Call),stop_timer(PP,success),
+                                            (print(det_call_failed(PP,Call)),nl,
+                                            stop_timer(PP,fail))).")
+
+(sut/parse x)
