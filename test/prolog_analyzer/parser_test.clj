@@ -32,6 +32,18 @@
       "foo(a,b"
       "foo a b.")))
 
+(deftest parsing-terms
+  (testing "parsing of terms"
+     (are [x y] (= y (sut/prolog-parser x :start :Term))
+      "a" '([:Atom "a"])
+      "12" '([:Integer "12"])
+      "12.56" '([:Float "12.56"])
+      "-13" '([:Integer "-13"])
+      "XYZ" '([:Var "XYZ"])
+      "foo(a,b)" '([:Compound [:Functor "foo"] [:Arglist [:Atom "a"] [:Atom "b"]]])
+      "\"Hallo\"" '([:String "Hallo"])
+      "[H|T]" '([:List [:HeadTailList [:Var "H"] [:Var "T"]]]))))
+
 (deftest parse-with-comment
   (testing "Parsing text with comments"
     (are [x y] (= y (sut/parse x))
@@ -161,14 +173,15 @@
     '([:Rule
        [:Name "foo"]
        [:Goal
-        [:If 
-         [:Goal [:BoolExpr [:Number "2"] [:Number "3"]]]
+        [:If
+         [:Goal [:BoolExpr [:Integer "2"] [:Integer " 3"]]]
          [:Then]
          [:Goal [:Name "a"]]
          [:Else]
-         [:Goal [:Name "b"]]]]])))
+         [:Goal [:Name "b"]]]]])
+    ))
 
-(sut/prolog-parser "(2<3 -> b;c)" :start :If)
+(sut/parse "foo :- (2<3 -> a;b).")
 
 (defn- test-source [source]
   (let [cat (slurp source)
@@ -189,14 +202,12 @@
       (let [result (test-source line)]
         (is (true? result) (str "error in file " line " in line " result))))))
 
-(parse-real-code)
 
-(sut/parse "foo :- goal(a,b).")
+
+(sut/parse "foo(':-'(a,b)).")
+
 (def x
-  "timer_det_call(PP,Call) :- %print(call(PP,Call)),nl,
-                              start_timer(PP,entry),
-                              if(call(Call),stop_timer(PP,success),
-                                            (print(det_call_failed(PP,Call)),nl,
-                                            stop_timer(PP,fail))).")
+  (insta/parser
+   "<S> = ('a' | 'b') S? "))
 
-(sut/parse x)
+(x "abab")

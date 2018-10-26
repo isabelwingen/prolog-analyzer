@@ -32,13 +32,14 @@
     <Expr> = Var | Number | Expr <Op> Expr | <OpenBracket> Expr <CloseBracket>
     BoolExpr =  Expr <BoolOp> Expr | <OpenBracket> BoolExpr <CloseBracket>
     BoolOp = <OptionalWs> ('<' | '>' | '=') <OptionalWs>
-    Op = <OptionalWs> ('+' | '-' | '*' | '**' | '^') <OptionalWs>
+    Op = <OptionalWs> ('+' | '-' | '*' | '**' | '^' | '/') <OptionalWs>
 
     Arglist = <OpenBracket> Terms <CloseBracket>
     <Terms> = (Term | Inner) (<Komma> (Term | Inner))*
     Inner = <OpenBracket> Terms <CloseBracket>
-    <Term> = Var | Atom | Number | Compound | List | String | OpenBracket Term CloseBracket
-    Compound = Functor Arglist | Term SpecialChar_Compound Term | SpecialChar_Compound Term
+    <Term> = Number | NotNumber
+    <NotNumber> = Var | Atom | Compound | List | String
+    Compound = Functor Arglist | Term SpecialChar_Compound Term | SpecialChar_Compound NotNumber | '\\'' SpecialChar_Compound '\\'' Arglist?
     List = EmptyList | ExplicitList  | HeadTailList
     EmptyList = <'['> <']'>
     HeadTailList = <'['> <OptionalWs> Terms <OptionalWs> <'|'> <OptionalWs> (List | Var) <OptionalWs> <']'>
@@ -53,13 +54,15 @@
     <AndListOfGoals> = Goal | AndListOfGoals Komma AndListOfGoals | InBrackets
 
     Var = #'[A-Z_][a-zA-Z0-9_]*'
-    String = <'\\''> #'[^\\']*' <'\\''>
+    String = <'\\''> #'[^\\']*' <'\\''> | <'\\\"'> #'[^\\\"]*' <'\\\"'>
     Functor = #'[a-z][a-zA-Z0-9_]*'
     Name = #'[a-z][a-zA-Z0-9_]*'
     Atom = #'[a-z][a-zA-Z0-9_]*' | SpecialChar_Atom+
-    Number = #'[0-9]+'
+    <Number> = Integer | Float
+    Integer = #'[\\-\\+]?\\s*[0-9]+'
+    Float = #'[\\-\\+]?\\s*[0-9]+\\.[0-9]+'
     <SpecialChar_Atom> = '$' | '&' | '*' | '+' | '-' | '.' | '/' | ':' | '<' | '>' | '=' | '?' | '@' | '^' | '~'
-    SpecialChar_Compound = '+' | '-' | '/' | ':'
+    SpecialChar_Compound = #'[\\+\\-\\/:]+'
 
     Komma = <OptionalWs> <','> <OptionalWs>
     Semicolon = <OptionalWs> <';'> <OptionalWs>
