@@ -7,14 +7,15 @@
 (def prolog-parser
 
   (insta/parser
-   "<S> = <OptionalWs> (Rule | Fact | DirectCall | <Comment> | <OptionalWs>) ((<Ws> | <Comment>) S)?
+   "<S> = <OptionalWs> (RuleWithPoint | Fact | DirectCall | <Comment> | <OptionalWs>) ((<Ws> | <Comment>) S)?
     <Comment> = <Single-Line-Comment> | <Multi-Line-Comment>
 
-    Rule = Name Arglist? <StartOfBody> Goals <Period>
-    Fact = Name Arglist? <Period>
-    DirectCall =  <StartOfBody> (Dynamic | Metapredicate | Goals) <Period>
-    Dynamic = <'dynamic '> <OptionalWs> Declaration (<Komma> Declaration)*
-    Declaration = Name <'/'> Arity
+    <RuleWithPoint> = Rule <Period>
+    Rule = Module? Name Arglist? <StartOfBody> Goals
+    Fact = Module? Name Arglist? <Period>
+    DirectCall =  <StartOfBody> (Special | Metapredicate | Goals) <Period>
+    Special = ('dynamic' | 'multifile' | 'public') <Ws> <OptionalWs> Declaration (<Komma> Declaration)*
+    Declaration = Module? Name <'/'> Arity
     Metapredicate = <'meta_predicate '> <OptionalWs> Metagoal (<Komma> Metagoal)*
     Metagoal = Module? Name Arglist?
     Arity = #'[0-9]+'
@@ -27,7 +28,7 @@
 
     <Assignment> = IsAssignment | UnifyAssignment
 
-    UnifyAssignment = Term <OptionalWs> <'='> <OptionalWs> Term
+    UnifyAssignment = Term <OptionalWs> ('=' | '==') <OptionalWs> Term
     IsAssignment = Term <OptionalWs> <'is'> <OptionalWs> Expr
     <Expr> = Var | Number | Expr <Op> Expr | <OpenBracket> Expr <CloseBracket>
     BoolExpr =  Expr <BoolOp> Expr | <OpenBracket> BoolExpr <CloseBracket>
@@ -37,7 +38,7 @@
     Arglist = <OpenBracket> Terms <CloseBracket>
     <Terms> = (Term | Inner) (<Komma> (Term | Inner))*
     Inner = <OpenBracket> Terms <CloseBracket>
-    <Term> = Number | NotNumber
+    <Term> = Number | NotNumber | Rule | Goals
     <NotNumber> = Var | Atom | Compound | List | String
     Compound = Functor Arglist | Term SpecialChar_Compound Term | SpecialChar_Compound NotNumber | '\\'' SpecialChar_Compound '\\'' Arglist?
     List = EmptyList | ExplicitList  | HeadTailList
@@ -49,20 +50,20 @@
     False = <'false'>
     Fail = <'fail'>
     Repeat = <'repeat'>
-    Not = <'not('> <OptionalWs> Goal <OptionalWs> <')'> | <'\\\\+'> <OptionalWs> Goal
+    Not = <'not('> <OptionalWs> Goals <OptionalWs> <')'> | <'\\\\+'> <OptionalWs> Goals
     If = <OpenBracket> AndListOfGoals Then AndListOfGoals Else AndListOfGoals <CloseBracket>
     <AndListOfGoals> = Goal | AndListOfGoals Komma AndListOfGoals | InBrackets
 
     Var = #'[A-Z_][a-zA-Z0-9_]*'
     String = <'\\''> #'[^\\']*' <'\\''> | <'\\\"'> #'[^\\\"]*' <'\\\"'>
     Functor = #'[a-z][a-zA-Z0-9_]*'
-    Name = #'[a-z][a-zA-Z0-9_]*'
+    Name = #'[a-z][a-zA-Z0-9_]*' | Var
     Atom = #'[a-z][a-zA-Z0-9_]*' | SpecialChar_Atom+
     <Number> = Integer | Float
     Integer = #'[\\-\\+]?\\s*[0-9]+'
     Float = #'[\\-\\+]?\\s*[0-9]+\\.[0-9]+'
     <SpecialChar_Atom> = '$' | '&' | '*' | '+' | '-' | '.' | '/' | ':' | '<' | '>' | '=' | '?' | '@' | '^' | '~'
-    SpecialChar_Compound = #'[\\+\\-\\/:]+'
+    SpecialChar_Compound = <OptionalWs> #'[\\+\\-\\/:]+' <OptionalWs>
 
     Komma = <OptionalWs> <','> <OptionalWs>
     Semicolon = <OptionalWs> <';'> <OptionalWs>

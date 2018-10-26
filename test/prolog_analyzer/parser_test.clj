@@ -198,16 +198,14 @@
   (let [l (clojure.string/split-lines (try
                                         (slurp "resources/prolog-source-files.txt")
                                         (catch Exception e "")))]
-    (doseq [line (take 5 l)]
+    (doseq [line (take 20 l)]
       (let [result (test-source line)]
-        (is (true? result) (str "error in file " line " in line " result))))))
+        (if (true? result)
+          (println "ok")
+          (println (str "error in file " line " in line " result)))))))
 
 
-
-(sut/parse "foo(':-'(a,b)).")
-
-(def x
-  (insta/parser
-   "<S> = ('a' | 'b') S? "))
-
-(x "abab")
+(sut/parse "foo(\\+(A)).")
+(sut/prolog-parser ":-" :start :SpecialChar_Compound)
+(parse-real-code)
+(sut/parse "foo(':-'(A,B)).")
