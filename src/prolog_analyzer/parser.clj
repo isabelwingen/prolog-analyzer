@@ -5,8 +5,14 @@
 
 
 (def prolog-parser
+<<<<<<< HEAD
    (insta/parser
     "<S> = <OptionalWs> (Rule <Comment>? | Fact | DirectCall | <Comment> | <OptionalWs>) ((<Ws> | <Single-Line-Comment> ) S)?
+=======
+  (insta/parser
+   "<S> = <OptionalWs> (Rule | Fact | DirectCall | <Comment> | <OptionalWs>) ((<Ws> | <Comment>) S)?
+    <Comment> = <Single-Line-Comment> | <Multi-Line-Comment>
+>>>>>>> e49a39a8a49fb2dc3dcdc4ee516d4812db49d6c9
 
     Rule = Name Arglist? <StartOfBody> Goals <Period>
     Fact = Name Arglist? <Period>
@@ -59,9 +65,15 @@
     Then = <OptionalWs> <'->'> <OptionalWs>
     Else = <Semicolon>
     <Ws> = #'\\s+'
+<<<<<<< HEAD
     <OptionalWs> = #'\\s*'
     Single-Line-Comment = <OptionalWs> #'%.*\n'
     Multi-Line-Comment = <OptionalWs> #'/\\*+[^*]*\\*+(?:[^/*][^*]*\\*+)*/'
+=======
+    <OptionalWs> = (#'\\s*' <Comment>*)*
+    Single-Line-Comment = #'%.*\n'
+    Multi-Line-Comment = '/*' #'.*' '*/'
+>>>>>>> e49a39a8a49fb2dc3dcdc4ee516d4812db49d6c9
 "
   :output-format :hiccup))
 (prolog-parser
@@ -69,6 +81,7 @@
       b,
       c]).")
 
+<<<<<<< HEAD
 (defn- has-args? [tree]
   (= :Arglist (get-in tree [2 0])))
 
@@ -250,16 +263,19 @@
          (apply (partial merge-with into)))))
 
 ;;(apply (partial merge-with into) (map (comp (fn [[k v]] {k [v]}) first) (map transform-to-map list-of-preds)))
+=======
+>>>>>>> e49a39a8a49fb2dc3dcdc4ee516d4812db49d6c9
 
 (defn parse [string]
-  (insta/parse prolog-parser (str string "\n")))
+  (let [result (insta/parse prolog-parser (str string "\n"))]
+    (if (insta/failure? result)
+      (do
+        (log/error result)
+        result)
+      result)
+    ))
 
-(defn process-string [string]
-  (-> string
-      parse
-      post-processing))
-
-
+<<<<<<< HEAD
 (defn process-source [file]
   (-> file
       slurp
@@ -267,3 +283,8 @@
 
 
 (prolog-parser "+" :start :SpecialChar)
+=======
+(parse ":- module(a, [arg1,
+                      % comment
+                      arg2]).")
+>>>>>>> e49a39a8a49fb2dc3dcdc4ee516d4812db49d6c9

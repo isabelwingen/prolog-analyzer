@@ -20,15 +20,28 @@
       "\n%Second Line Comment\n"
       "         "
       "\t\t\t")))
+(deftest parse-wrong
+  (testing "result parsing wrong things"
+    (are [x] (contains? (sut/parse x) :reason)
+      "a :-"
+      "foo(a,b)"
+      "a.b"
+      "a :- b"
+      "a.b.c"
+      "foo(a,)."
+      "foo(a,b"
+      "foo a b.")))
 
 (deftest parse-with-comment
   (testing "Parsing text with comments"
-    (are [x y] (= x (sut/parse y))
-      '([:Fact [:Name "a"]], [:Fact [:Name "b"]])
+    (are [x y] (= y (sut/parse x))
       "a.\n%This is a comment\nb."
-      '([:Fact [:Name "c"]], [:Fact [:Name "d"]], [:Fact [:Name "e"]])
+      '([:Fact [:Name "a"]], [:Fact [:Name "b"]])
       "c.%This is a comment at the end of line\n%Another comment\nd.%In-Line Comment\ne.\n\n"
+      '([:Fact [:Name "c"]], [:Fact [:Name "d"]], [:Fact [:Name "e"]])
+      "f.\n\n%End of File-Comment"
       '([:Fact [:Name "f"]])
+<<<<<<< HEAD
       "f.\n\n%End of File-Comment"
       '([:Fact [:Name "foo"] [:Arglist [:List [:ExplicitList [:Atom "a"] [:Atom "b"] [:Atom "c"]]]]])
 "foo([a,
@@ -45,8 +58,22 @@
       "a :- ."
       "a(c,d"
       "a).")))
+=======
+      ":- module(a, [arg1,
+                     % comment
+                     arg2])."
+      '([:DirectCall
+         [:Goal
+          [:Name "module"]
+          [:Arglist [:Atom "a"] [:List [:ExplicitList [:Atom "arg1"] [:Atom "arg2"]]]]]])
+      "foo(a,
+          % comment
+          b)."
+      '([:Fact [:Name "foo"] [:Arglist [:Atom "a"] [:Atom "b"]]])
+      )))
+>>>>>>> e49a39a8a49fb2dc3dcdc4ee516d4812db49d6c9
 
-;; Test for parsing the component
+(sut/parse ":- module(a, [a,b]).")
 (deftest parse-facts
   (testing "Simple Facts"
     (are [x y] (= x (sut/prolog-parser y :start :Fact))
@@ -120,6 +147,7 @@
        [:Goal [:Name "e"]]]
       )))
 
+<<<<<<< HEAD
 
 (sut/process-string "foo(a,x) :- c(X),d.")
 
@@ -354,3 +382,5 @@
     (if (insta/failure? result)
       (pr-str (get lines (dec (:line result))))
       true)))
+=======
+>>>>>>> e49a39a8a49fb2dc3dcdc4ee516d4812db49d6c9
