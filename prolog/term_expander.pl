@@ -62,12 +62,12 @@ create_indent(N,Res) :-
 
 rule_to_map(Head,Body,Module,Map) :-
     split(Head,Name,Arity,Arglist),
-    create_arglist(Arglist,1,ResArglist),
-    create_body(13,Body,BodyRes),
+    create_arglist(Arglist,13,ResArglist),
+    create_body(25,Body,BodyRes),
     string_concat("{:name     ",Name,Goal_Elem),
     string_concat(":module   ",Module,Module_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
-    append([0/Goal_Elem,1/Module_Elem,1/Arity_Elem],ResArglist,List1),
+    append([0/Goal_Elem,13/Module_Elem,13/Arity_Elem],ResArglist,List1),
     append(List1,BodyRes,List2),
     concat_to_last_elem(List2,"}",List3),
     create_map(List3,Map).
@@ -105,7 +105,7 @@ goal_to_map(FirstLineInd,OtherLineInd,Goal,Map) :-
     concat_to_last_elem(List,"}",List2),
     create_map(List2,Map).
 
-create_body(Ind,Body,[1/NewH|T]) :-
+create_body(Ind,Body,[13/NewH|T]) :-
     create_body_list(Ind,Body,[0/H|T]),
     string_concat(":body     ",H,NewH).
 
@@ -184,20 +184,33 @@ split(Term,Name,Arity,Arglist) :-
     functor(Term,Name,Arity),
     Term =.. [_|Arglist].
 
+expand(_,term_expander) :- !.
+
 expand(':-'(A,B),Module) :-
-    write("log: "),write(':-'(A,B)),nl,
     !,
     body_list(B,Body),
+    Start = "{:type      :rule\n :content   ",
     rule_to_map(A,Body,Module,Map),
-    write(Map),nl.
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Tmp2),nl.
+
 
 expand(':-'(A),_Module) :-
     !,
-    write("Direct: "), write(A),nl.
+    Start = "{:type      :direct\n :content   ",
+    goal_to_map(0,13,A,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Tmp2),nl.
 
 expand((C),_Module) :-
     !,
-    write("Fact: "), write(C), nl.
+    Start = "{:type      :fact\n :content   ",
+    goal_to_map(0,13,C,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Tmp2),nl.
 
 body_list(Body,List) :-
     transform(Body,E),
