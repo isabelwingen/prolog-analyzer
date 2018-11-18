@@ -129,7 +129,7 @@ create_body_list(Ind,[B|Body],Res) :-
 create_arglist([],Indent,[Indent/":arglist  []"]) :- !.
 create_arglist(Arglist,Indent,[Indent/Res]) :-
     maplist(arg_to_map,Arglist,[T]),!,
-    string_concat("[",T,Tmp1),
+    string_concat(":arglist  [",T,Tmp1),
     string_concat_direct(Tmp1,"]",Res).
 create_arglist(Arglist,Indent,Res) :-
     maplist(arg_to_map,Arglist,[H|T]),
