@@ -184,25 +184,25 @@ split(Term,Name,Arity,Arglist) :-
     functor(Term,Name,Arity),
     Term =.. [_|Arglist].
 
-expand(_,term_expander) :- !.
+expand(_,term_expander,_) :- !.
 
-expand(':-'(A,B),Module) :-
+expand(':-'(A,B),Module,Stream) :-
     !,
     body_list(B,Body),
     Start = "{:type      :rule\n :content   ",
     rule_to_map(A,Body,Module,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
-    write(Tmp2),nl.
+    write(Stream,Tmp2),nl(Stream).
 
 
-expand(':-'(A),_Module) :-
+expand(':-'(A),_Module,Stream) :-
     !,
     Start = "{:type      :direct\n :content   ",
     goal_to_map(0,13,A,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
-    write(Tmp2),nl.
+    write(Stream,Tmp2),nl(Stream).
 
 expand((C),_Module) :-
     !,
@@ -210,7 +210,7 @@ expand((C),_Module) :-
     goal_to_map(0,13,C,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
-    write(Tmp2),nl.
+    write(Stream,Tmp2),nl(Stream).
 
 body_list(Body,List) :-
     transform(Body,E),
@@ -258,8 +258,13 @@ merge_list(L,R,[L,R]).
 
 user:term_expansion(A,A) :-
     !,
-    (write_out ->
-         prolog_load_context(module,Module),
-         expand(A,Module),
-         write(";; ----------------"),nl,nl).
+    prolog_load_context(module,Module),
+    (write_out, (Module \== term_expander) ->
+         prolog_load_context(file,File),
+         atom_concat(File,tmp,FileOut),
+         open("tmp.clj",append,Stream),
+         expand(A,Module,Stream),
+         write(Stream,";; ----------------"),nl(Stream),nl(Stream),
+         close(Stream)
+    ).
 
