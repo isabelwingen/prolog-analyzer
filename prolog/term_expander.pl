@@ -164,8 +164,10 @@ arg_to_map(Arg,Map) :-
     var(Arg),!,
     arg_to_map(var,Arg,Map).
 arg_to_map(Arg,Map) :-
+    compound(Arg),!,
+    arg_to_map(compound,Arg,Map).
+arg_to_map(Arg,Map) :-
     arg_to_map(any,Arg,Map).
-
 arg_to_map(Type,Term,Map) :-
     term_string(Term,String),
     string_concat("{:term ", String,R1),
