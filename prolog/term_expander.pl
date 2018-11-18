@@ -50,14 +50,19 @@ rule_to_map(Head,Body,Module,Map) :-
 goal_to_map(Goal,Map) :-
     goal_to_map(8,Goal,Map).
 
+goal_to_map(I,[H|T],String) :-
+    indent(I,Indent),
+    string_concat("\n",Indent,Sep),
+    mapcat(goal_to_map, [H|T], Sep, String, false).
 goal_to_map(I,or(Arglist),Map) :-
     indent(I,Indent),
     length(Arglist,Arity),
-    mapcat(arg_to_map,Arglist," ",ArglistString,false),
+    mapcat(goal_to_map,Arglist," ",ArglistString,false),
     string_concat(":goal     ","or",Goal_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
     string_concat(":arglist  ",ArglistString,Arglist_Elem),
     create_map([Goal_Elem,Arity_Elem,Arglist_Elem],Indent,Map).
+
 goal_to_map(I,Goal,Map) :-
     indent(I,Indent),
     split(Goal,Name,Arity,Arglist),
