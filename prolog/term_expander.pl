@@ -14,7 +14,7 @@ join(Sep,[X,Y|T],Res) :-
     string_concat(XKomma,Y,XKommaY),
     join(Sep,[XKommaY|T],Res).
 
-mapcat(Goal,[],_,"[]",_) :- !.
+mapcat(_Goal,[],_,"[]",_) :- !.
 mapcat(Goal,List,Sep,Res,Break) :-
     maplist(Goal,List,List2),
     join(Sep,List2,Join),
@@ -23,54 +23,112 @@ mapcat(Goal,List,Sep,Res,Break) :-
      ;
          multi_string_concat(["[",Join,"]"],Res)
     ).
-create_map([],Indent,Map) :-
-    string_concat(Indent,"{}",Map).
-create_map([H|L],Indent,Map) :-
-    multi_string_concat([Indent,"{",H],Start),
-    string_concat(Indent," ",NewIndent),
-    create_map(L,NewIndent,Start,Map).
-create_map([],Indent,R,Map) :-
-    string_concat(R,"}",Map).
-create_map([H|T],Indent,In,Map) :-
-    multi_string_concat([In,"\n",Indent,H],Out),
-    create_map(T,Indent,Out,Map).
 
+indent_elements(_,[],[]) :- !.
+indent_elements(Indent,[H|T],[Indent/H|S]) :-
+    indent_elements(Indent,T,S).
+
+string_concat_direct(String,OtherString,Res) :-
+    sub_string(String,X,1,0,P),
+    sub_string(String,0,X,1,WithoutNewLine),
+    (P == "\n" ->
+         string_concat(WithoutNewLine,OtherString,Res); string_concat(String,OtherString,Res)).
+concat_to_last_elem(List,String,Res) :-
+    reverse(List,[Ind/Last|Other]),!,
+    sub_string(Last,X,1,0,P),
+    sub_string(Last,0,X,1,WithOutNewLine),
+    (P == "\n" ->
+         string_concat(WithOutNewLine,String,NewLast); string_concat(Last,String,NewLast)),
+    reverse([Ind/NewLast|Other],Res).
+
+concat_to_last_elem(List,String,Res) :-
+    reverse(List,[Last|Other]),!,
+    sub_string(Last,X,1,0,P),
+    sub_string(Last,0,X,1,WithOutNewLine),
+    (P == "\n" ->
+         string_concat(WithOutNewLine,String,NewLast); string_concat(Last,String,NewLast)),
+    reverse([NewLast|Other],Res).
+
+create_indent(0,"") :- !.
+create_indent(N,Res) :-
+    M is N-1,
+    create_indent(M,Acc),
+    string_concat(Acc," ",Res).
 
 rule_to_map(Head,Body,Module,Map) :-
     split(Head,Name,Arity,Arglist),
-    mapcat(arg_to_map,Arglist," ", ArglistString,false),
-    mapcat(goal_to_map(12),Body,"\n",BodyString,true),
-    string_concat(":name     ",Name,Goal_Elem),
+    create_arglist(Arglist,1,ResArglist),
+    create_body(13,Body,BodyRes),
+    string_concat("{:name     ",Name,Goal_Elem),
     string_concat(":module   ",Module,Module_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
-    string_concat(":arglist  ",ArglistString,Arglist_Elem),
-    string_concat(":body     ",BodyString,Body_Elem),
-    create_map([Goal_Elem,Module_Elem,Arity_Elem,Arglist_Elem,Body_Elem],"",Map).
+    append([0/Goal_Elem,1/Module_Elem,1/Arity_Elem],ResArglist,List1),
+    append(List1,BodyRes,List2),
+    concat_to_last_elem(List2,"}",List3),
+    create_map(List3,Map).
 
-goal_to_map(Goal,Map) :-
-    goal_to_map(8,Goal,Map).
-
-goal_to_map(I,[H|T],String) :-
-    indent(I,Indent),
-    string_concat("\n",Indent,Sep),
-    mapcat(goal_to_map, [H|T], Sep, String, false).
-goal_to_map(I,or(Arglist),Map) :-
-    indent(I,Indent),
+goal_to_map(FirstLineInd,OtherLineInd,or(Arglist),Map) :- !,
     length(Arglist,Arity),
-    mapcat(goal_to_map,Arglist," ",ArglistString,false),
-    string_concat(":goal     ","or",Goal_Elem),
+    string_concat("{:goal     ","or",Goal_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
-    string_concat(":arglist  ",ArglistString,Arglist_Elem),
-    create_map([Goal_Elem,Arity_Elem,Arglist_Elem],Indent,Map).
+    maplist(create_body_list(26),Arglist,TMP),
+    maplist(create_map,TMP,[H|Maps]),
+    string_concat(":arglist  [",H,NewH),
+    concat_to_last_elem(Maps,"]}",NewMaps),
+    indent_elements(20,NewMaps,BLABLA),
+    append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem,OtherLineInd/NewH],BLABLA,List),
+    create_map(List,Map).
 
-goal_to_map(I,Goal,Map) :-
-    indent(I,Indent),
+goal_to_map(FirstLineInd,OtherLineInd,Goal,Map) :-
     split(Goal,Name,Arity,Arglist),
-    mapcat(arg_to_map,Arglist," ", ArglistString,false),
-    string_concat(":goal     ",Name,Goal_Elem),
+    string_concat("{:goal     ",Name,Goal_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
-    string_concat(":arglist  ",ArglistString,Arglist_Elem),
-    create_map([Goal_Elem,Arity_Elem,Arglist_Elem],Indent,Map).
+    create_arglist(Arglist,OtherLineInd,ResArglist),
+    append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem],ResArglist,List),
+    concat_to_last_elem(List,"}",List2),
+    create_map(List2,Map).
+
+create_body(Ind,Body,[1/NewH|T]) :-
+    create_body_list(Ind,Body,[0/H|T]),
+    string_concat(":body     ",H,NewH).
+
+
+create_body_list(_,[],[0/"[]"]) :- !.
+create_body_list(Ind,[B],[0/Res]) :-
+    !,
+    goal_to_map(0,Ind,B,H),
+    string_concat("[",H,Tmp1),
+    string_concat_direct(Tmp1,"]",Res).
+create_body_list(Ind,[B|Body],Res) :-
+    goal_to_map(0,Ind,B,H),
+    X is Ind-1,
+    maplist(goal_to_map(X,Ind),Body,T),
+    string_concat("[",H,Line1),
+    concat_to_last_elem(T,"]",Tmp1),
+    indent_elements(0,Tmp1,Tmp2),
+    append([0/Line1],Tmp2,Res).
+
+
+create_arglist([],Indent,[Indent/":arglist  []"]) :- !.
+create_arglist(Arglist,Indent,[Indent/Res]) :-
+    maplist(arg_to_map,Arglist,[T]),!,
+    string_concat("[",T,Tmp1),
+    string_concat_direct(Tmp1,"]",Res).
+create_arglist(Arglist,Indent,Res) :-
+    maplist(arg_to_map,Arglist,[H|T]),
+    string_concat(":arglist  [",H,Line1),
+    concat_to_last_elem(T,"]",Tmp1),
+    X is Indent+11,
+    indent_elements(X,Tmp1,Tmp2),
+    append([Indent/Line1],Tmp2,Res).
+
+create_map(List,Res) :-
+    create_map(List,"",Res).
+create_map([],Res,Res) :- !.
+create_map([Indent/H|T],Acc,Res) :-
+    create_indent(Indent,IndentString),
+    multi_string_concat([Acc,IndentString,H,"\n"],NewAcc),
+    create_map(T,NewAcc,Res).
 
 arg_to_map(Arg,Map) :-
     atom(Arg),!,
@@ -103,19 +161,12 @@ arg_to_map(Type,Term,Map) :-
     string_concat(R2, Type, R3),
     string_concat(R3, "}",Map).
 
-
-
-indent(0,"") :- !.
-indent(N,R) :-
-    M is N-1,
-    indent(M,S),
-    string_concat(S," ",R).
-
 split(Term,Name,Arity,Arglist) :-
     functor(Term,Name,Arity),
     Term =.. [_|Arglist].
 
 expand(':-'(A,B),Module) :-
+    write("log: "),write(':-'(A,B)),nl,
     !,
     body_list(B,Body),
     rule_to_map(A,Body,Module,Map),
