@@ -67,9 +67,21 @@ rule_to_map(Head,Body,Module,Map) :-
     concat_to_last_elem(List2,"}",List3),
     create_map(List3,Map).
 
+goal_to_map(FirstLineInd,OtherLineInd,if(Cond,Then),Map) :-
+    !,
+    string_concat("{:goal     ",":if",Goal_Elem),
+    string_concat(":arity    ",2,Arity_Elem),
+    maplist(create_body_list(26),[Cond,Then],TMP),
+    maplist(create_map,TMP,[H|Maps]),
+    string_concat(":arglist  [",H,NewH),
+    concat_to_last_elem(Maps,"]}",NewMaps),
+    indent_elements(20,NewMaps,BLABLA),
+    append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem,OtherLineInd/NewH],BLABLA,List),
+    create_map(List,Map).
+
 goal_to_map(FirstLineInd,OtherLineInd,or(Arglist),Map) :- !,
     length(Arglist,Arity),
-    string_concat("{:goal     ","or",Goal_Elem),
+    string_concat("{:goal     ",":or",Goal_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
     maplist(create_body_list(26),Arglist,TMP),
     maplist(create_map,TMP,[H|Maps]),
@@ -197,8 +209,8 @@ transform(Body,Res) :-
     transform(Right,RightList),
     merge_list(LeftList,RightList,Res).
 
-transform(Body,if(LeftList,RightList)) :-
-    Body =.. [(->),Left,Right],
+transform(Body,[if(LeftList,RightList)]) :-
+    Body =.. [(->),Left,Right],!,
     transform(Left,LeftList),
     transform(Right,RightList).
 
