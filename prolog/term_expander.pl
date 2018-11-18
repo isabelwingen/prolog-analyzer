@@ -1,6 +1,11 @@
-:- module(term_expander,[]).
+:- module(term_expander,[enable_write_out/0]).
 
 :- multifile term_expansion/2.
+:- dynamic write_out/0.
+:- public enable_write_out/0.
+
+enable_write_out :-
+    assertz(write_out).
 
 multi_string_concat([H],H) :- !.
 
@@ -240,7 +245,8 @@ merge_list(L,R,[L,R]).
 
 user:term_expansion(A,A) :-
     !,
-    prolog_load_context(module,Module),
-    expand(A,Module),
-    write("----------------"),nl,nl.
+    (write_out ->
+         prolog_load_context(module,Module),
+         expand(A,Module),
+         write(";; ----------------"),nl,nl).
 

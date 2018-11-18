@@ -1,12 +1,14 @@
 :- module(example,[]).
-:- use_module(term_expander).
+:- use_module(term_expander,[enable_write_out/0]).
 
-fact.
-:- dynamic a/1.
-:- fact.
+:- enable_write_out.
 
-a(t) :- write(a), nl.
-b(t) :- write(b), nl.
+fact(a).
+:- dynamic a/1, b/2.
+:- fact(a).
+
+a(t).
+b(t).
 c(t) :- write(c), nl.
 d(t) :- write(d), nl.
 e(t) :- write(e), nl.
