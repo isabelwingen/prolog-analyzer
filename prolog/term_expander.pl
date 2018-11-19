@@ -67,8 +67,8 @@ rule_to_map(Head,Body,Module,Map) :-
     split(Head,Name,Arity,Arglist),
     create_arglist(Arglist,13,ResArglist),
     create_body(25,Body,BodyRes),
-    string_concat("{:name     ",Name,Goal_Elem),
-    string_concat(":module   ",Module,Module_Elem),
+    multi_string_concat(["{:name     \"",Name,"\""],Goal_Elem),
+    multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
     append([0/Goal_Elem,13/Module_Elem,13/Arity_Elem],ResArglist,List1),
     append(List1,BodyRes,List2),
@@ -101,7 +101,7 @@ goal_to_map(FirstLineInd,OtherLineInd,or(Arglist),Map) :- !,
 
 goal_to_map(FirstLineInd,OtherLineInd,Goal,Map) :-
     split(Goal,Name,Arity,Arglist),
-    string_concat("{:goal     ",Name,Goal_Elem),
+    multi_string_concat(["{:goal     \"",Name,"\""],Goal_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
     create_arglist(Arglist,OtherLineInd,ResArglist),
     append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem],ResArglist,List),
@@ -178,8 +178,8 @@ arg_to_map(Arg,Map) :-
     arg_to_map(any,Arg,Map).
 arg_to_map(Type,Term,Map) :-
     term_string(Term,String),
-    string_concat("{:term ", String,R1),
-    string_concat(R1, " :type ", R2),
+    string_concat("{:term \"", String,R1),
+    string_concat(R1, "\" :type :", R2),
     string_concat(R2, Type, R3),
     string_concat(R3, "}",Map).
 
