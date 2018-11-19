@@ -272,7 +272,7 @@ user:term_expansion(A,A) :-
     ).
 
 get_clojure_file_name(File,ClojureFile) :-
-    string_concat(File,".clj",ClojureFile).
+    string_concat(File,".edn",ClojureFile).
 
 valid_module(Module) :-
     Module \== term_expander,

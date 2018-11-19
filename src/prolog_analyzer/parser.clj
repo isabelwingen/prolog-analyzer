@@ -11,7 +11,7 @@
   ;  (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
    ;   (dorun (map println (take-while (partial not= :theend) edn-seq))))))
 (defn get-clojure-file-name [file]
-  (str file ".clj"))
+  (str file ".edn"))
 
 (defn call-swipl [file]
   (sh/sh "swipl" "-f" file "-q" "-g" "halt."))
