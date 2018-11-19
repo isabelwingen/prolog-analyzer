@@ -207,7 +207,7 @@ expand(':-'(A),_Module,Stream) :-
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
 
-expand((C),_Module) :-
+expand((C),_Module, Stream) :-
     !,
     Start = "{:type      :fact\n :content   ",
     goal_to_map(0,13,C,Map),
