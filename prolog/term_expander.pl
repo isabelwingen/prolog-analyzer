@@ -5,6 +5,9 @@
 :- public enable_write_out/0.
 
 enable_write_out :-
+    prolog_load_context(file,File),
+    get_clojure_file_name(File,ClojureFile),
+    (access_file(ClojureFile,write), exists_file(ClojureFile) -> delete_file(ClojureFile); true),
     assertz(write_out).
 
 multi_string_concat([H],H) :- !.
@@ -259,12 +262,18 @@ merge_list(L,R,[L,R]).
 user:term_expansion(A,A) :-
     !,
     prolog_load_context(module,Module),
-    (write_out, (Module \== term_expander) ->
+    (write_out, valid_module(Module) ->
          prolog_load_context(file,File),
-         atom_concat(File,tmp,FileOut),
-         open("tmp.clj",append,Stream),
+         get_clojure_file_name(File,ClojureFile),
+         open(ClojureFile,append,Stream),
          expand(A,Module,Stream),
          write(Stream,";; ----------------"),nl(Stream),nl(Stream),
          close(Stream)
     ).
 
+get_clojure_file_name(File,ClojureFile) :-
+    string_concat(File,".clj",ClojureFile).
+
+valid_module(Module) :-
+    Module \== term_expander,
+    Module \== user.
