@@ -181,44 +181,45 @@ arg_to_map(Arg,Map) :-
 arg_to_map(compound,Term,Map) :-
     Term =.. ['[|]'|[Head,Tail]],
     \+ ground(Tail),
-    term_string(Term,TermString),
     arg_to_map(Head,HeadString),
     arg_to_map(Tail,TailString),
 
-    multi_string_concat(["{:term \"",TermString,"\""],TermPart),
-    multi_string_concat([":type :list"],TypePart),
+    multi_string_concat(["{:type :head-tail-list"],TypePart),
     multi_string_concat([":head ",HeadString],HeadPart),
     multi_string_concat([":tail ",TailString,"}"],TailPart),
 
-    create_map([0/TermPart,1/TypePart,1/HeadPart,1/TailPart],Map).
+    create_map([0/TypePart,1/HeadPart,1/TailPart],Map).
 
 arg_to_map(compound,Term,Map) :-
     Term =.. ['[|]'|[Head,Tail]],
     !,
-    term_string(Term,TermString),
     create_arglist([Head|Tail],0,Arglist),
 
-    multi_string_concat(["{:term \"",TermString,"\""],TermPart),
-    multi_string_concat([":type :list"],TypePart),
+    multi_string_concat(["{:type :list"],TypePart),
 
-    append([0/TermPart,1/TypePart],Arglist,List1),
-    append(List1,[0/"}"],List2),
-    create_map(List2,Map).
+    append([0/TypePart|Arglist],[0/"}"],List1),
+    create_map(List1,Map).
 
 
 arg_to_map(compound,Term,Map) :-
     !,
-    term_string(Term,TermString),
-    Term =.. [Functor|Arglist],
+    Term =.. [Functor|Args],
     term_string(Functor,FunctorString),
-    create_arglist(Arglist,0,Arglist),
-    multi_string_concat(["{:term \"",TermString,"\""],TermPart),
-    multi_string_concat([":type :compound"],TypePart),
+    create_arglist(Args,0,Arglist),
+    multi_string_concat(["{:type :compound"],TypePart),
     multi_string_concat([":functor \"",FunctorString,"\""],FunctorPart),
 
-    append([0/TermPart,1/TypePart,1/FunctorPart],Arglist,List1),
+    append([0/TypePart,1/FunctorPart],Arglist,List1),
     append(List1,[0/"}"],List2),
     create_map(List2,Map).
+
+arg_to_map(var,Term,Map) :-
+    !,
+    (var_property(Term,name(Name)) -> true ; term_string(Term,Name)),
+    (atom_codes(Name,[95|_]) -> Type = "anon_var" ; Type = "var"),
+    multi_string_concat(["{:term \"", Name, "\" :type :", Type, "}"],Map).
+
+
 
 arg_to_map(Type,Term,Map) :-
     (Type = integer; Type = number; Type = float),
@@ -236,9 +237,15 @@ arg_to_map(Type,Term,Map) :-
     string_concat(R2, Type, R3),
     string_concat(R3, "}",Map).
 
+
 split(Term,Name,Arity,Arglist) :-
-    functor(Term,Name,Arity),
+    functor(Term,Name1,Arity),
+    (Name1 = (\+) -> Name = ":not" ; Name = Name1),
     Term =.. [_|Arglist].
+
+expand(Term,Module) :-
+    current_output(Out),
+    expand(Term,Module,Out).
 
 expand(_,term_expander,_) :- !.
 
