@@ -1,4 +1,4 @@
-(defproject prolog-analyzer "0.1.1"
+(defproject prolog-analyzer "0.1.2"
   :description "A library for analyzing clojure code"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
