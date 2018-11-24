@@ -6,6 +6,5 @@
 (defn -main
   "Start analyzing of source file"
   [file]
-  (parser/read-prolog-code file))
-
-(-main "prolog/test.pl")
+  (doseq [elem (parser/read-prolog-code file)]
+    (pprint elem)))
