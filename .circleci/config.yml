@@ -25,7 +25,7 @@ jobs:
       - checkout
       - run:
           name: Install swipl
-          command: "sudo add-apt-repository ppa:swi-prolog/stable && sudo apt-get update && sudo apt-get install swi-prolog"
+          command: "add-apt-repository ppa:swi-prolog/stable && apt-get update && apt-get install swi-prolog"
 
       # Download and cache dependencies
       - restore_cache:
