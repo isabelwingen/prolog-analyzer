@@ -33,33 +33,100 @@
   (are [x y] (= {:type :fact :content {:goal "foo" :arity 1 :arglist [y]}}
                 (first (test-helper (str "foo(" x ")."))))
     "[1,2,3]"
-    {:term "[1,2,3]"
-     :type :list
+    {:type :list
      :arglist [{:term 1 :type :integer} {:term 2 :type :integer} {:term 3 :type :integer}]}
     "[H|T]"
-    {:term "[_2938|_2940]"
-     :type :list
-     :head {:term "_2938" :type :var}
-     :tail {:term "_2940" :type :var}}
+    {:type :head-tail-list
+     :head {:term "H" :type :var}
+     :tail {:term "T" :type :var}}
     "[]"
     {:term "[]"
      :type :atomic}
     "[1]"
-    {:term "[1]"
-     :type :list
+    {:type :list
      :arglist [{:term 1 :type :integer}]}
     "[1,2|T]"
-    {:term "[1,2|_2958]"
-     :type :list
+    {:type :head-tail-list
      :head {:term 1 :type :integer}
-     :tail {:term "[2|_2958]"
-            :type :list
+     :tail {:type :head-tail-list
             :head {:term 2 :type :integer}
-            :tail {:term "_2958" :type :var}}}
+            :tail {:term "T" :type :var}}}
+    ))
+
+(deftest parse-compounds
+  (are [x y] (= {:type :fact :content {:goal "foo" :arity 1 :arglist [y]}}
+                (first (test-helper (str "foo(" x ")."))))
+
+    "2/3"
+    {:type :compound
+     :functor "/"
+     :arglist [{:term 2 :type :integer} {:term 3 :type :integer}]}
+    "2/3/4"
+    {:type :compound
+     :functor "/"
+     :arglist [{:type :compound
+                :functor "/"
+                :arglist [{:term 2 :type :integer} {:term 3 :type :integer}]}
+               {:term 4
+                :type :integer}]}
+    "foo(a,bar(c,d))"
+    {:type :compound
+     :functor "foo"
+     :arglist [{:term "a" :type :atom}
+               {:type :compound
+                :functor "bar"
+                :arglist [{:term "c" :type :atom} {:term "d" :type :atom}]}]}
+    ))
+
+(test-helper "foo(foo(a,bar(c,d))).")
+
+(deftest parse-not
+  (is
+   (= {:type :rule
+       :content {:name "foo"
+                 :module "tmp"
+                 :arity 0
+                 :arglist []
+                 :body [{:goal ":not"
+                         :arity 1
+                         :arglist [{:type :compound
+                                    :functor "bar"
+                                    :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]}]}}
+      (first (test-helper "foo :- \\+ bar(a,b)."))
+      )))
+
+
+(deftest parse-rules
+  (are [x y] (= {:type :rule :content y} (first (test-helper x)))
+    "foo(a,b) :- bar(a,b)."
+    {:name "foo"
+     :module "tmp"
+     :arity 2
+     :arglist [{:term "a", :type :atom} {:term "b", :type :atom}]
+     :body [{:goal "bar"
+             :arity 2
+             :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]}
+    "foo(a/b) :- !, bar(a,X), c(b)."
+    {:name "foo"
+     :module "tmp"
+     :arity 1
+     :arglist [{:term "a/b"
+                :type :compound
+                :functor "/"
+                :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]
+     :body [{:goal "!"
+             :arity 0
+             :arglist []}
+            {:goal "bar"
+             :arity 2
+             :arglist [{:term "a" :type :atom}
+                       {:term "X" :type :var}]}
+            {:goal "c"
+             :arity 1
+             :arglist [{:term "b" :type :atom}]}]}
     ))
 
 
 
-(test-helper "member([1,2|T]).")
 
 (seq {:a 1 :b [{:c :d} {:e :f}]})
