@@ -1,7 +1,11 @@
 (ns prolog-analyzer.core
-  (:gen-class))
+  (:gen-class)
+  (:require [prolog-analyzer.parser :as parser]
+            [clojure.pprint :refer [pprint]]))
 
 (defn -main
-  "I don't do a whole lot ... yet."
-  [& args]
-  (println "Hello, World!"))
+  "Start analyzing of source file"
+  [file]
+  (parser/read-prolog-code file))
+
+(-main "prolog/test.pl")
