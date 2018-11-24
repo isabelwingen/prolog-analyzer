@@ -16,12 +16,17 @@
 (defn call-swipl [file]
   (sh/sh "swipl" "-f" file "-q" "-g" "halt."))
 
-(defn read-prolog-code [file]
-  (call-swipl file)
-  (with-open [in (java.io.PushbackReader. (clojure.java.io/reader (get-clojure-file-name file)))]
+(defn- transform-to-edn [clojure-file]
+  (with-open [in (java.io.PushbackReader. (clojure.java.io/reader clojure-file))]
     (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
       (doall (take-while (partial not= :theend) edn-seq)))))
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
 
-(read-prolog-code "prolog/example.pl")
+(defn read-prolog-code [file]
+  (call-swipl file)
+  (let [clojure-file (get-clojure-file-name file)
+        result (transform-to-edn clojure-file)]
+    (io/delete-file clojure-file)
+    result))
+
 
