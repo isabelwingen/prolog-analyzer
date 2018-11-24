@@ -166,16 +166,69 @@ arg_to_map(Arg,Map) :-
     atomic(Arg),!,
     arg_to_map(atomic,Arg,Map).
 arg_to_map(Arg,Map) :-
+    compound(Arg),!,
+    arg_to_map(compound,Arg,Map).
+arg_to_map(Arg,Map) :-
     ground(Arg),!,
     arg_to_map(ground,Arg,Map).
 arg_to_map(Arg,Map) :-
     var(Arg),!,
     arg_to_map(var,Arg,Map).
-arg_to_map(Arg,Map) :-
-    compound(Arg),!,
-    arg_to_map(compound,Arg,Map).
+
 arg_to_map(Arg,Map) :-
     arg_to_map(any,Arg,Map).
+
+arg_to_map(compound,Term,Map) :-
+    Term =.. ['[|]'|[Head,Tail]],
+    \+ ground(Tail),
+    term_string(Term,TermString),
+    arg_to_map(Head,HeadString),
+    arg_to_map(Tail,TailString),
+
+    multi_string_concat(["{:term \"",TermString,"\""],TermPart),
+    multi_string_concat([":type :list"],TypePart),
+    multi_string_concat([":head ",HeadString],HeadPart),
+    multi_string_concat([":tail ",TailString,"}"],TailPart),
+
+    create_map([0/TermPart,1/TypePart,1/HeadPart,1/TailPart],Map).
+
+arg_to_map(compound,Term,Map) :-
+    Term =.. ['[|]'|[Head,Tail]],
+    !,
+    term_string(Term,TermString),
+    create_arglist([Head|Tail],0,Arglist),
+
+    multi_string_concat(["{:term \"",TermString,"\""],TermPart),
+    multi_string_concat([":type :list"],TypePart),
+
+    append([0/TermPart,1/TypePart],Arglist,List1),
+    append(List1,[0/"}"],List2),
+    create_map(List2,Map).
+
+
+arg_to_map(compound,Term,Map) :-
+    !,
+    term_string(Term,TermString),
+    Term =.. [Functor|Arglist],
+    term_string(Functor,FunctorString),
+    create_arglist(Arglist,0,Arglist),
+    multi_string_concat(["{:term \"",TermString,"\""],TermPart),
+    multi_string_concat([":type :compound"],TypePart),
+    multi_string_concat([":functor \"",FunctorString,"\""],FunctorPart),
+
+    append([0/TermPart,1/TypePart,1/FunctorPart],Arglist,List1),
+    append(List1,[0/"}"],List2),
+    create_map(List2,Map).
+
+arg_to_map(Type,Term,Map) :-
+    (Type = integer; Type = number; Type = float),
+    !,
+    term_string(Term,String),
+    string_concat("{:term ", String,R1),
+    string_concat(R1, " :type :", R2),
+    string_concat(R2, Type, R3),
+    string_concat(R3, "}",Map).
+
 arg_to_map(Type,Term,Map) :-
     term_string(Term,String),
     string_concat("{:term \"", String,R1),
