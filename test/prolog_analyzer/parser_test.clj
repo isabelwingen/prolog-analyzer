@@ -78,7 +78,6 @@
                 :arglist [{:term "c" :type :atom} {:term "d" :type :atom}]}]}
     ))
 
-(test-helper "foo(foo(a,bar(c,d))).")
 
 (deftest parse-not
   (is
@@ -106,12 +105,11 @@
      :body [{:goal "bar"
              :arity 2
              :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]}
-    "foo(a/b) :- !, bar(a,X), c(b)."
+    "foo(a/b) :- !, bar(a,X), c(b)." 
     {:name "foo"
      :module "tmp"
      :arity 1
-     :arglist [{:term "a/b"
-                :type :compound
+     :arglist [{:type :compound
                 :functor "/"
                 :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]
      :body [{:goal "!"
@@ -128,5 +126,6 @@
 
 
 
+(test-helper "foo(a/b) :- 1, bar(a,X), c(b).")
 
 (seq {:a 1 :b [{:c :d} {:e :f}]})
