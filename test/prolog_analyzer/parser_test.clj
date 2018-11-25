@@ -37,23 +37,23 @@
                 (first-parse-result (test-helper (str "foo(" x ")."))))
     "[1,2,3]"
     {:type :list
-     :arglist [{:term 1 :type :integer} {:term 2 :type :integer} {:term 3 :type :integer}]}
+     :arglist [{:value 1 :type :integer} {:value 2 :type :integer} {:value 3 :type :integer}]}
     "[H|T]"
     {:type :head-tail-list
-     :head {:term "H" :type :var}
-     :tail {:term "T" :type :var}}
+     :head {:name "H" :type :var}
+     :tail {:name "T" :type :var}}
     "[]"
     {:term "[]"
      :type :atomic}
     "[1]"
     {:type :list
-     :arglist [{:term 1 :type :integer}]}
+     :arglist [{:value 1 :type :integer}]}
     "[1,2|T]"
     {:type :head-tail-list
-     :head {:term 1 :type :integer}
+     :head {:value 1 :type :integer}
      :tail {:type :head-tail-list
-            :head {:term 2 :type :integer}
-            :tail {:term "T" :type :var}}}
+            :head {:value 2 :type :integer}
+            :tail {:name "T" :type :var}}}
     ))
 
 (deftest parse-compounds
@@ -63,14 +63,14 @@
     "2/3"
     {:type :compound
      :functor "/"
-     :arglist [{:term 2 :type :integer} {:term 3 :type :integer}]}
+     :arglist [{:value 2 :type :integer} {:value 3 :type :integer}]}
     "2/3/4"
     {:type :compound
      :functor "/"
      :arglist [{:type :compound
                 :functor "/"
-                :arglist [{:term 2 :type :integer} {:term 3 :type :integer}]}
-               {:term 4
+                :arglist [{:value 2 :type :integer} {:value 3 :type :integer}]}
+               {:value 4
                 :type :integer}]}
     "foo(a,bar(c,d))"
     {:type :compound
@@ -121,7 +121,7 @@
             {:goal "bar"
              :arity 2
              :arglist [{:term "a" :type :atom}
-                       {:term "X" :type :var}]}
+                       {:name "X" :type :var}]}
             {:goal "c"
              :arity 1
              :arglist [{:term "b" :type :atom}]}]}

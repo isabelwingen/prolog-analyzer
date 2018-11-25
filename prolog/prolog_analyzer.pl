@@ -287,7 +287,7 @@ arg_to_map(var,Term,Map) :-
     !,
     (var_property(Term,name(Name)) -> true ; term_string(Term,Name)),
     (atom_codes(Name,[95|_]) -> Type = "anon_var" ; Type = "var"),
-    multi_string_concat(["{:term \"", Name, "\" :type :", Type, "}"],Map).
+    multi_string_concat(["{:name \"", Name, "\" :type :", Type, "}"],Map).
 
 
 arg_to_map(string,_,"{:type :string}") :- !.
@@ -296,7 +296,7 @@ arg_to_map(Type,Term,Map) :-
     (Type = integer; Type = number; Type = float),
     !,
     term_string(Term,String),
-    string_concat("{:term ", String,R1),
+    string_concat("{:value ", String,R1),
     string_concat(R1, " :type :", R2),
     string_concat(R2, Type, R3),
     string_concat(R3, "}",Map).
@@ -307,6 +307,7 @@ arg_to_map(Type,Term,Map) :-
     string_concat(R1, "\" :type :", R2),
     string_concat(R2, Type, R3),
     string_concat(R3, "}",Map).
+
 
 
 split(Term,Name,Arity,Arglist) :-
