@@ -13,8 +13,17 @@
 (defn get-clojure-file-name [file]
   (str file ".edn"))
 
+(defn- split-up-error-message [msg]
+  (->> msg
+       clojure.string/split-lines
+       (partition 2)
+       (map (partial apply str))
+       (apply vector)))
+
 (defn call-swipl [file]
-  (sh/sh "swipl" "-f" file "-q" "-g" "halt."))
+  (let [{err :err} (sh/sh "swipl" "-f" file "-q" "-t" "halt.")]
+    {:type :error-msg
+     :content (split-up-error-message err)}))
 
 (defn- transform-to-edn [clojure-file]
   (with-open [in (java.io.PushbackReader. (clojure.java.io/reader clojure-file))]
@@ -23,10 +32,10 @@
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
 
 (defn read-prolog-code [file]
-  (call-swipl file)
-  (let [clojure-file (get-clojure-file-name file)
+  (let [error-msg (call-swipl file)
+        clojure-file (get-clojure-file-name file)
         result (transform-to-edn clojure-file)]
     (io/delete-file clojure-file)
-    result))
+    (conj result error-msg)))
 
 

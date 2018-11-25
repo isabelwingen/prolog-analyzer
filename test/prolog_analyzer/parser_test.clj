@@ -10,6 +10,9 @@
  (def preamble
   ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0]).\n:- enable_write_out.\n\n")
 
+(defn- first-parse-result [l]
+  (second l))
+
 (defn test-helper [code]
   (spit "prolog/tmp.pl" (str preamble code))
   (let [res (sut/read-prolog-code "prolog/tmp.pl")]
@@ -17,7 +20,7 @@
     res))
 
 (deftest parse-facts
-  (are [x y] (= {:type :fact :content y} (first (test-helper x)))
+  (are [x y] (= {:type :fact :content y} (first-parse-result (test-helper x)))
     "foo(a,b)."
     {:goal "foo"
      :arity 2
@@ -31,7 +34,7 @@
 
 (deftest parse-list
   (are [x y] (= {:type :fact :content {:goal "foo" :arity 1 :arglist [y]}}
-                (first (test-helper (str "foo(" x ")."))))
+                (first-parse-result (test-helper (str "foo(" x ")."))))
     "[1,2,3]"
     {:type :list
      :arglist [{:term 1 :type :integer} {:term 2 :type :integer} {:term 3 :type :integer}]}
@@ -55,7 +58,7 @@
 
 (deftest parse-compounds
   (are [x y] (= {:type :fact :content {:goal "foo" :arity 1 :arglist [y]}}
-                (first (test-helper (str "foo(" x ")."))))
+                (first-parse-result (test-helper (str "foo(" x ")."))))
 
     "2/3"
     {:type :compound
@@ -91,12 +94,12 @@
                          :arglist [{:type :compound
                                     :functor "bar"
                                     :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]}]}}
-      (first (test-helper "foo :- \\+ bar(a,b)."))
+      (first-parse-result (test-helper "foo :- \\+ bar(a,b)."))
       )))
 
 
 (deftest parse-rules
-  (are [x y] (= {:type :rule :content y} (first (test-helper x)))
+  (are [x y] (= {:type :rule :content y} (first-parse-result (test-helper x)))
     "foo(a,b) :- bar(a,b)."
     {:name "foo"
      :module "tmp"
@@ -131,7 +134,7 @@
                                        :arity 0
                                        :arglist []
                                        :body y}}
-                (first (test-helper (str "foo :- " x "."))))
+                (first-parse-result (test-helper (str "foo :- " x "."))))
     "a;b"
     [{:goal :or
       :arity 2
@@ -155,7 +158,7 @@
                                        :arity 0
                                        :arglist []
                                        :body y}}
-                (first (test-helper (str "foo :- " x "."))))
+                (first-parse-result (test-helper (str "foo :- " x "."))))
     "(a -> b;c)"
     [{:goal :or
       :arity 2
@@ -181,6 +184,4 @@
     ))
 
 
-(test-helper "foo(a/b) :- 1, bar(a,X), c(b).")
 
-(seq {:a 1 :b [{:c :d} {:e :f}]})
