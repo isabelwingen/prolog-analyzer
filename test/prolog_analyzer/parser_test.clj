@@ -8,7 +8,7 @@
   (is (= 1 1)))
 
  (def preamble
-  ":- module(tmp,[]).\n:- use_module(term_expander,[enable_write_out/0]).\n:- enable_write_out.\n\n")
+  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0]).\n:- enable_write_out.\n\n")
 
 (defn test-helper [code]
   (spit "prolog/tmp.pl" (str preamble code))

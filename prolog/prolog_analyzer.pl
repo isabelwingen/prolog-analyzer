@@ -1,9 +1,11 @@
-:- module(term_expander,[enable_write_out/0]).
+:- module(prolog_analyzer,[enable_write_out/0]).
 
 :- multifile term_expansion/2.
 :- dynamic write_out/0.
 :- public enable_write_out/0.
 
+
+% Transform to edn
 enable_write_out :-
     prolog_load_context(file,File),
     get_clojure_file_name(File,ClojureFile),
@@ -335,5 +337,6 @@ get_clojure_file_name(File,ClojureFile) :-
     string_concat(File,".edn",ClojureFile).
 
 valid_module(Module) :-
-    Module \== term_expander,
+    Module \== prolog_analyzer,
     Module \== user.
+
