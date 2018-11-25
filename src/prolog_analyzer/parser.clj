@@ -25,10 +25,18 @@
     {:type :error-msg
      :content (split-up-error-message err)}))
 
+
+(defn- replace-backslash [clojure-file]
+  (spit clojure-file (.replace (slurp clojure-file) "\\" "\\\\")))
+
 (defn- transform-to-edn [clojure-file]
-  (with-open [in (java.io.PushbackReader. (clojure.java.io/reader clojure-file))]
-    (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
-      (doall (take-while (partial not= :theend) edn-seq)))))
+  (replace-backslash clojure-file)
+  (try
+    (with-open [in (java.io.PushbackReader. (clojure.java.io/reader clojure-file))]
+      (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
+        (doall (take-while (partial not= :theend) edn-seq))))
+    (catch RuntimeException e
+      (printf "Error parsing edn file '%s': '%s\n" clojure-file (.getMessage e)))))
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
 
 (defn read-prolog-code [file]
@@ -37,5 +45,3 @@
         result (transform-to-edn clojure-file)]
     (io/delete-file clojure-file)
     (conj result error-msg)))
-
-
