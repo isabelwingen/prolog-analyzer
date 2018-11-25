@@ -1,8 +1,59 @@
-:- module(prolog_analyzer,[enable_write_out/0]).
+:- module(prolog_analyzer,[enable_write_out/0,spec_pre/2,spec_post/3,spec_invariant/2,defspec/2]).
+:- use_module(library(error)).
 
 :- multifile term_expansion/2.
 :- dynamic write_out/0.
 :- public enable_write_out/0.
+
+spec_pre(Pred,SpecPre) :-
+    (Pred = _/Arity -> true ; type_error("<predname>/<arity>",Pred)),
+    (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
+    maplist(valid_spec,SpecPre).
+
+spec_post(Pred,SpecPre,SpecPost) :-
+    (Pred = _/Arity -> true ; type_error("<predname>/<arity>",Pred)),
+    (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
+    (length(SpecPost,Arity) -> true ; domain_error('length of spec list',Arity)),
+    maplist(valid_spec,SpecPre),
+    maplist(valid_spec,SpecPost).
+
+spec_invariant(Pred,SpecInv) :-
+    (Pred = _/Arity -> true ; type_error("<predname>/<arity>",Pred)),
+    (length(SpecInv,Arity) -> true ; domain_error('length of spec list',Arity)),
+    maplist(valid_spec,SpecInv).
+
+valid_spec(X) :-
+    spec_and_nonvar(X,X),!.
+valid_spec(Spec) :-
+    domain_error('valid_spec',Spec).
+
+spec_and_nonvar(Current,Spec) :-
+    nonvar(Spec),
+    spec(Current,Spec).
+
+
+spec(_,var).
+spec(_,ground).
+spec(_,nonvar).
+spec(_,any).
+spec(_,any(X)) :- var(X),!.
+spec(_,any(X)) :- compound(X), \+ ground(X), spec(X).
+
+% Definition of spec predicates
+spec(_,atomic).
+spec( atom).
+spec(atom(X)) :- atom(X).
+spec(integer).
+spec(number).
+spec(float).
+
+spec(compound(X)) :- compound(X), compound_name_arguments(X,_,Args),maplist(spec_and_nonvar,Args).
+spec(list(X)) :- spec_and_nonvar(X).
+spec(tuple(X)) :- is_list(X),maplist(spec_and_nonvar,X).
+
+spec(and(L)) :- is_list(L), maplist(spec_and_nonvar,L).
+spec(one_of(L)) :- is_list(L), maplist(spec_and_nonvar,L).
+
 
 
 % Transform to edn
