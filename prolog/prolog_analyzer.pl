@@ -324,8 +324,7 @@ merge_list(L,R,[L,R]).
 user:term_expansion(A,A) :-
     !,
     prolog_load_context(module,Module),
-    (write_out, valid_module(Module) ->
-         prolog_load_context(file,File),
+    (write_out, main_file(File) ->
          get_clojure_file_name(File,ClojureFile),
          open(ClojureFile,append,Stream),
          expand(A,Module,Stream),
@@ -333,10 +332,11 @@ user:term_expansion(A,A) :-
          close(Stream)
     ).
 
+
 get_clojure_file_name(File,ClojureFile) :-
     string_concat(File,".edn",ClojureFile).
 
-valid_module(Module) :-
-    Module \== prolog_analyzer,
-    Module \== user.
-
+main_file(File) :-
+    prolog_load_context(file,File),
+    prolog_load_context(source,File),
+    source_file_property(File,module(_)).
