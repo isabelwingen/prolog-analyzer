@@ -1,26 +1,43 @@
 :- module(abs_int,[abs_int/3, abs_int/2]).
-:- use_module("../prolog/prolog_analyzer",[defspec/2,spec_pre/2,spec_post/3,enable_write_out/0,start_spec_definition/0,end_spec_definition/0]).
+:- use_module("../prolog/prolog_analyzer",[spec_pre/2,spec_post/3,enable_write_out/0,declare_spec/1,define_spec/2]).
 
 :- enable_write_out.
 
-:- start_spec_definition.
-:- defspec(skip,compound(skip(int))).
-:- defspec(op, one_of([atom(+), atom(-), atom(*), atom(/), atom(**), atom(^), atom(>>), atom(<<)])).
-:- defspec(pred_op,one_of([atom(<), atom(>), atom(=<), atom(>=), atom(==), atom(=\=)])).
-:- defspec(expr, one_of([cst, compound(expr(op,expr,expr)), compound(neg(expr)), id])).
-:- defspec(pred,one_of([compound(pred(pred_op,expr,expr)),compound(not(pred))])).
-:- defspec(if,compound(if(int,pred,block,one_of([block,skip])))).
-:- defspec(while,compound(while(int,pred,block))).
-:- defspec(for,one_of([compound(for(int,def,pred,def,block)),compound(for(int,id,expr,expr,block))])).
-:- defspec(def,compound(def(int,id,expr))).
-:- defspec(print, compound(print(int,expr))).
-:- defspec(block,list(statement)).
-:- defspec(statement, one_of([skip,if,while,for,def,print])).
-:- defspec(cst,compound(cst(int))).
-:- defspec(id, compound(id(atom))).
-:- defspec(state_list,list(state_list_element)).
-:- defspec(state,one_of([atom(t),compound(t(atom,atom,atom,state,state))])).
-:- end_spec_definition.
+:- declare_spec(skip).
+:- declare_spec(op).
+:- declare_spec(pred_op).
+:- declare_spec(expr).
+:- declare_spec(pred).
+:- declare_spec(if).
+:- declare_spec(while).
+:- declare_spec(for).
+:- declare_spec(def).
+:- declare_spec(print).
+:- declare_spec(block).
+:- declare_spec(statement).
+:- declare_spec(cst).
+:- declare_spec(id).
+:- declare_spec(state_list).
+:- declare_spec(state_list_element).
+:- declare_spec(state).
+
+:- define_spec(skip,compound(skip(int))).
+:- define_spec(op, one_of([atom(+), atom(-), atom(*), atom(/), atom(**), atom(^), atom(>>), atom(<<)])).
+:- define_spec(pred_op,one_of([atom(<), atom(>), atom(=<), atom(>=), atom(==), atom(=\=)])).
+:- define_spec(expr, one_of([cst, compound(expr(op,expr,expr)), compound(neg(expr)), id])).
+:- define_spec(pred,one_of([compound(pred(pred_op,expr,expr)),compound(not(pred))])).
+:- define_spec(if,compound(if(int,pred,block,one_of([block,skip])))).
+:- define_spec(while,compound(while(int,pred,block))).
+:- define_spec(for,one_of([compound(for(int,def,pred,def,block)),compound(for(int,id,expr,expr,block))])).
+:- define_spec(def,compound(def(int,id,expr))).
+:- define_spec(print, compound(print(int,expr))).
+:- define_spec(block,list(statement)).
+:- define_spec(statement, one_of([skip,if,while,for,def,print])).
+:- define_spec(cst,compound(cst(int))).
+:- define_spec(id, compound(id(atom))).
+:- define_spec(state_list_element,compound(atom-atom)).
+:- define_spec(state_list,list(state_list_element)).
+:- define_spec(state,one_of([atom(t),compound(t(atom,atom,atom,state,state))])).
 
 :- spec_pre(int_expr/4,[one_of([cst,expr,compound(neg(expr)),id]),state,var,int]).
 :- spec_post(int_expr/4,[one_of([cst,expr,compound(neg(expr)),id]),state,var,int],[ground,state,atom,int]).

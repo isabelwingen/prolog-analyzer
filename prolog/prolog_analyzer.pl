@@ -1,4 +1,4 @@
-:- module(prolog_analyzer,[enable_write_out/0,spec_pre/2,spec_post/3,spec_invariant/2,defspec/2]).
+:- module(prolog_analyzer,[enable_write_out/0,spec_pre/2,spec_post/3,spec_invariant/2,define_spec/2,declare_spec/1]).
 :- use_module(library(error)).
 
 :- multifile term_expansion/2.
@@ -23,25 +23,25 @@ spec_invariant(Pred,SpecInv) :-
     maplist(valid_spec,SpecInv).
 
 valid_spec(X) :-
-    spec_and_nonvar(X,X),!.
+    spec_and_nonvar(X),!.
 valid_spec(Spec) :-
     domain_error('valid_spec',Spec).
 
-spec_and_nonvar(Current,Spec) :-
+spec_and_nonvar(Spec) :-
     nonvar(Spec),
-    spec(Current,Spec).
+    spec(Spec).
 
 
-spec(_,var).
-spec(_,ground).
-spec(_,nonvar).
-spec(_,any).
-spec(_,any(X)) :- var(X),!.
-spec(_,any(X)) :- compound(X), \+ ground(X), spec(X).
+spec(var).
+spec(ground).
+spec(nonvar).
+spec(any).
+spec(any(X)) :- var(X),!.
+spec(any(X)) :- compound(X), \+ ground(X), spec(X).
 
 % Definition of spec predicates
-spec(_,atomic).
-spec( atom).
+spec(atomic).
+spec(atom).
 spec(atom(X)) :- atom(X).
 spec(integer).
 spec(number).
@@ -53,6 +53,20 @@ spec(tuple(X)) :- is_list(X),maplist(spec_and_nonvar,X).
 
 spec(and(L)) :- is_list(L), maplist(spec_and_nonvar,L).
 spec(one_of(L)) :- is_list(L), maplist(spec_and_nonvar,L).
+spec(Spec) :- spec_alias(Spec,_).
+
+
+:- dynamic spec_alias/2.
+spec_alias(int,integer).
+
+declare_spec(SpecName) :-
+    \+ spec(SpecName),
+    assert(spec_alias(SpecName,empty)).
+
+define_spec(SpecName,SpecAlias) :-
+    valid_spec(SpecAlias),
+    assert(spec_alias(SpecName,SpecAlias)),
+    retract(spec_alias(SpecName,empty)).
 
 
 
