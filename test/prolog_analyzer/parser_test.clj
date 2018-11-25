@@ -125,6 +125,61 @@
     ))
 
 
+(deftest parse-or
+  (are [x y] (= {:type :rule :content {:name "foo"
+                                       :module "tmp"
+                                       :arity 0
+                                       :arglist []
+                                       :body y}}
+                (first (test-helper (str "foo :- " x "."))))
+    "a;b"
+    [{:goal :or
+      :arity 2
+      :arglist [[{:goal "a" :arity 0 :arglist []}] [{:goal "b" :arity 0 :arglist []}]]}]
+    "a,b;c,d;e,f"
+    [{:goal :or
+      :arity 3
+      :arglist [[{:goal "a" :arity 0 :arglist []} {:goal "b" :arity 0 :arglist []}]
+                [{:goal "c" :arity 0 :arglist []} {:goal "d" :arity 0 :arglist []}]
+                [{:goal "e" :arity 0 :arglist []} {:goal "f" :arity 0 :arglist []}]]}]
+    "a,(b;c),d"
+    [{:goal "a" :arity 0 :arglist []}
+     {:goal :or :arity 2 :arglist [[{:goal "b" :arity 0 :arglist []}]
+                                   [{:goal "c" :arity 0 :arglist []}]]}
+     {:goal "d" :arity 0 :arglist []}]
+    ))
+
+(deftest parse-if
+  (are [x y] (= {:type :rule :content {:name "foo"
+                                       :module "tmp"
+                                       :arity 0
+                                       :arglist []
+                                       :body y}}
+                (first (test-helper (str "foo :- " x "."))))
+    "(a -> b;c)"
+    [{:goal :or
+      :arity 2
+      :arglist [[{:goal :if
+                  :arity 2
+                  :arglist [[{:goal "a" :arity 0 :arglist []}]
+                            [{:goal "b" :arity 0 :arglist []}]]}]
+                [{:goal "c" :arity 0 :arglist []}]]}]
+    "(a -> b)"
+    [{:goal :if
+      :arity 2
+      :arglist [[{:goal "a" :arity 0 :arglist []}]
+                [{:goal "b" :arity 0 :arglist []}]]}]
+    "a;b,c -> d,e;f"
+    [{:goal :or
+      :arity 3
+      :arglist [[{:goal "a" :arity 0 :arglist []}]
+                [{:goal :if
+                  :arity 2
+                  :arglist [[{:goal "b" :arity 0 :arglist []} {:goal "c" :arity 0 :arglist []}]
+                            [{:goal "d" :arity 0 :arglist []} {:goal "e" :arity 0 :arglist []}]]}]
+                [{:goal "f" :arity 0 :arglist []}]]}]
+    ))
+
 
 (test-helper "foo(a/b) :- 1, bar(a,X), c(b).")
 
