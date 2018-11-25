@@ -218,6 +218,9 @@ create_map([Indent/H|T],Acc,Res) :-
     create_map(T,NewAcc,Res).
 
 arg_to_map(Arg,Map) :-
+    string(Arg),!,
+    arg_to_map(string,Arg,Map).
+arg_to_map(Arg,Map) :-
     atom(Arg),!,
     arg_to_map(atom,Arg,Map).
 arg_to_map(Arg,Map) :-
@@ -287,6 +290,7 @@ arg_to_map(var,Term,Map) :-
     multi_string_concat(["{:term \"", Name, "\" :type :", Type, "}"],Map).
 
 
+arg_to_map(string,_,"{:type :string}") :- !.
 
 arg_to_map(Type,Term,Map) :-
     (Type = integer; Type = number; Type = float),
