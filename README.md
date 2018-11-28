@@ -7,7 +7,7 @@ At the moment it does not do much. See below for planned features.
 
 ## Installation
 
-Download from https://github.com/Winis04/prolog-analyzer
+Download from https://github.com/isabelwingen/prolog-analyzer
 
 ## Usage
 
