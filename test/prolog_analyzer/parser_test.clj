@@ -15,7 +15,7 @@
 
 (defn test-helper [code]
   (spit "prolog/tmp.pl" (str preamble code))
-  (let [res (sut/read-prolog-code "prolog/tmp.pl")]
+  (let [res (sut/read-prolog-code-as-raw-edn "prolog/tmp.pl")]
     (io/delete-file "prolog/tmp.pl")
     res))
 
@@ -184,4 +184,49 @@
     ))
 
 
+(deftest parse-specs
+  (are [input type output] (= {:type type :content output}
+                              (first-parse-result (test-helper input)))
+    ":- declare_spec(skip)."
+    :declare_spec
+    {:goal "declare_spec", :arity 1, :arglist [{:term "skip" :type :atom}]}
 
+    ":- define_spec(skip,atom(skip))."
+    :define_spec
+    {:goal "define_spec", :arity 2, :arglist [{:term "skip" :type :atom}
+                                              {:type :compound
+                                               :functor "atom"
+                                               :arglist [{:term "skip" :type :atom}]}]}
+
+    ":- spec_pre(foo/2,[int,int])."
+    :spec_pre
+    {:goal "spec_pre", :arity 2, :arglist [{:type :compound
+                                            :functor "/"
+                                            :arglist [{:term "foo" :type :atom}
+                                                      {:value 2 :type :integer}]}
+                                           {:type :list
+                                            :arglist [{:term "int" :type :atom}
+                                                      {:term "int" :type :atom}]}]}
+
+    ":- spec_post(foo/2,[any,int],[int,int])."
+    :spec_post
+    {:goal "spec_post", :arity 3, :arglist [{:type :compound
+                                             :functor "/"
+                                             :arglist [{:term "foo" :type :atom}
+                                                       {:value 2 :type :integer}]}
+                                            {:type :list
+                                             :arglist [{:term "any" :type :atom}
+                                                       {:term "int" :type :atom}]}
+                                            {:type :list
+                                             :arglist [{:term "int" :type :atom}
+                                                       {:term "int" :type :atom}]}]}
+
+    ":- spec_invariant(foo/1,[int])."
+    :spec_inv
+    {:goal "spec_invariant" :arity 2 :arglist [{:type :compound :functor "/"
+                                          :arglist [{:term "foo" :type :atom}
+                                                    {:value 1 :type :integer}]}
+                                         {:type :list
+                                          :arglist [{:term "int" :type :atom}]}]}
+
+    ))

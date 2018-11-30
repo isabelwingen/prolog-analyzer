@@ -39,9 +39,21 @@
       (printf "Error parsing edn file '%s': '%s\n" clojure-file (.getMessage e)))))
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
 
-(defn read-prolog-code [file]
+(defn read-prolog-code-as-raw-edn [file]
   (let [error-msg (call-swipl file)
         clojure-file (get-clojure-file-name file)
         result (transform-to-edn clojure-file)]
     (io/delete-file clojure-file)
     (conj result error-msg)))
+
+(defn process-prolog-file [file]
+  (let [raw (read-prolog-code-as-raw-edn file)]
+    (reduce (fn [map value]
+              (let [type (:type value)]
+                (case type
+                  :error-msg (assoc map :error-msg (:content value))
+                  (assoc map type :b))))
+            {}
+            raw)))
+
+(process-prolog-file "resources/abs_int.pl")

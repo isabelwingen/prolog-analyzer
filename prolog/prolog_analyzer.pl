@@ -330,7 +330,46 @@ expand(':-'(A,B),Module,Stream) :-
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
 
-
+expand(':-'(spec_pre(Functor,Spec)),_Module,Stream) :-
+    !,
+    Start = "{:type :spec_pre\n:content ",
+    goal_to_map(0,13,spec_pre(Functor,Spec),Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+expand(':-'(A),_Module,Stream) :-
+    A = spec_post(_,_,_),
+    !,
+    Start = "{:type :spec_post\n:content ",
+    goal_to_map(0,13,A,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+expand(':-'(A),_Module,Stream) :-
+    A = spec_invariant(_,_),
+    !,
+    Start = "{:type :spec_inv\n:content ",
+    goal_to_map(0,13,A,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+expand(':-'(A),_Module,Stream) :-
+    A = declare_spec(_),
+    !,
+    Start = "{:type :declare_spec\n:content ",
+    goal_to_map(0,13,A,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+expand(':-'(A),_Module,Stream) :-
+    A  = define_spec(_,_),
+    !,
+    Start = "{:type :define_spec\n:content ",
+    goal_to_map(0,13,A,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+expand(':-'(enable_write_out)_,_) :- !.
 expand(':-'(A),_Module,Stream) :-
     !,
     Start = "{:type      :direct\n :content   ",
