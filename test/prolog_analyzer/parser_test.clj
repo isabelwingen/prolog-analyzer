@@ -20,20 +20,26 @@
     res))
 
 (deftest parse-facts
-  (are [x y] (= {:type :fact :content y} (first-parse-result (test-helper x)))
+  (are [x y] (= {:type :pred :content y} (first-parse-result (test-helper x)))
     "foo(a,b)."
-    {:goal "foo"
+    {:name "foo"
+     :module "tmp"
      :arity 2
-     :arglist [{:term "a", :type :atom} {:term "b", :type :atom}]}
+     :arglist [{:term "a", :type :atom} {:term "b", :type :atom}]
+     :body [{:goal "true", :arity 0, :arglist []}]
+     }
 
     "write_out."
-    {:goal "write_out"
+    {:name "write_out"
+     :module "tmp"
      :arity 0
-     :arglist []}))
+     :arglist []
+     :body [{:goal "true", :arity 0, :arglist []}]
+     }))
 
 
 (deftest parse-list
-  (are [x y] (= {:type :fact :content {:goal "foo" :arity 1 :arglist [y]}}
+  (are [x y] (= {:type :pred :content {:name "foo"  :module "tmp" :arity 1 :arglist [y] :body [{:goal "true" :arity 0 :arglist []}]}}
                 (first-parse-result (test-helper (str "foo(" x ")."))))
     "[1,2,3]"
     {:type :list
@@ -57,7 +63,7 @@
     ))
 
 (deftest parse-compounds
-  (are [x y] (= {:type :fact :content {:goal "foo" :arity 1 :arglist [y]}}
+  (are [x y] (= {:type :pred :content {:name "foo" :module "tmp" :arity 1 :arglist [y] :body [{:goal "true" :arity 0 :arglist []}]}}
                 (first-parse-result (test-helper (str "foo(" x ")."))))
 
     "2/3"
@@ -84,7 +90,7 @@
 
 (deftest parse-not
   (is
-   (= {:type :rule
+   (= {:type :pred
        :content {:name "foo"
                  :module "tmp"
                  :arity 0
@@ -99,7 +105,7 @@
 
 
 (deftest parse-rules
-  (are [x y] (= {:type :rule :content y} (first-parse-result (test-helper x)))
+  (are [x y] (= {:type :pred :content y} (first-parse-result (test-helper x)))
     "foo(a,b) :- bar(a,b)."
     {:name "foo"
      :module "tmp"
@@ -129,7 +135,7 @@
 
 
 (deftest parse-or
-  (are [x y] (= {:type :rule :content {:name "foo"
+  (are [x y] (= {:type :pred :content {:name "foo"
                                        :module "tmp"
                                        :arity 0
                                        :arglist []
@@ -153,7 +159,7 @@
     ))
 
 (deftest parse-if
-  (are [x y] (= {:type :rule :content {:name "foo"
+  (are [x y] (= {:type :pred :content {:name "foo"
                                        :module "tmp"
                                        :arity 0
                                        :arglist []
