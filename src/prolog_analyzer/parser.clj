@@ -66,12 +66,45 @@
        (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
        ))
 
+(defmulti transform-spec (juxt :type :functor))
+
+(defmethod transform-spec [:atom nil] [{term :term}]
+  {:spec term})
+
+(defmethod transform-spec [:compound "list"] [{[type] :arglist}]
+  {:spec :list :type (transform-spec type)})
+
+(defmethod transform-spec [:compound "compound"] [{[{functor :functor arglist :arglist}] :arglist}]
+  {:spec :compound :functor functor :arglist (map transform-spec arglist)}
+  )
+
+(defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
+  (let [arglist (:arglist (first inner-list))]
+    {:spec :one_of :arglist (map transform-spec arglist)}))
+
+(defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
+  (let [arglist (:arglist (first inner-list))]
+    {:spec :and :arglist (map transform-spec arglist)}))
+
+(defmethod transform-spec [:compound "tuple"] [{inner-list :arglist}]
+  (let [arglist (:arglist (first inner-list))]
+    {:spec :tuple :arglist (map transform-spec arglist)}))
+
+(defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
+  {:spec :exact :value (:term (first arglist))})
+
+
+
+(defmethod transform-spec :default [x]
+  x)
+
+
 (defn- spec-to-map [{[pred & rest] :arglist}]
   (let [functor (get-in pred [:arglist 0 :term])
         arity (get-in pred [:arglist 1 :value])]
     (if (= 1 (count rest))
-      (hash-map (vector functor arity) (map :arglist rest))
-      (hash-map (vector functor arity) (list (map :arglist rest)))))
+      (hash-map (vector functor arity) (map (comp #(map transform-spec %) :arglist) rest))
+      (hash-map (vector functor arity) (list (map (comp #(map transform-spec %) :arglist) rest)))))
   )
 
 (defn order-specs [specs]
@@ -87,7 +120,9 @@
 (defn order-define-specs [defines]
   (let [keys (map (comp first :arglist) defines)]
     (if (= keys (distinct keys))
-      (into {} (map :arglist defines))
+      (->> (map :arglist defines)
+           (into {})
+           (reduce-kv (fn [m k v] (assoc m (transform-spec k) (transform-spec v))) {}))
       (println "error defining specs")   ;; TODO: log error and better message
       )
     ))
