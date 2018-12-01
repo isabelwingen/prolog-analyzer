@@ -236,3 +236,30 @@
                                           :arglist [{:term "int" :type :atom}]}]}
 
     ))
+
+
+(deftest process-files:spec_def
+  (let [result (sut/process-prolog-file "resources/process-file-test.pl")]
+    (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec "int"} {:spec "int"}]}
+            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec "int"} {:spec :var}]}}
+           (:specs result)))
+    (is
+     (= {"member_int"
+         {2 [[{:spec "int"} {:spec :list :type {:spec "int"}}]
+             [{:spec "var"} {:spec :list :type {:spec "int"}}]]}
+         "foo"
+         {3 [[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}]]}}
+        (:spec_pre result)))
+    (is
+     (= {"member_int" {2 [[[{:spec "var"} {:spec :list :type {:spec "int"}}] [{:spec "int"} {:spec :list :type {:spec "int"}}]]]}
+         "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]
+                   [[{:spec "nonvar"} {:spec "int"} {:spec "int"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]]}}
+        (:spec_post result)))
+    (is
+     (= {"member_int" {2 [[{:spec "any"} {:spec "ground"}]]}}))
+    )
+  )
+
+(deftest process-files:preds
+  (let [result (sut/process-prolog-file "resources/process-file-test.pl")]
+    (is (and (coll? (get-in result [:pred "process_file_test" "member_int" 2]))))))
