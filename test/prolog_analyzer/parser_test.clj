@@ -19,6 +19,8 @@
     (io/delete-file "prolog/tmp.pl")
     res))
 
+(test-helper "foo(a,b).")
+
 (deftest parse-facts
   (are [x y] (= {:type :pred :content y} (first-parse-result (test-helper x)))
     "foo(a,b)."
@@ -241,7 +243,10 @@
 (deftest process-files:spec_def
   (let [result (sut/process-prolog-file "resources/process-file-test.pl")]
     (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec "int"} {:spec "int"}]}
-            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec "int"} {:spec :var}]}}
+            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec "int"} {:spec "var"}]}
+            {:spec "a"} {:spec :and :arglist [{:spec "int"} {:spec "atom"}]}
+            {:spec "b"} {:spec :tuple :arglist [{:spec "int"} {:spec "var"}]}
+            {:spec "c"} {:spec :exact :value "empty"}}
            (:specs result)))
     (is
      (= {"member_int"
@@ -255,8 +260,6 @@
          "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]
                    [[{:spec "nonvar"} {:spec "int"} {:spec "int"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]]}}
         (:spec_post result)))
-    (is
-     (= {"member_int" {2 [[{:spec "any"} {:spec "ground"}]]}}))
     )
   )
 

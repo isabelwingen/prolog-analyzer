@@ -10,6 +10,10 @@
 :- define_spec(foo,compound(foo(int,int))).
 :- define_spec(intOrVar,one_of([int,var])).
 
+:- define_spec(a,and([int,atom])).
+:- define_spec(b,tuple([int,var])).
+:- define_spec(c,atom(empty)).
+
 
 :- spec_pre(member_int/2,[int,list(int)]).
 :- spec_pre(member_int/2,[var,list(int)]).
