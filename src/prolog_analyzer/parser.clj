@@ -61,33 +61,56 @@
 
 
 (defn order-preds [preds]
-  (interleaved-group-by preds :module :name :arity))
-
-(defn order-preds2 [preds]
   (->> (group-by (juxt :module :name :arity) preds)
        ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
        (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
        ))
 
+(defn- spec-to-map [{[pred & rest] :arglist}]
+  (let [functor (get-in pred [:arglist 0 :term])
+        arity (get-in pred [:arglist 1 :value])]
+    (if (= 1 (count rest))
+      (hash-map (vector functor arity) (map :arglist rest))
+      (hash-map (vector functor arity) (list (map :arglist rest)))))
+  )
 
 (defn order-specs [specs]
   (->> specs
-       (map :arglist)
-       (map (fn [[{arglist :arglist} body]] {[(:term (first arglist)) (:value (second arglist))] [body]}))
+       (map spec-to-map)
        (apply merge-with into)
-       (reduce-kv (fn [m [name arity] v] (update-in m [name arity] #(into % v))) {})))
+       (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
+       ))
+
+(defn order-declare-specs [declares]
+  (map (comp first :arglist) declares))
+
+(defn order-define-specs [defines]
+  (let [keys (map (comp first :arglist) defines)]
+    (if (= keys (distinct keys))
+      (into {} (map :arglist defines))
+      (println "error defining specs")   ;; TODO: log error and better message
+      )
+    ))
+
+
+(defn clean-up-spec-definitions [central-map]
+  (let [specs (:define_spec central-map)]
+    (-> central-map
+        (dissoc :define_spec)
+        (dissoc :declare_spec)
+        (assoc :specs specs))))
 
 (defn process-prolog-file [file]
   (let [raw (read-prolog-code-as-raw-edn file)]
     (-> raw
         (group-by-and-apply :type (partial map :content))
-        (update :declare_spec (partial map #(get-in % [:arglist 0])))
-        (update :define_spec (partial map :arglist))
+        (update :declare_spec order-declare-specs)
+        (update :define_spec order-define-specs)
+        clean-up-spec-definitions
         (update :spec_pre order-specs)
         (update :spec_post order-specs)
         (update :spec_inv order-specs)
-        (update :pred order-preds2)
+        (update :pred order-preds)
         )))
 
 
-(process-prolog-file "resources/abs_int.pl")
