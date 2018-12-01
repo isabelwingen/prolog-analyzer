@@ -46,14 +46,48 @@
     (io/delete-file clojure-file)
     (conj result error-msg)))
 
+
+(defn- apply-function-on-values [in-map func]
+  (reduce-kv #(assoc %1 %2 (func %3)) {} in-map))
+
+(defn group-by-and-apply [data f g]
+  (-> (group-by f data)
+      (apply-function-on-values g)
+      ))
+
+(defn interleaved-group-by
+  ([coll f] (-> (group-by f coll) (apply-function-on-values (partial map #(dissoc % f)))))
+  ([coll f & funcs] (-> (interleaved-group-by coll f) (apply-function-on-values #(apply interleaved-group-by % funcs)))))
+
+
+(defn order-preds [preds]
+  (interleaved-group-by preds :module :name :arity))
+
+(defn order-preds2 [preds]
+  (->> (group-by (juxt :module :name :arity) preds)
+       ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
+       (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
+       ))
+
+
+(defn order-specs [specs]
+  (->> specs
+       (map :arglist)
+       (map (fn [[{arglist :arglist} body]] {[(:term (first arglist)) (:value (second arglist))] [body]}))
+       (apply merge-with into)
+       (reduce-kv (fn [m [name arity] v] (update-in m [name arity] #(into % v))) {})))
+
 (defn process-prolog-file [file]
   (let [raw (read-prolog-code-as-raw-edn file)]
-    (reduce (fn [map value]
-              (let [type (:type value)]
-                (case type
-                  :error-msg (assoc map :error-msg (:content value))
-                  (assoc map type :b))))
-            {}
-            raw)))
+    (-> raw
+        (group-by-and-apply :type (partial map :content))
+        (update :declare_spec (partial map #(get-in % [:arglist 0])))
+        (update :define_spec (partial map :arglist))
+        (update :spec_pre order-specs)
+        (update :spec_post order-specs)
+        (update :spec_inv order-specs)
+        (update :pred order-preds2)
+        )))
+
 
 (process-prolog-file "resources/abs_int.pl")
