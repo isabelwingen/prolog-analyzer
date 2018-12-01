@@ -371,7 +371,7 @@ expand(':-'(A),_Module,Stream) :-
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
-expand(':-'(enable_write_out)_,_) :- !.
+expand(':-'(enable_write_out),_,_) :- !.
 
 % normal direct call
 expand(':-'(A),_Module,Stream) :-
