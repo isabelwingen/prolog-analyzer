@@ -324,16 +324,18 @@ expand(_,term_expander,_) :- !.
 expand(':-'(A,B),Module,Stream) :-
     !,
     body_list(B,Body),
-    Start = "{:type      :rule\n :content   ",
+    Start = "{:type      :pred\n :content   ",
     rule_to_map(A,Body,Module,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
 
-expand(':-'(spec_pre(Functor,Spec)),_Module,Stream) :-
+%special cases
+expand(':-'(A),_Module,Stream) :-
+    A = spec_pre(_,_),
     !,
     Start = "{:type :spec_pre\n:content ",
-    goal_to_map(0,13,spec_pre(Functor,Spec),Map),
+    goal_to_map(0,13,A,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
@@ -370,6 +372,8 @@ expand(':-'(A),_Module,Stream) :-
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
 expand(':-'(enable_write_out)_,_) :- !.
+
+% normal direct call
 expand(':-'(A),_Module,Stream) :-
     !,
     Start = "{:type      :direct\n :content   ",
@@ -378,13 +382,10 @@ expand(':-'(A),_Module,Stream) :-
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
 
-expand((C),_Module, Stream) :-
+% fact
+expand((C),Module,Stream) :-
     !,
-    Start = "{:type      :fact\n :content   ",
-    goal_to_map(0,13,C,Map),
-    string_concat(Start,Map,Tmp1),
-    string_concat(Tmp1,"}",Tmp2),
-    write(Stream,Tmp2),nl(Stream).
+    expand(':-'(C,true),Module,Stream).
 
 body_list(Body,List) :-
     transform(Body,E),
