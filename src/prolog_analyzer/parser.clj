@@ -69,7 +69,20 @@
 (defmulti transform-spec (juxt :type :functor))
 
 (defmethod transform-spec [:atom nil] [{term :term}]
-  {:spec term})
+  (let [spec (case term
+               "any" :any
+               "ground" :ground
+               "var" :var
+               "nonvar" :nonvar
+               "number" :number
+               "float" :float
+               "integer" :integer
+               "atom" :atom
+               "atomic" :atomic
+
+               term)]
+    {:spec spec}))
+
 
 (defmethod transform-spec [:compound "list"] [{[type] :arglist}]
   {:spec :list :type (transform-spec type)})
@@ -93,10 +106,13 @@
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
   {:spec :exact :value (:term (first arglist))})
 
+(defmethod transform-spec [:compound "any"] [{[spec] :arglist}]
+  {:spec :any :name (:name spec)}
+  )
 
-
-(defmethod transform-spec :default [x]
-  x)
+(defmethod transform-spec :default [spec]
+  {:spec (:functor spec) :arglist (map transform-spec (:arglist spec))}
+  )
 
 
 (defn- spec-to-map [{[pred & rest] :arglist}]

@@ -243,23 +243,32 @@
 (deftest process-files:spec_def
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
     (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec "int"} {:spec "int"}]}
-            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec "int"} {:spec "var"}]}
-            {:spec "a"} {:spec :and :arglist [{:spec "int"} {:spec "atom"}]}
-            {:spec "b"} {:spec :tuple :arglist [{:spec "int"} {:spec "var"}]}
-            {:spec "c"} {:spec :exact :value "empty"}}
+            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec "int"} {:spec :var}]}
+            {:spec "a"} {:spec :and :arglist [{:spec "int"} {:spec :atom}]}
+            {:spec "b"} {:spec :tuple :arglist [{:spec "int"} {:spec :var}]}
+            {:spec "c"} {:spec :exact :value "empty"}
+            {:spec "tree" :arglist [{:spec :any :name "X"}]} {:spec :one_of
+                                                              :arglist [{:spec :compound
+                                                                         :functor "node"
+                                                                         :arglist [{:spec "tree" :arglist [{:spec :any :name "X"}]}
+                                                                                   {:spec :any :name "X"}
+                                                                                   {:spec "tree" :arglist [{:spec :any :name "X"}]}]}
+                                                                        {:spec :exact :value "empty"}]}}
            (:specs result)))
     (is
      (= {"member_int"
          {2 [[{:spec "int"} {:spec :list :type {:spec "int"}}]
-             [{:spec "var"} {:spec :list :type {:spec "int"}}]]}
+             [{:spec :var} {:spec :list :type {:spec "int"}}]]}
          "foo"
          {3 [[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}]]}}
         (:spec_pre result)))
     (is
-     (= {"member_int" {2 [[[{:spec "var"} {:spec :list :type {:spec "int"}}] [{:spec "int"} {:spec :list :type {:spec "int"}}]]]}
+     (= {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec "int"}}] [{:spec "int"} {:spec :list :type {:spec "int"}}]]]}
          "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]
-                   [[{:spec "nonvar"} {:spec "int"} {:spec "int"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]]}}
+                   [[{:spec :nonvar} {:spec "int"} {:spec "int"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]]}}
         (:spec_post result)))
+    (is
+     (= {"member_int" {2 [[{:spec :any} {:spec :ground}]]}} (:spec_inv result)))
     )
   )
 
