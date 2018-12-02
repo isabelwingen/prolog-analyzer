@@ -32,6 +32,15 @@ spec_and_nonvar(Spec) :-
     spec(Spec).
 
 
+
+match_specs([],[]) :- !.
+match_specs([E|T],[E|S]) :-
+    !,match_specs(T,S).
+match_specs([_|T],[any(_)|S]) :-
+    !,match_specs(T,S).
+match_specs([any(_)|T],[_|S]) :-
+    !,match_specs(T,S).
+
 spec(var).
 spec(ground).
 spec(nonvar).
@@ -53,17 +62,40 @@ spec(tuple(X)) :- is_list(X),maplist(spec_and_nonvar,X).
 
 spec(and(L)) :- is_list(L), maplist(spec_and_nonvar,L).
 spec(one_of(L)) :- is_list(L), maplist(spec_and_nonvar,L).
-spec(Spec) :- spec_alias(Spec,_).
+spec(Spec) :-
+    compound(Spec),!,
+    Spec =.. [Functor|Arglist],
+    maplist(spec_and_nonvar,Arglist),
+    spec_alias(NewSpec,_),
+    NewSpec =.. [Functor|NewArglist],!,
+    match_specs(Arglist,NewArglist).
+spec(Spec) :-
+    \+ compound(Spec),
+    spec_alias(Spec,_).
 
 
 :- dynamic spec_alias/2.
 spec_alias(int,integer).
 
+
+check_if_vars_are_wrapped(Spec) :-
+    ground(Spec),!.
+check_if_vars_are_wrapped(Spec) :-
+    compound(Spec),
+    Spec =.. [any,_],!.
+check_if_vars_are_wrapped(Spec) :-
+    compound(Spec),
+    Spec =.. [_|Arglist],
+    maplist(check_if_vars_are_wrapped,Arglist).
+
 declare_spec(SpecName) :-
     \+ spec(SpecName),
+    check_if_vars_are_wrapped(SpecName),
     assert(spec_alias(SpecName,empty)).
 
 define_spec(SpecName,SpecAlias) :-
+    % only allow ground or vars wrapped in any
+    check_if_vars_are_wrapped(SpecName),
     valid_spec(SpecAlias),
     assert(spec_alias(SpecName,SpecAlias)),
     retract(spec_alias(SpecName,empty)).
