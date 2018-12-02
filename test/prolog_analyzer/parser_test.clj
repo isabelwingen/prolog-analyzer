@@ -241,7 +241,7 @@
 
 
 (deftest process-files:spec_def
-  (let [result (sut/process-prolog-file "resources/process-file-test.pl")]
+  (let [result (sut/process-prolog-file "resources/spec-test.pl")]
     (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec "int"} {:spec "int"}]}
             {:spec "intOrVar"} {:spec :one_of :arglist [{:spec "int"} {:spec "var"}]}
             {:spec "a"} {:spec :and :arglist [{:spec "int"} {:spec "atom"}]}
@@ -264,5 +264,5 @@
   )
 
 (deftest process-files:preds
-  (let [result (sut/process-prolog-file "resources/process-file-test.pl")]
-    (is (and (coll? (get-in result [:pred "process_file_test" "member_int" 2]))))))
+  (let [result (sut/process-prolog-file "resources/spec-test.pl")]
+    (is (and (coll? (get-in result [:pred "spec_test" "member_int" 2]))))))

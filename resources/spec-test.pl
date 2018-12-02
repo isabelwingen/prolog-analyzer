@@ -1,4 +1,4 @@
-:- module(process_file_test,[]).
+:- module(spec_test,[]).
 :- use_module("../prolog/prolog_analyzer",[enable_write_out/0,spec_pre/2,spec_post/3,spec_invariant/2,define_spec/2,declare_spec/1]).
 
 :- enable_write_out.
@@ -6,6 +6,10 @@
 
 :- declare_spec(intOrVar).
 :- declare_spec(foo).
+:- declare_spec(a).
+:- declare_spec(b).
+:- declare_spec(c).
+:- declare_spec(tree(any(X))).
 
 :- define_spec(foo,compound(foo(int,int))).
 :- define_spec(intOrVar,one_of([int,var])).
@@ -28,3 +32,5 @@ member_int(E,[_,T]) :-
 :- spec_post(foo/3,[foo,intOrVar,intOrVar],[foo,int,int]).
 :- spec_post(foo/3,[nonvar,int,int],[foo,int,int]).
 decode_foo(foo(A,B),A,B).
+
+
