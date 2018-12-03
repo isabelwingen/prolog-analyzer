@@ -55,17 +55,6 @@
       (apply-function-on-values g)
       ))
 
-(defn interleaved-group-by
-  ([coll f] (-> (group-by f coll) (apply-function-on-values (partial map #(dissoc % f)))))
-  ([coll f & funcs] (-> (interleaved-group-by coll f) (apply-function-on-values #(apply interleaved-group-by % funcs)))))
-
-
-(defn order-preds [preds]
-  (->> (group-by (juxt :module :name :arity) preds)
-       ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
-       (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
-       ))
-
 (defmulti transform-spec (juxt :type :functor))
 
 (defmethod transform-spec [:atom nil] [{term :term}]
@@ -79,7 +68,7 @@
                "integer" :integer
                "atom" :atom
                "atomic" :atomic
-
+               "int" :integer
                term)]
     {:spec spec}))
 
@@ -150,6 +139,24 @@
         (dissoc :define_spec)
         (dissoc :declare_spec)
         (assoc :specs specs))))
+
+(defn- transform-empty-list [arg]
+  (if (= {:term "[]" :type :atomic} arg)
+    {:type :list :arglist []}
+    arg))
+
+(defn order-preds [preds]
+  (->> (group-by (juxt :module :name :arity) preds)
+       ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
+       ((fn [coll] (apply-function-on-values coll (partial map #(update % :arglist (partial map transform-empty-list))))))
+       (reduce-kv
+        (fn [m [module name arity] v]
+          (if (= name "end_of_file")
+            m
+            (update-in m [module name arity] #(into % v))))
+        {})
+       ))
+
 
 (defn process-prolog-file [file]
   (let [raw (read-prolog-code-as-raw-edn file)]
