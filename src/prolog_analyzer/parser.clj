@@ -1,11 +1,11 @@
 (ns prolog-analyzer.parser
-  (:require [instaparse.core :as insta]
-            [clojure.pprint :refer [pprint]]
+  (:require [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
             [clojure.java.shell :as sh]
-            [clojure.set :refer [rename-keys]]))
+            [clojure.set :refer [rename-keys]]
+            [clojure.string]))
 
 (defn get-clojure-file-name [file]
   (str file ".edn"))

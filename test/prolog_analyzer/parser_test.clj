@@ -271,4 +271,5 @@
 
 (deftest process-files:preds
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-    (is (and (coll? (get-in result [:preds "spec_test" "member_int" 2]))))))
+    (is (coll? (get-in result [:preds "spec_test" "member_int" 2])))))
+
