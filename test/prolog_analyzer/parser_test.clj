@@ -257,17 +257,18 @@
              [{:spec :var} {:spec :list :type {:spec :integer}}]]}
          "foo"
          {3 [[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}]]}}
-        (:spec_pre result)))
+        (:pre-specs result)))
     (is
      (= {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec :integer}}] [{:spec :integer} {:spec :list :type {:spec :integer}}]]]}
          "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]
                    [[{:spec :nonvar} {:spec :integer} {:spec :integer}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]]}}
-        (:spec_post result)))
+        (:post-specs result)))
     (is
-     (= {"member_int" {2 [[{:spec :any} {:spec :ground}]]}} (:spec_inv result)))
+     (= {"member_int" {2 [[{:spec :any} {:spec :ground}]]}}
+        (:inv-specs result)))
     )
   )
 
 (deftest process-files:preds
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-    (is (and (coll? (get-in result [:pred "spec_test" "member_int" 2]))))))
+    (is (and (coll? (get-in result [:preds "spec_test" "member_int" 2]))))))

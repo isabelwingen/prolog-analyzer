@@ -4,12 +4,9 @@
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
-            [clojure.java.shell :as sh]))
+            [clojure.java.shell :as sh]
+            [clojure.set :refer [rename-keys]]))
 
-;(defn read-prolog-code [file]
- ; (with-open [in (java.io.PushbackReader. (clojure.java.io/reader file))]
-  ;  (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
-   ;   (dorun (map println (take-while (partial not= :theend) edn-seq))))))
 (defn get-clojure-file-name [file]
   (str file ".edn"))
 
@@ -169,6 +166,17 @@
         (update :spec_post order-specs)
         (update :spec_inv order-specs)
         (update :pred order-preds)
+        (rename-keys {:spec_pre :pre-specs
+                                  :spec_post :post-specs
+                                  :spec_inv :inv-specs
+                                  :pred :preds})
         )))
 
+(def preamble
+  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
 
+(defn process-prolog-snippets [code]
+  (spit "prolog/tmp.pl" (str preamble code))
+  (let [res (process-prolog-file "prolog/tmp.pl")]
+    (io/delete-file "prolog/tmp.pl")
+    res))
