@@ -81,13 +81,51 @@
   (and (= spec-functor arg-functor)
        (every? true? (map valid spec-arglist arg-arglist))))
 
-
-
-
 (defmethod valid-helper :default [[spec arg]]
   (println (str "default: " spec)))
 
+(defn get-specs-of-pred [pred-identity data]
+  (let [spec-identity (rest pred-identity)]
+    (-> data
+        (select-keys [:pre-specs :post-specs :inv-specs])
+        (update :pre-specs #(get-in % spec-identity))
+        (update :post-specs #(get-in % spec-identity))
+        (update :inv-specs #(get-in % spec-identity))
+        )))
 
-(process-prolog-snippets ":- declare_spec(tree(any(_))).\n:-define_spec(tree(any(X)),one_of([compound(node(tree(any(X)),any(X),tree(any(X)))),atom(empty)])).\n:- spec_pre(foo/1,[tree(int)]).")
+(defn get-instances-of-pred [pred-identity data]
+  (get-in data (apply vector :preds pred-identity)))
 
-(valid {:spec :one_of :arglist [{:spec :float} {:spec :atom}]} {:value 1 :type :integer})
+(defn get-pred-identities [data]
+  (for [module (keys (:preds data))
+        pred-name (keys (get-in data [:preds module]))
+        arity (keys (get-in data [:preds module pred-name]))]
+    [module pred-name arity]))
+
+(defn get-initial-domain-of-arg [arg]
+  (case (:type arg)
+    :head-tail-list :list
+    :anon_var :var
+    (:type arg)
+    ))
+
+(defn get-start-domains [pred-key data]
+  (let [pred-impls (get-instances-of-pred pred-key data)]
+    pred-impls)
+  )
+
+
+(defmulti domain-of :type)
+(defmethod domain-of :anon_var [arg]
+  (assoc arg :dom {:spec :var}))
+
+(defmethod domain-of :head-tail-list [arg]
+  (let [inner-domains (-> arg
+                          (update :head domain-of)
+                          (update :tail domain-of))
+        dom-head (get-in inner-domains [:head :dom])
+        dom-tail (get-in inner-domains [:tail :dom])]
+    (assoc inner-domains :dom {:spec :and :arglist '(dom-head dom-tail)})))
+
+(defmethod domain-of :default [{type :type}]
+  {:spec type})
