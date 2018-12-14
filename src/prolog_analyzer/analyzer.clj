@@ -1,6 +1,8 @@
 (ns prolog-analyzer.analyzer
   (:require
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]] ;; used only during development
+   [prolog-analyzer.domain]
+   [clojure.set]
    ))
 
 
@@ -84,22 +86,60 @@
 (defmethod valid-helper :default [[spec arg]]
   (println (str "default: " spec)))
 
-(defn get-specs-of-pred [pred-identity data]
-  (let [spec-identity (rest pred-identity)]
-    (-> data
+(def data (atom (process-prolog-snippets ":- spec_pre(foo/2,[list(int),int]). foo([],_) :- !. foo([E|T],E) :- foo(T,E).")))
+
+(defn id [arg]
+  (hash arg))
+
+
+(defn merge-into-env [env arg new-value]
+  (if (contains? env (id arg))
+    (-> env
+        (update-in [(id arg) :dom] (partial prolog-analyzer.domain/merge (:dom new-value)))
+        (update-in [(id arg) :relations] (partial clojure.set/union (:relations new-value))))
+    (-> env
+        (assoc-in [:id-mapping (id arg)] arg)
+        (assoc (id arg) new-value))))
+
+(defmulti add-to-env-aux #(:type (second %)))
+(defmethod add-to-env-aux :head-tail-list [[env {head :head tail :tail :as arg}]]
+  (-> env
+      (merge-into-env arg {:dom {:spec :list :type {:spec :any}} :relations #{{:head (id head)} {:tail (id tail)}}})
+      (merge-into-env head {:dom {:spec :any} :relations #{{:head-of (id arg)}}})
+      (merge-into-env tail {:dom {:spec :list :type {:spec :any}} :relations #{{:tail-of (id arg)}}})))
+
+(defmethod add-to-env-aux :default [[env arg]]
+  (merge-into-env env arg {:dom {:spec :any} :relations #{}}))
+
+(defn add-to-env [env arg]
+  (let [new-env (assoc-in env [:id-mapping (id arg)] arg)]
+    (add-to-env-aux [new-env arg])))
+
+
+
+(defn analyzing [{arglist :arglist body :body} pre-spec]
+  (let [env {:id-mapping {} :args (zipmap (range 0 (count arglist)) (map id arglist))}]
+    (reduce add-to-env env arglist)))
+
+
+;; utils
+(defn get-specs-of-pred [pred-identity]
+  (let [spec-identity (rest pred-identity)
+        specs @data]
+    (-> specs
         (select-keys [:pre-specs :post-specs :inv-specs])
         (update :pre-specs #(get-in % spec-identity))
         (update :post-specs #(get-in % spec-identity))
         (update :inv-specs #(get-in % spec-identity))
         )))
 
-(defn get-instances-of-pred [pred-identity data]
-  (get-in data (apply vector :preds pred-identity)))
+(defn get-impls-of-pred [pred-identity]
+  (get-in @data (apply vector :preds pred-identity)))
 
-(defn get-pred-identities [data]
-  (for [module (keys (:preds data))
-        pred-name (keys (get-in data [:preds module]))
-        arity (keys (get-in data [:preds module pred-name]))]
+(defn get-pred-identities []
+  (for [module (keys (:preds @data))
+        pred-name (keys (get-in @data [:preds module]))
+        arity (keys (get-in @data [:preds module pred-name]))]
     [module pred-name arity]))
 
 (defn get-initial-domain-of-arg [arg]
@@ -109,23 +149,12 @@
     (:type arg)
     ))
 
-(defn get-start-domains [pred-key data]
-  (let [pred-impls (get-instances-of-pred pred-key data)]
-    pred-impls)
-  )
+(defn complete-analysis [data]
+  (for [pred-id (get-pred-identities)
+        impl (get-impls-of-pred pred-id)
+        pre-spec (:pre-specs (get-specs-of-pred pred-id))]
+    (analyzing impl pre-spec)))
+
+(complete-analysis data)
 
 
-(defmulti domain-of :type)
-(defmethod domain-of :anon_var [arg]
-  (assoc arg :dom {:spec :var}))
-
-(defmethod domain-of :head-tail-list [arg]
-  (let [inner-domains (-> arg
-                          (update :head domain-of)
-                          (update :tail domain-of))
-        dom-head (get-in inner-domains [:head :dom])
-        dom-tail (get-in inner-domains [:tail :dom])]
-    (assoc inner-domains :dom {:spec :and :arglist '(dom-head dom-tail)})))
-
-(defmethod domain-of :default [{type :type}]
-  {:spec type})
