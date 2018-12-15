@@ -95,7 +95,7 @@
 (defn merge-into-env [env arg new-value]
   (if (contains? env (id arg))
     (-> env
-        (update-in [(id arg) :dom] (partial prolog-analyzer.domain/merge (:dom new-value)))
+        (update-in [(id arg) :dom] (partial prolog-analyzer.domain/merge-dom (:dom new-value)))
         (update-in [(id arg) :relations] (partial clojure.set/union (:relations new-value))))
     (-> env
         (assoc-in [:id-mapping (id arg)] arg)

@@ -1,40 +1,63 @@
-(ns prolog-analyzer.domain)
+(ns prolog-analyzer.domain
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
+            [clojure.spec.test.alpha :as stest]))
+
+
+(s/def :normal/spec (s/spec #{:other}))
+(s/def :or/spec (s/spec #{:or}))
+(s/def :and/spec (s/spec #{:and}))
+(s/def ::arglist (s/coll-of ::dom))
 
 
 
+(s/def ::dom (s/or :normal ::normal-spec
+                   :or ::or-spec
+                   :and ::and-spec))
+
+(s/def ::normal-spec (s/keys :req-un [:normal/spec]))
+(s/def ::or-spec (s/keys :req-un [:or/spec ::arglist]))
+(s/def ::and-spec (s/keys :req-un [:and/spec ::arglist]))
+
+
+
+(s/fdef is-subdom?
+        :args (s/cat :dom1 ::dom :dom2 ::dom)
+        :ret boolean?)
 (defn is-subdom? [dom1 dom2] false)
 
 
-(defn calculate-knf [arglist]
-  (let [[ands ors] (vals (group-by #(= :or (:spec %)) arglist))]
-    (reduce #(for [a %1
-                   b (:arglist %2)]
-               {:spec :and :arglist (conj (:arglist a) b)})
-            [{:spec :and :arglist ands}]
-            ors)))
 
-(defmulti to-knf :spec)
+(defn spec-type [dom]
+  (case (:spec dom)
+    :and :and
+    :or :or
+    :normal))
 
-(defmethod to-knf :and [dom]
-  (-> dom
-      (update :arglist (partial map to-knf))
-      (update :arglist (partial map #(if (= :and (:spec %)) (get % :arglist %) %)))
-      (update :arglist flatten)
-      (update :arglist calculate-knf)
-      (assoc :spec :or)
-      ))
+(defmulti to-knf spec-type)
+
+(defmethod to-knf :normal [dom]
+  {:spec :or :arglist [dom]})
 
 (defmethod to-knf :or [dom]
-  (-> dom
-      (update :arglist (partial map to-knf)) ;; only :or and simple specs
-      (update :arglist (partial map #(if (= :or (:spec %)) (get % :arglist %) %))) 
-      (update :arglist flatten)
-      ))
-
-(defmethod to-knf :default [dom]
   dom)
 
-(defn merge [dom1 dom2]
+(defmethod to-knf :and [dom]
+  (if (= 1 (count (:arglist dom)))
+    (assoc dom :spec :or)
+    (-> dom
+        (update :arglist #(->> %
+                               (map to-knf)
+                               (map :arglist)
+                               (reduce (fn [left right]
+                                         (for [a left
+                                               b right]
+                                           {:spec :and :arglist [a b]})))))
+        (assoc :spec :or))))
+
+
+
+(defn merge-dom [dom1 dom2]
   (to-knf {:spec :and :arglist (list dom1 dom2)}))
 
 
@@ -50,3 +73,6 @@
     (is-subdom? dom1 dom2) dom1
     (is-subdom? dom2 dom1) dom2
     :else (to-knf {:spec :and :arglist (list dom1 dom2)})))
+
+
+(to-knf {:spec :and :arglist [{:spec :or :arglist [{:spec :a} {:spec :b}]} {:spec :or :arglist [{:spec :c} {:spec :d}]}]})
