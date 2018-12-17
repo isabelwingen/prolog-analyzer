@@ -1,15 +1,12 @@
 (ns prolog-analyzer.parser
-  (:require [instaparse.core :as insta]
-            [clojure.pprint :refer [pprint]]
+  (:require [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
-            [clojure.java.shell :as sh]))
+            [clojure.java.shell :as sh]
+            [clojure.set :refer [rename-keys]]
+            [clojure.string]))
 
-;(defn read-prolog-code [file]
- ; (with-open [in (java.io.PushbackReader. (clojure.java.io/reader file))]
-  ;  (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
-   ;   (dorun (map println (take-while (partial not= :theend) edn-seq))))))
 (defn get-clojure-file-name [file]
   (str file ".edn"))
 
@@ -55,17 +52,6 @@
       (apply-function-on-values g)
       ))
 
-(defn interleaved-group-by
-  ([coll f] (-> (group-by f coll) (apply-function-on-values (partial map #(dissoc % f)))))
-  ([coll f & funcs] (-> (interleaved-group-by coll f) (apply-function-on-values #(apply interleaved-group-by % funcs)))))
-
-
-(defn order-preds [preds]
-  (->> (group-by (juxt :module :name :arity) preds)
-       ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
-       (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
-       ))
-
 (defmulti transform-spec (juxt :type :functor))
 
 (defmethod transform-spec [:atom nil] [{term :term}]
@@ -79,7 +65,7 @@
                "integer" :integer
                "atom" :atom
                "atomic" :atomic
-
+               "int" :integer
                term)]
     {:spec spec}))
 
@@ -151,6 +137,24 @@
         (dissoc :declare_spec)
         (assoc :specs specs))))
 
+(defn- transform-empty-list [arg]
+  (if (= {:term "[]" :type :atomic} arg)
+    {:type :list :arglist []}
+    arg))
+
+(defn order-preds [preds]
+  (->> (group-by (juxt :module :name :arity) preds)
+       ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
+       ((fn [coll] (apply-function-on-values coll (partial map #(update % :arglist (partial map transform-empty-list))))))
+       (reduce-kv
+        (fn [m [module name arity] v]
+          (if (= name "end_of_file")
+            m
+            (update-in m [module name arity] #(into % v))))
+        {})
+       ))
+
+
 (defn process-prolog-file [file]
   (let [raw (read-prolog-code-as-raw-edn file)]
     (-> raw
@@ -162,6 +166,17 @@
         (update :spec_post order-specs)
         (update :spec_inv order-specs)
         (update :pred order-preds)
+        (rename-keys {:spec_pre :pre-specs
+                                  :spec_post :post-specs
+                                  :spec_inv :inv-specs
+                                  :pred :preds})
         )))
 
+(def preamble
+  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
 
+(defn process-prolog-snippets [code]
+  (spit "prolog/tmp.pl" (str preamble code))
+  (let [res (process-prolog-file "prolog/tmp.pl")]
+    (io/delete-file "prolog/tmp.pl")
+    res))

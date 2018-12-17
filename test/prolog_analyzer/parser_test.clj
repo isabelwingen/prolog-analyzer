@@ -4,14 +4,11 @@
             [clojure.test :refer :all]
             [clojure.java.io :as io]))
 
-(deftest foo
-  (is (= 1 1)))
-
- (def preamble
-  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0]).\n:- enable_write_out.\n\n")
-
 (defn- first-parse-result [l]
   (second l))
+
+(def preamble
+  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0]).\n:- enable_write_out.\n\n")
 
 (defn test-helper [code]
   (spit "prolog/tmp.pl" (str preamble code))
@@ -19,7 +16,6 @@
     (io/delete-file "prolog/tmp.pl")
     res))
 
-(test-helper "foo(a,b).")
 
 (deftest parse-facts
   (are [x y] (= {:type :pred :content y} (first-parse-result (test-helper x)))
@@ -242,10 +238,10 @@
 
 (deftest process-files:spec_def
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-    (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec "int"} {:spec "int"}]}
-            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec "int"} {:spec :var}]}
-            {:spec "a"} {:spec :and :arglist [{:spec "int"} {:spec :atom}]}
-            {:spec "b"} {:spec :tuple :arglist [{:spec "int"} {:spec :var}]}
+    (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
+            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec :integer} {:spec :var}]}
+            {:spec "a"} {:spec :and :arglist [{:spec :integer} {:spec :atom}]}
+            {:spec "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
             {:spec "c"} {:spec :exact :value "empty"}
             {:spec "tree" :arglist [{:spec :any :name "X"}]} {:spec :one_of
                                                               :arglist [{:spec :compound
@@ -257,21 +253,23 @@
            (:specs result)))
     (is
      (= {"member_int"
-         {2 [[{:spec "int"} {:spec :list :type {:spec "int"}}]
-             [{:spec :var} {:spec :list :type {:spec "int"}}]]}
+         {2 [[{:spec :integer} {:spec :list :type {:spec :integer}}]
+             [{:spec :var} {:spec :list :type {:spec :integer}}]]}
          "foo"
          {3 [[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}]]}}
-        (:spec_pre result)))
+        (:pre-specs result)))
     (is
-     (= {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec "int"}}] [{:spec "int"} {:spec :list :type {:spec "int"}}]]]}
-         "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]
-                   [[{:spec :nonvar} {:spec "int"} {:spec "int"}] [{:spec "foo"} {:spec "int"} {:spec "int"}]]]}}
-        (:spec_post result)))
+     (= {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec :integer}}] [{:spec :integer} {:spec :list :type {:spec :integer}}]]]}
+         "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]
+                   [[{:spec :nonvar} {:spec :integer} {:spec :integer}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]]}}
+        (:post-specs result)))
     (is
-     (= {"member_int" {2 [[{:spec :any} {:spec :ground}]]}} (:spec_inv result)))
+     (= {"member_int" {2 [[{:spec :any} {:spec :ground}]]}}
+        (:inv-specs result)))
     )
   )
 
 (deftest process-files:preds
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-    (is (and (coll? (get-in result [:pred "spec_test" "member_int" 2]))))))
+    (is (coll? (get-in result [:preds "spec_test" "member_int" 2])))))
+
