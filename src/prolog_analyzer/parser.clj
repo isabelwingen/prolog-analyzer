@@ -93,7 +93,7 @@
   {:spec :exact :value (:term (first arglist))})
 
 (defmethod transform-spec [:compound "any"] [{[spec] :arglist}]
-  {:spec :any :name (:name spec)}
+  {:spec :named-any :name (:name spec)}
   )
 
 (defmethod transform-spec :default [spec]

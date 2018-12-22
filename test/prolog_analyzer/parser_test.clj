@@ -243,12 +243,12 @@
             {:spec "a"} {:spec :and :arglist [{:spec :integer} {:spec :atom}]}
             {:spec "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
             {:spec "c"} {:spec :exact :value "empty"}
-            {:spec "tree" :arglist [{:spec :any :name "X"}]} {:spec :one_of
+            {:spec "tree" :arglist [{:spec :named-any :name "X"}]} {:spec :one_of
                                                               :arglist [{:spec :compound
                                                                          :functor "node"
-                                                                         :arglist [{:spec "tree" :arglist [{:spec :any :name "X"}]}
-                                                                                   {:spec :any :name "X"}
-                                                                                   {:spec "tree" :arglist [{:spec :any :name "X"}]}]}
+                                                                         :arglist [{:spec "tree" :arglist [{:spec :named-any :name "X"}]}
+                                                                                   {:spec :named-any :name "X"}
+                                                                                   {:spec "tree" :arglist [{:spec :named-any :name "X"}]}]}
                                                                         {:spec :exact :value "empty"}]}}
            (:specs result)))
     (is

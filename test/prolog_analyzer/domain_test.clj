@@ -60,4 +60,30 @@
 (defn to-knf-wrapper [dom]
   (sut/to-knf dom))
 
-;(binding [s/*recursion-limit* 1] (stest/abbrev-result (first (stest/check `to-knf-wrapper))))
+(deftest is-subdom-test
+  (are [a b] (true? (sut/is-subdom? a b))
+    {:spec :integer} {:spec :number}
+    {:spec :number} {:spec :any}
+    {:spec :float} {:spec :ground}
+     {:spec :list :type {:spec :integer}} {:spec :list :type {:spec :atomic}}
+    {:spec :tuple :arglist [{:spec :exact :value "hallo"} {:spec :integer}]} {:spec :tuple :arglist [{:spec :atom} {:spec :number}]}
+    {:spec :compound :functor "foo" :arglist [{:spec :atom}]} {:spec :compound :functor "foo" :arglist [{:spec :nonvar}]}
+    {:spec :number} {:spec :number}
+    {:spec :exact :value "empty"} {:spec :exact :value "empty"}
+    {:spec :exact :value "empty"} {:spec :atomic}
+    {:spec :any :name "X"} {:spec :any})
+  (are [a b] (false? (sut/is-subdom? a b))
+    {:spec :any} {:spec :any :name "X"}
+    {:spec :any :name "X"} {:spec :any :name "Y"}
+    {:spec :atom} {:spec :exact :value "p"}
+    {:spec :exact :value "a"} {:spec :exact :value "b"}
+    {:spec :list :type {:spec :number}} {:spec :list :type {:spec :integer}}
+    {:spec :tuple :arglist [{:spec :integer}]} {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}
+    {:spec :compound :functor "foo" :arglist [{:spec :integer}]} {:spec :compound :functor "foo2" :arglist [{:spec :integer}]}))
+
+(deftest merge-dom-test
+  (are [dom1 dom2 result] (= result (sut/merge-dom dom1 dom2))
+    {:spec :integer} {:spec :integer} {:spec :integer}
+    {:spec :integer} {:spec :number} {:spec :integer}
+    {:spec :exact :value "empty"} {:spec :ground} {:spec :exact :value "empty"}
+    {:spec :exact :value "empty"} {:spec :exact :value "nan"} nil))
