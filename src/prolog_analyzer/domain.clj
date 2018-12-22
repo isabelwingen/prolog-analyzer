@@ -182,7 +182,9 @@
 
 
 (defn intersect-with-var [dom1 dom2]
-  {:spec :and :arglist [dom1 dom2]})
+  (if (= :var (:spec dom2))
+    dom2
+    (assoc dom2 :was-var true)))
 
 (defn intersect-with-exact [{value :value :as dom1} dom2]
   (case (:spec dom2)
