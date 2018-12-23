@@ -44,13 +44,14 @@
     (conj result error-msg)))
 
 
-(defn- apply-function-on-values [in-map func]
+(defn- apply-function-on-values [func in-map]
   (reduce-kv #(assoc %1 %2 (func %3)) {} in-map))
 
 (defn group-by-and-apply [data f g]
-  (-> (group-by f data)
-      (apply-function-on-values g)
-      ))
+  (->> data
+       (group-by f)
+       (apply-function-on-values g)
+       ))
 
 (defmulti transform-spec (juxt :type :functor))
 
@@ -144,16 +145,17 @@
 
 (defn order-preds [preds]
   (->> (group-by (juxt :module :name :arity) preds)
-       ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
-       ((fn [coll] (apply-function-on-values coll (partial map #(update % :arglist (partial map transform-empty-list))))))
-       (reduce-kv
-        (fn [m [module name arity] v]
-          (if (= name "end_of_file")
-            m
-            (update-in m [module name arity] #(into % v))))
-        {})
+       (apply-function-on-values (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))
+       (apply-function-on-values (partial map #(update % :arglist (partial map transform-empty-list))))
+       (apply-function-on-values #(->> %
+                                       (interleave (range 0 (count %)))
+                                       (apply hash-map)))
+       (reduce-kv (fn [m [module name arity] v]
+                    (if (= name "end_of_file")
+                      m
+                      (assoc-in m [module name arity] v)))
+                  {})
        ))
-
 
 (defn process-prolog-file [file]
   (let [raw (read-prolog-code-as-raw-edn file)]
@@ -167,9 +169,9 @@
         (update :spec_inv order-specs)
         (update :pred order-preds)
         (rename-keys {:spec_pre :pre-specs
-                                  :spec_post :post-specs
-                                  :spec_inv :inv-specs
-                                  :pred :preds})
+                      :spec_post :post-specs
+                      :spec_inv :inv-specs
+                      :pred :preds})
         )))
 
 (def preamble

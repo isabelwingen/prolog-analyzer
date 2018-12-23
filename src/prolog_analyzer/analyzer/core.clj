@@ -10,6 +10,7 @@
 (defn id [arg]
   (hash arg))
 
+(def data (atom {}))
 
 (defn merge-into-env [env arg new-value]
   (if (contains? env (id arg))
@@ -38,7 +39,6 @@
   (let [env {:id-mapping {} :args (zipmap (range 0 (count arglist)) (map id arglist))}]
     (reduce add-to-env env (partition 2 (interleave arglist pre-spec)))))
 
-(def data (atom {}))
 ;; utils
 (defn get-specs-of-pred [pred-identity]
   (let [spec-identity (rest pred-identity)
@@ -51,7 +51,7 @@
         )))
 
 (defn get-impls-of-pred [pred-identity]
-  (get-in @data (apply vector :preds pred-identity)))
+  (vals (get-in @data (apply vector :preds pred-identity))))
 
 (defn get-pred-identities []
   (for [module (keys (:preds @data))
@@ -66,8 +66,9 @@
         pre-spec (:pre-specs (get-specs-of-pred pred-id))]
     (analyzing impl pre-spec)))
 
-(-> "resources/simple-example.pl"
-    process-prolog-file
-    complete-analysis
-    (#(map to-pretty-map %))
-    pp/pprint)
+(comment (-> "resources/module1.pl"
+             process-prolog-file
+             complete-analysis
+             (#(map to-pretty-map %))
+             pp/pprint
+             ))
