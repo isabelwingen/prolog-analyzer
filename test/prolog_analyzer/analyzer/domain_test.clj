@@ -1,5 +1,5 @@
-(ns prolog-analyzer.domain-test
-  (:require [prolog-analyzer.domain :as sut]
+(ns prolog-analyzer.analyzer.domain-test
+  (:require [prolog-analyzer.analyzer.domain :as sut]
             [clojure.test :refer [deftest is are]]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]

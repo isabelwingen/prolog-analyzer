@@ -1,7 +1,7 @@
 (ns prolog-analyzer.core
   (:gen-class)
   (:require [prolog-analyzer.parser :as parser]
-            [prolog-analyzer.analyzer :as analyzer]
+            [prolog-analyzer.analyzer.core :as analyzer]
             [clojure.pprint :refer [pprint]]))
 
 (defn -main

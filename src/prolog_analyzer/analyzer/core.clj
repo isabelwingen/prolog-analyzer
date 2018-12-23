@@ -1,9 +1,10 @@
-(ns prolog-analyzer.analyzer
+(ns prolog-analyzer.analyzer.core
   (:require
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]] ;; used only during development
-   [prolog-analyzer.domain]
+   [prolog-analyzer.analyzer.pretty-printer :refer [to-pretty-map]]
+   [prolog-analyzer.analyzer.domain :refer [merge-dom]]
    [clojure.set]
-   [clojure.pprint :refer [pprint]]
+   [clojure.pprint :as pp]
    ))
 
 
@@ -94,7 +95,7 @@
 (defn merge-into-env [env arg new-value]
   (if (contains? env (id arg))
     (-> env
-        (update-in [(id arg) :dom] (partial prolog-analyzer.domain/merge-dom (:dom new-value)))
+        (update-in [(id arg) :dom] (partial merge-dom (:dom new-value)))
         (update-in [(id arg) :relations] (partial clojure.set/union (:relations new-value))))
     (-> env
         (assoc-in [:id-mapping (id arg)] arg)
@@ -146,26 +147,8 @@
         pre-spec (:pre-specs (get-specs-of-pred pred-id))]
     (analyzing impl pre-spec)))
 
-(defmulti to-string :type)
-(defmethod to-string :var [{n :name}] n)
-(defmethod to-string :anon_var [{n :name}] n)
-(defmethod to-string :head-tail-list [{head :head tail :tail}]
-  (str "[" (to-string head) "|" (to-string tail) "]"))
-(defmethod to-string :default [arg] arg)
-
-
-(defn to-pretty-map [{id-mapping :id-mapping :as result}]
-  (let [cut-result (-> result (dissoc :id-mapping) (dissoc :args))]
-    (reduce-kv
-     (fn [m k {dom :dom relations :relations}]
-       (let [new-rel (map (fn [r] (reduce-kv #(assoc %1 %2 (to-string (get id-mapping %3))) {} r)) relations)]
-         (assoc m (to-string (get id-mapping k)) {:dom dom :relations new-rel})))
-     {}
-     cut-result)))
-
 (-> "resources/simple-example.pl"
     process-prolog-file
     complete-analysis
-    ;(#(map to-pretty-map %))
-    ;pprint
-    )
+    (#(map to-pretty-map %))
+    pp/pprint)

@@ -1,5 +1,5 @@
-(ns prolog-analyzer.analyzer-test
-  (:require [prolog-analyzer.analyzer :as sut]
+(ns prolog-analyzer.analyzer.core-test
+  (:require [prolog-analyzer.analyzer.core :as sut]
             [clojure.test :refer [deftest are]]))
 
 
