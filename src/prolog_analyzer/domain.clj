@@ -193,7 +193,7 @@
     nil)
   )
 
-(defn intersect [dom1 dom2]
+(defn intersect-doms [dom1 dom2]
   (cond
     (is-subdom? dom1 dom2) dom1
     (is-subdom? dom2 dom1) dom2
@@ -214,10 +214,11 @@
     (= :compound (:spec dom1)) (intersect-with-compound dom1 dom2)
     :else (simplify-dom {:spec :and :arglist (list dom1 dom2)})))
 
-(is-subdom? {:spec :list :type {:spec :integer}} {:spec :list :type {:spec :number}})
-
+(defn intersect [dom1 dom2]
+  (let [dom-intersect (intersect-doms dom1 dom2)]
+    (if (or (:was-var dom1) (:was-var dom2))
+      (assoc dom-intersect :was-var true)
+      dom-intersect)))
 
 (defn merge-dom [dom1 dom2]
   (intersect dom1 dom2))
-
-
