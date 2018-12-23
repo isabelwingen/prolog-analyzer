@@ -3,6 +3,7 @@
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]] ;; used only during development
    [prolog-analyzer.domain]
    [clojure.set]
+   [clojure.pprint :refer [pprint]]
    ))
 
 
@@ -161,3 +162,10 @@
          (assoc m (to-string (get id-mapping k)) {:dom dom :relations new-rel})))
      {}
      cut-result)))
+
+(-> "resources/simple-example.pl"
+    process-prolog-file
+    complete-analysis
+    ;(#(map to-pretty-map %))
+    ;pprint
+    )
