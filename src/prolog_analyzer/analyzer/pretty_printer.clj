@@ -1,12 +1,20 @@
 (ns prolog-analyzer.analyzer.pretty-printer
-  (:require [clojure.pprint :refer [pprint]]))
+  (:require [clojure.pprint :refer [pprint]]
+            [clojure.string]))
 
 (defmulti to-string :type)
 (defmethod to-string :var [{n :name}] n)
-(defmethod to-string :anon_var [{n :name}] n)
+(defmethod to-string :anon_var [{n :name}] n) 
 (defmethod to-string :head-tail-list [{head :head tail :tail}]
   (str "[" (to-string head) "|" (to-string tail) "]"))
+(defmethod to-string :list [{arglist :arglist}]
+  (str "["
+       (clojure.string/join ", " (map to-string arglist))
+       "]"))
+(defmethod to-string :compound [{functor :functor arglist :arglist}]
+  (str functor "(" (clojure.string/join ", " (map to-string arglist)) ")"))
 (defmethod to-string :default [arg] arg)
+
 
 
 (defn to-pretty-map [{id-mapping :id-mapping :as result}]
