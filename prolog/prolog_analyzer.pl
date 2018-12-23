@@ -163,7 +163,7 @@ create_indent(N,Res) :-
     string_concat(Acc," ",Res).
 
 rule_to_map(Head,Body,Module,Map) :-
-    split(Head,Name,Arity,Arglist),
+    split(Head,Name,Arity,Arglist,_),
     create_arglist(Arglist,13,ResArglist),
     create_body(25,Body,BodyRes),
     multi_string_concat(["{:name     \"",Name,"\""],Goal_Elem),
@@ -199,11 +199,12 @@ goal_to_map(FirstLineInd,OtherLineInd,or(Arglist),Map) :- !,
     create_map(List,Map).
 
 goal_to_map(FirstLineInd,OtherLineInd,Goal,Map) :-
-    split(Goal,Name,Arity,Arglist),
+    split(Goal,Name,Arity,Arglist,Module),
     multi_string_concat(["{:goal     \"",Name,"\""],Goal_Elem),
+    multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
     create_arglist(Arglist,OtherLineInd,ResArglist),
-    append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem],ResArglist,List),
+    append([FirstLineInd/Goal_Elem,OtherLineInd/Module_Elem,OtherLineInd/Arity_Elem],ResArglist,List),
     concat_to_last_elem(List,"}",List2),
     create_map(List2,Map).
 
@@ -341,8 +342,11 @@ arg_to_map(Type,Term,Map) :-
     string_concat(R3, "}",Map).
 
 
+split(Module:Term,Name,Arity,Arglist,Module) :-
+    !,
+    split(Term,Name,Arity,Arglist,_).
 
-split(Term,Name,Arity,Arglist) :-
+split(Term,Name,Arity,Arglist,self) :-
     functor(Term,Name1,Arity),
     (Name1 = (\+) -> Name = ":not" ; Name = Name1),
     Term =.. [_|Arglist].
