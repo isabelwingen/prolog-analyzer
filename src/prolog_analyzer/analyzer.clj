@@ -101,22 +101,22 @@
         (assoc (id arg) new-value))))
 
 (defmulti add-to-env-aux #(:type (second %)))
-(defmethod add-to-env-aux :head-tail-list [[env {head :head tail :tail :as arg}]]
+(defmethod add-to-env-aux :head-tail-list [[env {head :head tail :tail :as arg} {t :type :as spec}]]
   (-> env
-      (merge-into-env arg {:dom {:spec :list :type {:spec :any}} :relations #{{:head (id head)} {:tail (id tail)}}})
-      (merge-into-env head {:dom {:spec :any} :relations #{{:head-of (id arg)}}})
-      (merge-into-env tail {:dom {:spec :list :type {:spec :any}} :relations #{{:tail-of (id arg)}}})))
+      (merge-into-env arg {:dom spec :relations #{{:head (id head)} {:tail (id tail)}}})
+      (merge-into-env head {:dom t :relations #{{:head-of (id arg)}}})
+      (merge-into-env tail {:dom spec :relations #{{:tail-of (id arg)}}})))
 
-(defmethod add-to-env-aux :default [[env arg]]
-  (merge-into-env env arg {:dom {:spec :any} :relations #{}}))
+(defmethod add-to-env-aux :default [[env arg spec]]
+  (merge-into-env env arg {:dom spec :relations #{}}))
 
-(defn add-to-env [env arg]
+(defn add-to-env [env [arg spec]]
   (let [new-env (assoc-in env [:id-mapping (id arg)] arg)]
-    (add-to-env-aux [new-env arg])))
+    (add-to-env-aux [new-env arg spec])))
 
 (defn analyzing [{arglist :arglist body :body} pre-spec]
   (let [env {:id-mapping {} :args (zipmap (range 0 (count arglist)) (map id arglist))}]
-    (reduce add-to-env env arglist)))
+    (reduce add-to-env env (partition 2 (interleave arglist pre-spec)))))
 
 (def data (atom {}))
 ;; utils
