@@ -33,21 +33,10 @@
       (swap! graph assoc pred-id [(conj pred-id clause-key)])))
   @graph)
 
-
-
-(defn- correct-module [source-module goal-name goal-module]
-  (if (= "self" goal-module)
-    (if (contains? (get-in @data [:preds source-module]) goal-name)
-      source-module
-      :built-in)
-    goal-module
-    ))
-
 (defn add-clauses-to-graph []
   (doseq [[source-module & _ :as clause-key] (utils/get-clause-identities @data)
           {goal-name :goal arity :arity goal-module :module :as goal} (get-in (:preds @data) (conj clause-key :body))]
-    (let [corrected-module (correct-module source-module goal-name goal-module )
-          goal-pred [corrected-module goal-name arity]]
+    (let [goal-pred [goal-module goal-name arity]]
       (if (contains? @graph clause-key)
         (swap! graph update clause-key #(conj % goal-pred))
         (swap! graph assoc clause-key [goal-pred])))

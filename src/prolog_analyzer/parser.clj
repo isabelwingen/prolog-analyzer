@@ -1,5 +1,6 @@
 (ns prolog-analyzer.parser
-  (:require [clojure.pprint :refer [pprint]]
+  (:require [prolog-analyzer.pre-processor :as pre-processor]
+            [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
@@ -157,22 +158,28 @@
                   {})
        ))
 
+(defn format-and-clean-up [data]
+  (-> data
+      (group-by-and-apply :type (partial map :content))
+      (update :declare_spec order-declare-specs)
+      (update :define_spec order-define-specs)
+      clean-up-spec-definitions
+      (update :spec_pre order-specs)
+      (update :spec_post order-specs)
+      (update :spec_inv order-specs)
+      (update :pred order-preds)
+      (rename-keys {:spec_pre :pre-specs
+                    :spec_post :post-specs
+                    :spec_inv :inv-specs
+                    :pred :preds})
+
+      ))
+
 (defn process-prolog-file [file]
-  (let [raw (read-prolog-code-as-raw-edn file)]
-    (-> raw
-        (group-by-and-apply :type (partial map :content))
-        (update :declare_spec order-declare-specs)
-        (update :define_spec order-define-specs)
-        clean-up-spec-definitions
-        (update :spec_pre order-specs)
-        (update :spec_post order-specs)
-        (update :spec_inv order-specs)
-        (update :pred order-preds)
-        (rename-keys {:spec_pre :pre-specs
-                      :spec_post :post-specs
-                      :spec_inv :inv-specs
-                      :pred :preds})
-        )))
+  (-> file
+      read-prolog-code-as-raw-edn
+      format-and-clean-up
+      pre-processor/pre-process))
 
 (def preamble
   ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
