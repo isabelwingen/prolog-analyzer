@@ -3,6 +3,7 @@
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]] ;; used only during development
    [prolog-analyzer.analyzer.pretty-printer :refer [to-pretty-map]]
    [prolog-analyzer.analyzer.domain :refer [merge-dom]]
+   [prolog-analyzer.utils :as utils]
    [clojure.set]
    [clojure.pprint :as pp]
    ))
@@ -39,31 +40,11 @@
   (let [env {:id-mapping {} :args (zipmap (range 0 (count arglist)) (map id arglist))}]
     (reduce add-to-env env (partition 2 (interleave arglist pre-spec)))))
 
-;; utils
-(defn get-specs-of-pred [pred-identity]
-  (let [spec-identity (rest pred-identity)
-        specs @data]
-    (-> specs
-        (select-keys [:pre-specs :post-specs :inv-specs])
-        (update :pre-specs #(get-in % spec-identity))
-        (update :post-specs #(get-in % spec-identity))
-        (update :inv-specs #(get-in % spec-identity))
-        )))
-
-(defn get-impls-of-pred [pred-identity]
-  (vals (get-in @data (apply vector :preds pred-identity))))
-
-(defn get-pred-identities []
-  (for [module (keys (:preds @data))
-        pred-name (keys (get-in @data [:preds module]))
-        arity (keys (get-in @data [:preds module pred-name]))]
-    [module pred-name arity]))
-
 (defn complete-analysis [input-data]
   (reset! data input-data)
-  (for [pred-id (get-pred-identities)
-        impl (get-impls-of-pred pred-id)
-        pre-spec (:pre-specs (get-specs-of-pred pred-id))]
+  (for [pred-id (utils/get-pred-identities @data)
+        impl (utils/get-impls-of-pred pred-id @data)
+        pre-spec (:pre-specs (utils/get-specs-of-pred pred-id @data))]
     (analyzing impl pre-spec)))
 
 (comment (-> "resources/module1.pl"

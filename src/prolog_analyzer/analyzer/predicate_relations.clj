@@ -1,22 +1,10 @@
 (ns prolog-analyzer.analyzer.predicate-relations
   (:require [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]]
             [prolog-analyzer.analyzer.core :refer [data]]
+            [prolog-analyzer.utils :as utils]
             [clojure.pprint :refer [pprint]]))
 
 (def graph (atom {}))
-
-(defn get-list-of-pred-keys []
-  (let [preds (:preds @data)]
-    (for [module (keys preds)
-          pred (keys (get-in preds [module]))
-          arity (keys (get-in preds [module pred]))]
-      [module pred arity])))
-
-(defn get-list-of-clause-keys []
-  (let [preds (:preds @data)]
-    (for [pred-key (get-list-of-pred-keys)
-          clause (keys (get-in preds pred-key))]
-      (conj pred-key clause))))
 
 (defn- mark-self-calling-clause [[module pred-name arity :as pred-id] {body :body :as clause}]
   (if (some #(and (= pred-name (:goal %)) (= arity (:arity %))) body)
@@ -24,7 +12,7 @@
     (assoc clause :self-calling? false)))
 
 (defn mark-self-calling-predicates []
-  (for [pred-id (get-list-of-pred-keys)
+  (for [pred-id (utils/get-pred-identities @data)
         clause-key (keys (get-in (:preds @data) pred-id))]
     (swap!
      data
@@ -38,7 +26,7 @@
   (= 4 (count key)))
 
 (defn add-predicates-to-graph []
-  (doseq [pred-id (get-list-of-pred-keys)
+  (doseq [pred-id (utils/get-pred-identities @data)
           clause-key (keys (get-in (:preds @data) pred-id))]
     (if (contains? @graph pred-id)
       (swap! graph update pred-id #(conj % (conj pred-id clause-key)))
@@ -56,7 +44,7 @@
     ))
 
 (defn add-clauses-to-graph []
-  (doseq [[source-module & _ :as clause-key] (get-list-of-clause-keys)
+  (doseq [[source-module & _ :as clause-key] (utils/get-clause-identities @data)
           {goal-name :goal arity :arity goal-module :module :as goal} (get-in (:preds @data) (conj clause-key :body))]
     (let [corrected-module (correct-module source-module goal-name goal-module )
           goal-pred [corrected-module goal-name arity]]
