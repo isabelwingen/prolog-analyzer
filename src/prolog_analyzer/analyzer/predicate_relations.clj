@@ -6,25 +6,6 @@
 
 (def graph (atom {}))
 
-(defn- mark-self-calling-clause [[module pred-name arity :as pred-id] {body :body :as clause}]
-  (if (some #(and (= pred-name (:goal %)) (= arity (:arity %))) body)
-    (assoc clause :self-calling? true)
-    (assoc clause :self-calling? false)))
-
-(defn mark-self-calling-predicates []
-  (for [pred-id (utils/get-pred-identities @data)
-        clause-key (keys (get-in (:preds @data) pred-id))]
-    (swap!
-     data
-     update-in
-     (apply vector :preds (conj pred-id clause-key))
-     (partial mark-self-calling-clause pred-id))))
-
-(defn pred-key? [key]
-  (= 3 (count key)))
-(defn clause-key? [key]
-  (= 4 (count key)))
-
 (defn add-predicates-to-graph []
   (doseq [pred-id (utils/get-pred-identities @data)
           clause-key (keys (get-in (:preds @data) pred-id))]
