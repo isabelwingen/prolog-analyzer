@@ -33,6 +33,6 @@ member_int(E,[_,T]) :-
 :- spec_pre(foo/3,[foo,intOrVar,intOrVar]).
 :- spec_post(foo/3,[foo,intOrVar,intOrVar],[foo,int,int]).
 :- spec_post(foo/3,[nonvar,int,int],[foo,int,int]).
-decode_foo(foo(A,B),A,B).
+foo(foo(A,B),A,B).
 
 
