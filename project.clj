@@ -5,7 +5,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/tools.logging "0.4.1"]
-                 [lein-githooks "0.1.0"]]
+                 [lein-githooks "0.1.0"]
+                 [ubergraph "0.5.2"]]
   :main ^:skip-aot prolog-analyzer.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}
