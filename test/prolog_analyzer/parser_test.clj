@@ -8,7 +8,8 @@
   (second l))
 
 (def preamble
-  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0]).\n:- enable_write_out.\n\n")
+  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
+
 
 (defn test-helper [code]
   (spit "prolog/tmp.pl" (str preamble code))
@@ -42,9 +43,14 @@
                 (first-parse-result (test-helper (str "foo(" x ")."))))
     "[1,2,3]"
     {:type :list
-     :arglist [{:value 1 :type :integer} {:value 2 :type :integer} {:value 3 :type :integer}]}
+     :head {:value 1 :type :integer}
+     :tail {:type :list
+            :head {:value 2 :type :integer}
+            :tail {:type :list
+                   :head {:value 3 :type :integer}
+                   :tail {:term "[]" :type :atomic}}}}
     "[H|T]"
-    {:type :head-tail-list
+    {:type :list
      :head {:name "H" :type :var}
      :tail {:name "T" :type :var}}
     "[]"
@@ -52,11 +58,12 @@
      :type :atomic}
     "[1]"
     {:type :list
-     :arglist [{:value 1 :type :integer}]}
-    "[1,2|T]"
-    {:type :head-tail-list
      :head {:value 1 :type :integer}
-     :tail {:type :head-tail-list
+     :tail {:term "[]" :type :atomic}}
+    "[1,2|T]"
+    {:type :list
+     :head {:value 1 :type :integer}
+     :tail {:type :list
             :head {:value 2 :type :integer}
             :tail {:name "T" :type :var}}}
     ))
@@ -215,8 +222,10 @@
                                                            :arglist [{:term "foo" :type :atom}
                                                                      {:value 2 :type :integer}]}
                                                           {:type :list
-                                                           :arglist [{:term "int" :type :atom}
-                                                                     {:term "int" :type :atom}]}]}
+                                                           :head {:term "int" :type :atom}
+                                                           :tail {:type :list
+                                                                  :head {:term "int" :type :atom}
+                                                                  :tail {:term "[]" :type :atomic}}}]}
 
     ":- spec_post(foo/2,[any,int],[int,int])."
     :spec_post
@@ -225,11 +234,15 @@
                                                              :arglist [{:term "foo" :type :atom}
                                                                        {:value 2 :type :integer}]}
                                                             {:type :list
-                                                             :arglist [{:term "any" :type :atom}
-                                                                       {:term "int" :type :atom}]}
+                                                             :head {:term "any" :type :atom}
+                                                             :tail {:type :list
+                                                                    :head {:term "int" :type :atom}
+                                                                    :tail {:term "[]" :type :atomic}}}
                                                             {:type :list
-                                                             :arglist [{:term "int" :type :atom}
-                                                                       {:term "int" :type :atom}]}]}
+                                                             :head {:term "int" :type :atom}
+                                                             :tail {:type :list
+                                                                    :head {:term "int" :type :atom}
+                                                                    :tail {:term "[]" :type :atomic}}}]}
 
     ":- spec_invariant(foo/1,[int])."
     :spec_inv
@@ -237,7 +250,8 @@
                                                                 :arglist [{:term "foo" :type :atom}
                                                                           {:value 1 :type :integer}]}
                                                                {:type :list
-                                                                :arglist [{:term "int" :type :atom}]}]}
+                                                                :head {:term "int" :type :atom}
+                                                                :tail {:term "[]" :type :atomic}}]}
     
     ))
 

@@ -30,9 +30,9 @@
 (deftest valid-complex-types-test
   (are [spec arg] (sut/valid spec arg)
     {:spec :ground} {:type :compound :functor "bar" :arglist [{:term "a" :type :atom}]}
-    {:spec :list :type {:spec :integer}} {:type :list :arglist [{:value 2 :type :integer} {:value 2 :type :integer}]}
-    {:spec :list :type {:spec :integer}} {:type :list :arglist []}
-    {:spec :tuple :arglist [{:spec :number} {:spec :atomic}]} {:type :list :arglist [{:value 2 :type :integer} {:term "a" :type :atom}]}
+    {:spec :list :type {:spec :integer}} {:type :list :head {:value 2 :type :integer} :tail {:type :list :head {:value 2 :type :integer} :tail {:term "[]" :type :atomic}}}
+    {:spec :list :type {:spec :integer}} {:type :atomic :term "[]"}
+    {:spec :tuple :arglist [{:spec :number} {:spec :atomic}]} {:type :list :head {:value 2 :type :integer} :tail {:type :list :head {:term "a" :type :atom} :tail {:term "[]" :type :atomic}}}
     )
   (are [spec arg] (not (sut/valid spec arg))
     {:spec :ground} {:type :compound :functor "bar" :arglist [{:term "a" :type :atom} {:name "X" :type :var}]}
