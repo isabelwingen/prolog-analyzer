@@ -8,7 +8,8 @@
   (second l))
 
 (def preamble
-  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0]).\n:- enable_write_out.\n\n")
+  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
+
 
 (defn test-helper [code]
   (spit "prolog/tmp.pl" (str preamble code))
@@ -16,6 +17,7 @@
     (io/delete-file "prolog/tmp.pl")
     res))
 
+(test-helper "foo(a,b).")
 
 (deftest parse-facts
   (are [x y] (= {:type :pred :content y} (first-parse-result (test-helper x)))
@@ -24,7 +26,7 @@
      :module "tmp"
      :arity 2
      :arglist [{:term "a", :type :atom} {:term "b", :type :atom}]
-     :body [{:goal "true", :arity 0, :arglist []}]
+     :body [{:goal "true", :module "self", :arity 0, :arglist []}]
      }
 
     "write_out."
@@ -32,18 +34,23 @@
      :module "tmp"
      :arity 0
      :arglist []
-     :body [{:goal "true", :arity 0, :arglist []}]
+     :body [{:goal "true", :module "self", :arity 0, :arglist []}]
      }))
 
 
 (deftest parse-list
-  (are [x y] (= {:type :pred :content {:name "foo"  :module "tmp" :arity 1 :arglist [y] :body [{:goal "true" :arity 0 :arglist []}]}}
+  (are [x y] (= {:type :pred :content {:name "foo"  :module "tmp" :arity 1 :arglist [y] :body [{:goal "true" :module "self" :arity 0 :arglist []}]}}
                 (first-parse-result (test-helper (str "foo(" x ")."))))
     "[1,2,3]"
     {:type :list
-     :arglist [{:value 1 :type :integer} {:value 2 :type :integer} {:value 3 :type :integer}]}
+     :head {:value 1 :type :integer}
+     :tail {:type :list
+            :head {:value 2 :type :integer}
+            :tail {:type :list
+                   :head {:value 3 :type :integer}
+                   :tail {:term "[]" :type :atomic}}}}
     "[H|T]"
-    {:type :head-tail-list
+    {:type :list
      :head {:name "H" :type :var}
      :tail {:name "T" :type :var}}
     "[]"
@@ -51,17 +58,18 @@
      :type :atomic}
     "[1]"
     {:type :list
-     :arglist [{:value 1 :type :integer}]}
-    "[1,2|T]"
-    {:type :head-tail-list
      :head {:value 1 :type :integer}
-     :tail {:type :head-tail-list
+     :tail {:term "[]" :type :atomic}}
+    "[1,2|T]"
+    {:type :list
+     :head {:value 1 :type :integer}
+     :tail {:type :list
             :head {:value 2 :type :integer}
             :tail {:name "T" :type :var}}}
     ))
 
 (deftest parse-compounds
-  (are [x y] (= {:type :pred :content {:name "foo" :module "tmp" :arity 1 :arglist [y] :body [{:goal "true" :arity 0 :arglist []}]}}
+  (are [x y] (= {:type :pred :content {:name "foo" :module "tmp" :arity 1 :arglist [y] :body [{:goal "true" :module "self" :arity 0 :arglist []}]}}
                 (first-parse-result (test-helper (str "foo(" x ")."))))
 
     "2/3"
@@ -94,6 +102,7 @@
                  :arity 0
                  :arglist []
                  :body [{:goal ":not"
+                         :module "self"
                          :arity 1
                          :arglist [{:type :compound
                                     :functor "bar"
@@ -110,6 +119,7 @@
      :arity 2
      :arglist [{:term "a", :type :atom} {:term "b", :type :atom}]
      :body [{:goal "bar"
+             :module "self"
              :arity 2
              :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]}
     "foo(a/b) :- !, bar(a,X), c(b)." 
@@ -120,13 +130,16 @@
                 :functor "/"
                 :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]
      :body [{:goal "!"
+             :module "self"
              :arity 0
              :arglist []}
             {:goal "bar"
+             :module "self"
              :arity 2
              :arglist [{:term "a" :type :atom}
                        {:name "X" :type :var}]}
             {:goal "c"
+             :module "self"
              :arity 1
              :arglist [{:term "b" :type :atom}]}]}
     ))
@@ -142,18 +155,18 @@
     "a;b"
     [{:goal :or
       :arity 2
-      :arglist [[{:goal "a" :arity 0 :arglist []}] [{:goal "b" :arity 0 :arglist []}]]}]
+      :arglist [[{:goal "a" :module "self" :arity 0 :arglist []}] [{:goal "b" :module "self" :arity 0 :arglist []}]]}]
     "a,b;c,d;e,f"
     [{:goal :or
       :arity 3
-      :arglist [[{:goal "a" :arity 0 :arglist []} {:goal "b" :arity 0 :arglist []}]
-                [{:goal "c" :arity 0 :arglist []} {:goal "d" :arity 0 :arglist []}]
-                [{:goal "e" :arity 0 :arglist []} {:goal "f" :arity 0 :arglist []}]]}]
+      :arglist [[{:goal "a" :module "self" :arity 0 :arglist []} {:goal "b" :module "self" :arity 0 :arglist []}]
+                [{:goal "c" :module "self" :arity 0 :arglist []} {:goal "d" :module "self" :arity 0 :arglist []}]
+                [{:goal "e" :module "self" :arity 0 :arglist []} {:goal "f" :module "self" :arity 0 :arglist []}]]}]
     "a,(b;c),d"
-    [{:goal "a" :arity 0 :arglist []}
-     {:goal :or :arity 2 :arglist [[{:goal "b" :arity 0 :arglist []}]
-                                   [{:goal "c" :arity 0 :arglist []}]]}
-     {:goal "d" :arity 0 :arglist []}]
+    [{:goal "a" :module "self" :arity 0 :arglist []}
+     {:goal :or :arity 2 :arglist [[{:goal "b" :module "self" :arity 0 :arglist []}]
+                                                  [{:goal "c" :module "self" :arity 0 :arglist []}]]}
+     {:goal "d" :module "self" :arity 0 :arglist []}]
     ))
 
 (deftest parse-if
@@ -168,71 +181,77 @@
       :arity 2
       :arglist [[{:goal :if
                   :arity 2
-                  :arglist [[{:goal "a" :arity 0 :arglist []}]
-                            [{:goal "b" :arity 0 :arglist []}]]}]
-                [{:goal "c" :arity 0 :arglist []}]]}]
+                  :arglist [[{:goal "a" :module "self" :arity 0 :arglist []}]
+                            [{:goal "b" :module "self" :arity 0 :arglist []}]]}]
+                [{:goal "c" :module "self" :arity 0 :arglist []}]]}]
     "(a -> b)"
     [{:goal :if
       :arity 2
-      :arglist [[{:goal "a" :arity 0 :arglist []}]
-                [{:goal "b" :arity 0 :arglist []}]]}]
+      :arglist [[{:goal "a" :module "self" :arity 0 :arglist []}]
+                [{:goal "b" :module "self" :arity 0 :arglist []}]]}]
     "a;b,c -> d,e;f"
     [{:goal :or
       :arity 3
-      :arglist [[{:goal "a" :arity 0 :arglist []}]
+      :arglist [[{:goal "a" :module "self" :arity 0 :arglist []}]
                 [{:goal :if
                   :arity 2
-                  :arglist [[{:goal "b" :arity 0 :arglist []} {:goal "c" :arity 0 :arglist []}]
-                            [{:goal "d" :arity 0 :arglist []} {:goal "e" :arity 0 :arglist []}]]}]
-                [{:goal "f" :arity 0 :arglist []}]]}]
+                  :arglist [[{:goal "b" :module "self" :arity 0 :arglist []} {:goal "c" :module "self" :arity 0 :arglist []}]
+                            [{:goal "d" :module "self" :arity 0 :arglist []} {:goal "e" :module "self" :arity 0 :arglist []}]]}]
+                [{:goal "f" :module "self" :arity 0 :arglist []}]]}]
     ))
-
 
 (deftest parse-specs
   (are [input type output] (= {:type type :content output}
                               (first-parse-result (test-helper input)))
     ":- declare_spec(skip)."
     :declare_spec
-    {:goal "declare_spec", :arity 1, :arglist [{:term "skip" :type :atom}]}
-
+    {:goal "declare_spec", :module "self" :arity 1, :arglist [{:term "skip" :type :atom}]}
+    
     ":- define_spec(skip,atom(skip))."
     :define_spec
-    {:goal "define_spec", :arity 2, :arglist [{:term "skip" :type :atom}
-                                              {:type :compound
-                                               :functor "atom"
-                                               :arglist [{:term "skip" :type :atom}]}]}
+    {:goal "define_spec", :module "self" :arity 2, :arglist [{:term "skip" :type :atom}
+                                                             {:type :compound
+                                                              :functor "atom"
+                                                              :arglist [{:term "skip" :type :atom}]}]}
 
     ":- spec_pre(foo/2,[int,int])."
     :spec_pre
-    {:goal "spec_pre", :arity 2, :arglist [{:type :compound
-                                            :functor "/"
-                                            :arglist [{:term "foo" :type :atom}
-                                                      {:value 2 :type :integer}]}
-                                           {:type :list
-                                            :arglist [{:term "int" :type :atom}
-                                                      {:term "int" :type :atom}]}]}
+    {:goal "spec_pre", :module "self" :arity 2, :arglist [{:type :compound
+                                                           :functor "/"
+                                                           :arglist [{:term "foo" :type :atom}
+                                                                     {:value 2 :type :integer}]}
+                                                          {:type :list
+                                                           :head {:term "int" :type :atom}
+                                                           :tail {:type :list
+                                                                  :head {:term "int" :type :atom}
+                                                                  :tail {:term "[]" :type :atomic}}}]}
 
     ":- spec_post(foo/2,[any,int],[int,int])."
     :spec_post
-    {:goal "spec_post", :arity 3, :arglist [{:type :compound
-                                             :functor "/"
-                                             :arglist [{:term "foo" :type :atom}
-                                                       {:value 2 :type :integer}]}
-                                            {:type :list
-                                             :arglist [{:term "any" :type :atom}
-                                                       {:term "int" :type :atom}]}
-                                            {:type :list
-                                             :arglist [{:term "int" :type :atom}
-                                                       {:term "int" :type :atom}]}]}
+    {:goal "spec_post", :module "self", :arity 3, :arglist [{:type :compound
+                                                             :functor "/"
+                                                             :arglist [{:term "foo" :type :atom}
+                                                                       {:value 2 :type :integer}]}
+                                                            {:type :list
+                                                             :head {:term "any" :type :atom}
+                                                             :tail {:type :list
+                                                                    :head {:term "int" :type :atom}
+                                                                    :tail {:term "[]" :type :atomic}}}
+                                                            {:type :list
+                                                             :head {:term "int" :type :atom}
+                                                             :tail {:type :list
+                                                                    :head {:term "int" :type :atom}
+                                                                    :tail {:term "[]" :type :atomic}}}]}
 
     ":- spec_invariant(foo/1,[int])."
     :spec_inv
-    {:goal "spec_invariant" :arity 2 :arglist [{:type :compound :functor "/"
-                                          :arglist [{:term "foo" :type :atom}
-                                                    {:value 1 :type :integer}]}
-                                         {:type :list
-                                          :arglist [{:term "int" :type :atom}]}]}
-
+    {:goal "spec_invariant" :module "self"  :arity 2 :arglist [{:type :compound :functor "/"
+                                                                :arglist [{:term "foo" :type :atom}
+                                                                          {:value 1 :type :integer}]}
+                                                               {:type :list
+                                                                :head {:term "int" :type :atom}
+                                                                :tail {:term "[]" :type :atomic}}]}
+    
     ))
 
 
@@ -244,12 +263,12 @@
             {:spec "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
             {:spec "c"} {:spec :exact :value "empty"}
             {:spec "tree" :arglist [{:spec :named-any :name "X"}]} {:spec :one_of
-                                                              :arglist [{:spec :compound
-                                                                         :functor "node"
-                                                                         :arglist [{:spec "tree" :arglist [{:spec :named-any :name "X"}]}
-                                                                                   {:spec :named-any :name "X"}
-                                                                                   {:spec "tree" :arglist [{:spec :named-any :name "X"}]}]}
-                                                                        {:spec :exact :value "empty"}]}}
+                                                                    :arglist [{:spec :compound
+                                                                               :functor "node"
+                                                                               :arglist [{:spec "tree" :arglist [{:spec :named-any :name "X"}]}
+                                                                                         {:spec :named-any :name "X"}
+                                                                                         {:spec "tree" :arglist [{:spec :named-any :name "X"}]}]}
+                                                                              {:spec :exact :value "empty"}]}}
            (:specs result)))
     (is
      (= {"member_int"

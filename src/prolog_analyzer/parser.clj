@@ -1,5 +1,7 @@
 (ns prolog-analyzer.parser
-  (:require [clojure.pprint :refer [pprint]]
+  (:require [prolog-analyzer.pre-processor :as pre-processor]
+            [prolog-analyzer.utils :as utils]
+            [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
@@ -44,13 +46,14 @@
     (conj result error-msg)))
 
 
-(defn- apply-function-on-values [in-map func]
+(defn- apply-function-on-values [func in-map]
   (reduce-kv #(assoc %1 %2 (func %3)) {} in-map))
 
 (defn group-by-and-apply [data f g]
-  (-> (group-by f data)
-      (apply-function-on-values g)
-      ))
+  (->> data
+       (group-by f)
+       (apply-function-on-values g)
+       ))
 
 (defmulti transform-spec (juxt :type :functor))
 
@@ -78,15 +81,15 @@
   )
 
 (defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
-  (let [arglist (:arglist (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     {:spec :one_of :arglist (map transform-spec arglist)}))
 
 (defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
-  (let [arglist (:arglist (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     {:spec :and :arglist (map transform-spec arglist)}))
 
 (defmethod transform-spec [:compound "tuple"] [{inner-list :arglist}]
-  (let [arglist (:arglist (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     {:spec :tuple :arglist (map transform-spec arglist)}))
 
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
@@ -100,13 +103,13 @@
   {:spec (:functor spec) :arglist (map transform-spec (:arglist spec))}
   )
 
-
 (defn- spec-to-map [{[pred & rest] :arglist}]
   (let [functor (get-in pred [:arglist 0 :term])
         arity (get-in pred [:arglist 1 :value])]
     (if (= 1 (count rest))
-      (hash-map (vector functor arity) (map (comp #(map transform-spec %) :arglist) rest))
-      (hash-map (vector functor arity) (list (map (comp #(map transform-spec %) :arglist) rest)))))
+      (hash-map (vector functor arity) (map (comp (partial map transform-spec) utils/get-elements-of-list) rest))
+      (hash-map (vector functor arity) (list (map (comp (partial map transform-spec) utils/get-elements-of-list) rest)))
+      ))
   )
 
 (defn order-specs [specs]
@@ -137,40 +140,41 @@
         (dissoc :declare_spec)
         (assoc :specs specs))))
 
-(defn- transform-empty-list [arg]
-  (if (= {:term "[]" :type :atomic} arg)
-    {:type :list :arglist []}
-    arg))
-
 (defn order-preds [preds]
   (->> (group-by (juxt :module :name :arity) preds)
-       ((fn [coll] (apply-function-on-values coll (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))))
-       ((fn [coll] (apply-function-on-values coll (partial map #(update % :arglist (partial map transform-empty-list))))))
-       (reduce-kv
-        (fn [m [module name arity] v]
-          (if (= name "end_of_file")
-            m
-            (update-in m [module name arity] #(into % v))))
-        {})
+       (apply-function-on-values (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))
+       (apply-function-on-values #(->> %
+                                       (interleave (range 0 (count %)))
+                                       (apply hash-map)))
+       (reduce-kv (fn [m [module name arity] v]
+                    (if (= name "end_of_file")
+                      m
+                      (assoc-in m [module name arity] v)))
+                  {})
        ))
 
+(defn format-and-clean-up [data]
+  (-> data
+      (group-by-and-apply :type (partial map :content))
+      (update :declare_spec order-declare-specs)
+      (update :define_spec order-define-specs)
+      clean-up-spec-definitions
+      (update :spec_pre order-specs)
+      (update :spec_post order-specs)
+      (update :spec_inv order-specs)
+      (update :pred order-preds)
+      (rename-keys {:spec_pre :pre-specs
+                    :spec_post :post-specs
+                    :spec_inv :inv-specs
+                    :pred :preds})
+
+      ))
 
 (defn process-prolog-file [file]
-  (let [raw (read-prolog-code-as-raw-edn file)]
-    (-> raw
-        (group-by-and-apply :type (partial map :content))
-        (update :declare_spec order-declare-specs)
-        (update :define_spec order-define-specs)
-        clean-up-spec-definitions
-        (update :spec_pre order-specs)
-        (update :spec_post order-specs)
-        (update :spec_inv order-specs)
-        (update :pred order-preds)
-        (rename-keys {:spec_pre :pre-specs
-                                  :spec_post :post-specs
-                                  :spec_inv :inv-specs
-                                  :pred :preds})
-        )))
+  (-> file
+      read-prolog-code-as-raw-edn
+      format-and-clean-up
+      pre-processor/pre-process))
 
 (def preamble
   ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
