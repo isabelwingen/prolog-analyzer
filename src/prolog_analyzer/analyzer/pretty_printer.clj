@@ -10,6 +10,7 @@
   (cond 
     (= "[]" (:term tail)) (str "[" (to-string head) "]")
     (= :var (:type tail)) (str "[" (to-string head) "|" (to-string tail) "]")
+    (= :anon_var (:type tail)) (str "[" (to-string head) "|" (to-string tail) "]")
     (= :list (:type tail)) (str "[" (clojure.string/join ", " (map to-string (utils/get-elements-of-list arg))) "]")))
 (defmethod to-string :compound [{functor :functor arglist :arglist}]
   (str functor "(" (clojure.string/join ", " (map to-string arglist)) ")"))
