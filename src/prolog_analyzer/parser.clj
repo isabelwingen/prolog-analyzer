@@ -140,15 +140,9 @@
         (dissoc :declare_spec)
         (assoc :specs specs))))
 
-(defn- transform-empty-list [arg]
-  (if (= {:term "[]" :type :atomic} arg)
-    {:type :list :arglist []}
-    arg))
-
 (defn order-preds [preds]
   (->> (group-by (juxt :module :name :arity) preds)
        (apply-function-on-values (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))
-       (apply-function-on-values (partial map #(update % :arglist (partial map transform-empty-list))))
        (apply-function-on-values #(->> %
                                        (interleave (range 0 (count %)))
                                        (apply hash-map)))
