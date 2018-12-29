@@ -263,12 +263,12 @@
             {:spec "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
             {:spec "c"} {:spec :exact :value "empty"}
             {:spec "tree" :arglist [{:spec :named-any :name "X"}]} {:spec :one_of
-                                                              :arglist [{:spec :compound
-                                                                         :functor "node"
-                                                                         :arglist [{:spec "tree" :arglist [{:spec :named-any :name "X"}]}
-                                                                                   {:spec :named-any :name "X"}
-                                                                                   {:spec "tree" :arglist [{:spec :named-any :name "X"}]}]}
-                                                                        {:spec :exact :value "empty"}]}}
+                                                                    :arglist [{:spec :compound
+                                                                               :functor "node"
+                                                                               :arglist [{:spec "tree" :arglist [{:spec :named-any :name "X"}]}
+                                                                                         {:spec :named-any :name "X"}
+                                                                                         {:spec "tree" :arglist [{:spec :named-any :name "X"}]}]}
+                                                                              {:spec :exact :value "empty"}]}}
            (:specs result)))
     (is
      (= {"member_int"
