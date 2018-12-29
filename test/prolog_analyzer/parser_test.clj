@@ -200,7 +200,6 @@
                 [{:goal "f" :module "self" :arity 0 :arglist []}]]}]
     ))
 
-; TODO: module of imported specs is not "self", but the one it is imported from
 (deftest parse-specs
   (are [input type output] (= {:type type :content output}
                               (first-parse-result (test-helper input)))
