@@ -23,7 +23,7 @@
         (assoc (id arg) new-value))))
 
 (defmulti add-to-env-aux #(:type (second %)))
-(defmethod add-to-env-aux :head-tail-list [[env {head :head tail :tail :as arg} {t :type :as spec}]]
+(defmethod add-to-env-aux :list [[env {head :head tail :tail :as arg} {t :type :as spec}]]
   (-> env
       (merge-into-env arg {:dom spec :relations #{{:head (id head)} {:tail (id tail)}}})
       (merge-into-env head {:dom t :relations #{{:head-of (id arg)}}})

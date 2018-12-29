@@ -281,28 +281,17 @@ arg_to_map(Arg,Map) :-
 arg_to_map(Arg,Map) :-
     arg_to_map(any,Arg,Map).
 
+
 arg_to_map(compound,Term,Map) :-
     Term =.. ['[|]'|[Head,Tail]],
-    \+ ground(Tail),
     arg_to_map(Head,HeadString),
     arg_to_map(Tail,TailString),
 
-    multi_string_concat(["{:type :head-tail-list"],TypePart),
+    multi_string_concat(["{:type :list"],TypePart),
     multi_string_concat([":head ",HeadString],HeadPart),
     multi_string_concat([":tail ",TailString,"}"],TailPart),
 
     create_map([0/TypePart,1/HeadPart,1/TailPart],Map).
-
-arg_to_map(compound,Term,Map) :-
-    Term =.. ['[|]'|[Head,Tail]],
-    !,
-    create_arglist([Head|Tail],0,Arglist),
-
-    multi_string_concat(["{:type :list"],TypePart),
-
-    append([0/TypePart|Arglist],[0/"}"],List1),
-    create_map(List1,Map).
-
 
 arg_to_map(compound,Term,Map) :-
     !,

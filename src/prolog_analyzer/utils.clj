@@ -27,3 +27,17 @@
           clause (keys (get-in preds pred-id))]
       (conj pred-id clause))))
 
+(defn empty-list? [{term :term type :type}]
+  (and (= type :atomic) (= term "[]")))
+
+
+(defn head-tail-list-to-list [{head :head tail :tail}]
+  (if (= "[]" (:term tail))
+    {:type :list :elements [head]}
+    (let [{rest-args :elements} (head-tail-list-to-list tail)]
+      {:type :list :elements (apply vector head rest-args)})))
+
+(defn get-elements-of-list [{head :head tail :tail}]
+  (if (empty-list? tail)
+    (list head)
+    (conj (get-elements-of-list tail) head)))

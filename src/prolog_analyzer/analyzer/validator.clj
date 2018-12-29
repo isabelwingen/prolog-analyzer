@@ -1,4 +1,5 @@
-(ns prolog-analyzer.analyzer.validator)
+(ns prolog-analyzer.analyzer.validator
+  (:require [prolog-analyzer.utils :as utils]))
 
 (defmulti valid-helper #(:spec (first %)))
 
@@ -55,15 +56,16 @@
    (= :var (:type arg))
    (= :anon_var (:type arg))))
 
-(defmethod valid-helper :list [[{inner-type :type} arg]]
-  (if (= :head-tail-list (:type arg))
-    false
-    (every? (partial valid inner-type) (:arglist arg))))
+(defmethod valid-helper :list [[{inner-type :type :as spec} arg]]
+  (if (utils/empty-list? arg)
+    true
+    (and (valid inner-type (:head arg)) (valid spec (:tail arg)))))
 
-(defmethod valid-helper :tuple [[spec arg]]
-  (if (= :list (:type arg))
-    (every? true? (map valid (:arglist spec) (:arglist arg)))
-    false))
+(defmethod valid-helper :tuple [[{spec-arglist :arglist :as spec} arg]]
+  (cond
+    (and (empty? spec-arglist) (utils/empty-list? arg)) true
+    (= :list (:type arg)) (and (valid (first spec-arglist) (:head arg)) (valid (update spec :arglist rest) (:tail arg)))
+    :else false))
 
 (defmethod valid-helper :one_of [[spec arg]]
   (not (not-any? true? (for [x (:arglist spec)]

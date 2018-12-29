@@ -1,21 +1,22 @@
 (ns prolog-analyzer.analyzer.pretty-printer
-  (:require [clojure.pprint :refer [pprint]]
+  (:require [prolog-analyzer.utils :as utils]
+            [clojure.pprint :refer [pprint]]
             [clojure.string]))
 
 (defmulti to-string :type)
 (defmethod to-string :var [{n :name}] n)
 (defmethod to-string :anon_var [{n :name}] n) 
-(defmethod to-string :head-tail-list [{head :head tail :tail}]
-  (str "[" (to-string head) "|" (to-string tail) "]"))
-(defmethod to-string :list [{arglist :arglist}]
-  (str "["
-       (clojure.string/join ", " (map to-string arglist))
-       "]"))
+(defmethod to-string :list [{head :head tail :tail :as arg}]
+  (cond 
+    (= "[]" (:term tail)) (str "[" (to-string head) "]")
+    (= :var (:type tail)) (str "[" (to-string head) "|" (to-string tail) "]")
+    (= :list (:type tail)) (str "[" (clojure.string/join ", " (map to-string (utils/get-elements-of-list arg))) "]")))
 (defmethod to-string :compound [{functor :functor arglist :arglist}]
   (str functor "(" (clojure.string/join ", " (map to-string arglist)) ")"))
 (defmethod to-string :default [arg] arg)
 
 
+(to-string {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "Y"} :tail {:type :list :head {:type :var :name "Z"} :tail {:term "[]" :type :atomic}}}})
 
 (defn to-pretty-map [{id-mapping :id-mapping :as result}]
   (let [cut-result (-> result (dissoc :id-mapping) (dissoc :args))]

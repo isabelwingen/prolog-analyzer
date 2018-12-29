@@ -1,5 +1,6 @@
 (ns prolog-analyzer.parser
   (:require [prolog-analyzer.pre-processor :as pre-processor]
+            [prolog-analyzer.utils :as utils]
             [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
@@ -80,15 +81,15 @@
   )
 
 (defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
-  (let [arglist (:arglist (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     {:spec :one_of :arglist (map transform-spec arglist)}))
 
 (defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
-  (let [arglist (:arglist (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     {:spec :and :arglist (map transform-spec arglist)}))
 
 (defmethod transform-spec [:compound "tuple"] [{inner-list :arglist}]
-  (let [arglist (:arglist (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     {:spec :tuple :arglist (map transform-spec arglist)}))
 
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
@@ -102,13 +103,13 @@
   {:spec (:functor spec) :arglist (map transform-spec (:arglist spec))}
   )
 
-
 (defn- spec-to-map [{[pred & rest] :arglist}]
   (let [functor (get-in pred [:arglist 0 :term])
         arity (get-in pred [:arglist 1 :value])]
     (if (= 1 (count rest))
-      (hash-map (vector functor arity) (map (comp #(map transform-spec %) :arglist) rest))
-      (hash-map (vector functor arity) (list (map (comp #(map transform-spec %) :arglist) rest)))))
+      (hash-map (vector functor arity) (map (comp (partial map transform-spec) utils/get-elements-of-list) rest))
+      (hash-map (vector functor arity) (list (map (comp (partial map transform-spec) utils/get-elements-of-list) rest)))
+      ))
   )
 
 (defn order-specs [specs]
