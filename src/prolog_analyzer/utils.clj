@@ -1,7 +1,6 @@
 (ns prolog-analyzer.utils)
 
 ;; for data extracted from a prolog file
-;; utils
 (defn get-specs-of-pred [pred-identity data]
   (let [spec-identity (rest pred-identity)
         specs data]
@@ -31,6 +30,7 @@
   (and (= type :atomic) (= term "[]")))
 
 
+;; transform head-tail-list
 (defn head-tail-list-to-list [{head :head tail :tail}]
   (if (= "[]" (:term tail))
     {:type :list :elements [head]}
