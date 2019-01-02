@@ -1,4 +1,8 @@
-(ns prolog-analyzer.utils)
+(ns prolog-analyzer.utils
+  (:require [ubergraph.core :as uber]
+            [ubergraph.protocols]
+            [loom.graph]
+            ))
 
 ;; for data extracted from a prolog file
 (defn get-specs-of-pred [pred-identity data]
@@ -41,3 +45,24 @@
   (if (empty-list? tail)
     (list head)
     (conj (get-elements-of-list tail) head)))
+
+;; graphs
+(defn transitive-closure [g]
+  (let [tmp-graph (atom g)]
+    (doseq [k (uber/nodes @tmp-graph)
+            i (uber/nodes @tmp-graph)
+            :when (uber/find-edge @tmp-graph i k)]
+      (doseq [j (uber/nodes @tmp-graph)
+              :when (uber/find-edge @tmp-graph k j)]
+        (swap! tmp-graph uber/add-edges [i j])))
+    @tmp-graph))
+
+(defn transitive-closure-with-attr [g attr-map]
+  (let [tmp-graph (atom g)]
+    (doseq [k (uber/nodes @tmp-graph)
+            i (uber/nodes @tmp-graph)
+            :when (uber/find-edge @tmp-graph (-> attr-map (assoc :src i) (assoc :dest k)))]
+      (doseq [j (uber/nodes @tmp-graph)
+              :when (uber/find-edge @tmp-graph k j)]
+        (swap! tmp-graph uber/add-edges [i j])))
+    @tmp-graph))
