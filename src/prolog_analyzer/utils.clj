@@ -1,4 +1,8 @@
-(ns prolog-analyzer.utils)
+(ns prolog-analyzer.utils
+  (:require [ubergraph.core :as uber]
+            [ubergraph.protocols]
+            [loom.graph]
+            ))
 
 ;; for data extracted from a prolog file
 (defn get-specs-of-pred [pred-identity data]
@@ -11,9 +15,6 @@
         (update :inv-specs #(get-in % spec-identity))
         )))
 
-(defn get-impls-of-pred [pred-identity data]
-  (vals (get-in data (apply vector :preds pred-identity))))
-
 (defn get-pred-identities [data]
   (for [module (keys (:preds data))
         pred-name (keys (get-in data [:preds module]))
@@ -23,8 +24,18 @@
 (defn get-clause-identities [data]
   (let [preds (:preds data)]
     (for [pred-id (get-pred-identities data)
-          clause (keys (get-in preds pred-id))]
-      (conj pred-id clause))))
+          clause-number (keys (get-in preds pred-id))]
+      (conj pred-id clause-number))))
+
+(defn get-clause-identities-of-pred [pred-id data]
+  (for [clause-number (keys (get-in (:preds data) pred-id))]
+    (conj pred-id clause-number)))
+
+(defn get-clause [clause-id data]
+  (get-in (:preds data) clause-id))
+
+(defn get-clauses-of-pred [pred-identity data]
+  (vals (get-in data (apply vector :preds pred-identity))))
 
 (defn empty-list? [{term :term type :type}]
   (and (= type :atomic) (= term "[]")))
@@ -41,3 +52,24 @@
   (if (empty-list? tail)
     (list head)
     (conj (get-elements-of-list tail) head)))
+
+;; graphs
+(defn transitive-closure [g]
+  (let [tmp-graph (atom g)]
+    (doseq [k (uber/nodes @tmp-graph)
+            i (uber/nodes @tmp-graph)
+            :when (uber/find-edge @tmp-graph i k)]
+      (doseq [j (uber/nodes @tmp-graph)
+              :when (uber/find-edge @tmp-graph k j)]
+        (swap! tmp-graph uber/add-edges [i j])))
+    @tmp-graph))
+
+(defn transitive-closure-with-attr [g attr-map]
+  (let [tmp-graph (atom g)]
+    (doseq [k (uber/nodes @tmp-graph)
+            i (uber/nodes @tmp-graph)
+            :when (uber/find-edge @tmp-graph (-> attr-map (assoc :src i) (assoc :dest k)))]
+      (doseq [j (uber/nodes @tmp-graph)
+              :when (uber/find-edge @tmp-graph k j)]
+        (swap! tmp-graph uber/add-edges [i j])))
+    @tmp-graph))

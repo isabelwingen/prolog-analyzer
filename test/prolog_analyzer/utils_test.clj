@@ -1,6 +1,12 @@
 (ns prolog-analyzer.utils-test
   (:require [prolog-analyzer.utils :as sut]
             [prolog-analyzer.parser :as parser]
+            [ubergraph.core :as uber]
+            [loom.graph]
+            [ubergraph.protocols]
+            [clojure.test.check :as tc]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
             [clojure.test :refer [deftest are is]]))
 
 
@@ -17,9 +23,9 @@
         ["spec_test" "foo" 3 0]]
        (sut/get-clause-identities data))))
 
-(deftest get-impls-of-pred-test
-  (is (= 2 (count (sut/get-impls-of-pred ["spec_test" "member_int" 2] data))))
-  (is (= 1 (count (sut/get-impls-of-pred ["spec_test" "foo" 3] data)))))
+(deftest get-clauses-of-pred-test
+  (is (= 2 (count (sut/get-clauses-of-pred ["spec_test" "member_int" 2] data))))
+  (is (= 1 (count (sut/get-clauses-of-pred ["spec_test" "foo" 3] data)))))
 
 (deftest get-specs-of-pred-test
   (let [{pre-specs :pre-specs post-specs :post-specs} (sut/get-specs-of-pred ["spec_test" "member_int" 2] data)]
@@ -57,3 +63,25 @@
                                            :tail {:type :list
                                                   :head {:type :integer :value 3}
                                                   :tail {:term "[]" :type :atomic}}}}))))
+(defn transitive-closure-ref-impl [g & attrs]
+  (let [tmp-graph (atom g)]
+    (doseq [k (uber/nodes @tmp-graph)]
+      (doseq [i (uber/nodes @tmp-graph)]
+        (if (uber/find-edge @tmp-graph i k)
+          (doseq [j (uber/nodes @tmp-graph)]
+            (if (uber/find-edge @tmp-graph k j)
+              (swap! tmp-graph uber/add-edges [i,j]))))))
+    @tmp-graph))
+
+(def edge-gen
+  (gen/not-empty (gen/vector (gen/tuple gen/int gen/int))))
+
+(def graph-gen
+  (gen/fmap #(apply uber/digraph %) edge-gen))
+
+
+(def transitiv-closure-prop
+    (prop/for-all [g graph-gen]
+                  (= (transitive-closure-ref-impl g) (sut/transitive-closure g))))
+
+(tc/quick-check 500 transitiv-closure-prop)
