@@ -29,6 +29,3 @@
   (add-predicates-to-graph)
   (add-clauses-to-graph)
   )
-
-(pprint (create-graph))
-@graph

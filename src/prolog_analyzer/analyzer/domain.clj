@@ -284,5 +284,3 @@
          [:compound :compound {:when compound:compound-is-subspec?}]
          )
   )
-
-(-> (create-spec-graph) util/transitive-closure uber/pprint)
