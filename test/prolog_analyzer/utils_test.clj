@@ -23,9 +23,9 @@
         ["spec_test" "foo" 3 0]]
        (sut/get-clause-identities data))))
 
-(deftest get-impls-of-pred-test
-  (is (= 2 (count (sut/get-impls-of-pred ["spec_test" "member_int" 2] data))))
-  (is (= 1 (count (sut/get-impls-of-pred ["spec_test" "foo" 3] data)))))
+(deftest get-clauses-of-pred-test
+  (is (= 2 (count (sut/get-clauses-of-pred ["spec_test" "member_int" 2] data))))
+  (is (= 1 (count (sut/get-clauses-of-pred ["spec_test" "foo" 3] data)))))
 
 (deftest get-specs-of-pred-test
   (let [{pre-specs :pre-specs post-specs :post-specs} (sut/get-specs-of-pred ["spec_test" "member_int" 2] data)]

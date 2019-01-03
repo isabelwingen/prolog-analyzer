@@ -3,6 +3,7 @@
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]] ;; used only during development
    [prolog-analyzer.analyzer.domain :refer [merge-dom]]
    [prolog-analyzer.utils :as utils]
+   [prolog-analyzer.analyzer.pretty-printer :as my-pp]
    [ubergraph.core :as uber]
    [loom.graph]
    [loom.attr]
@@ -54,11 +55,12 @@
 (defn complete-analysis [input-data]
   (reset! data input-data)
   (for [pred-id (utils/get-pred-identities @data)
-        impl (utils/get-impls-of-pred pred-id @data)
+        clause-id (utils/get-clause-identities-of-pred pred-id @data)
         pre-spec (:pre-specs (utils/get-specs-of-pred pred-id @data))]
-    (analyzing impl pre-spec)))
+    [[clause-id pre-spec] (analyzing (utils/get-clause clause-id @data) pre-spec)]))
 
 (defn example []
   (->> "resources/simple-example.pl"
        process-prolog-file
-       complete-analysis))
+       complete-analysis
+       my-pp/pretty-print-analysis-result))

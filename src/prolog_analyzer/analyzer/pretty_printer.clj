@@ -44,7 +44,7 @@
     (println nd-num "Nodes:")
     (doseq [node nodes]
       (print "\t")
-      (print-in-columns [14 10] (to-string (uber/attr graph node :original)) "domain:" (str (uber/attr graph node :dom))))
+      (print-in-columns [29 10] (to-string (uber/attr graph node :original)) "domain:" (str (uber/attr graph node :dom))))
     (println edg-num "Edges:")
     (doseq [edge edges]
       (let [src (uber/src edge)
@@ -55,3 +55,10 @@
                           "->"
                           (to-string (uber/attr graph dest :original))
                           (str (uber/attrs graph edge)))))))
+
+(defn pretty-print-analysis-result [res]
+  (doseq [[[clause-id pre-spec] g] res]
+    (do
+      (println "#" clause-id ":" pre-spec)
+      (pretty-print-graph g)
+      (println "--------------------------------------------------------------------\n"))))
