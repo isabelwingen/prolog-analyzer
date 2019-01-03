@@ -24,7 +24,6 @@
     {:type :error-msg
      :content (split-up-error-message err)}))
 
-
 (defn- replace-backslash [clojure-file]
   (spit clojure-file (.replace (slurp clojure-file) "\\" "\\\\")))
 
@@ -103,14 +102,14 @@
   {:spec (:functor spec) :arglist (map transform-spec (:arglist spec))}
   )
 
-(defn- spec-to-map [{[pred & rest] :arglist}]
-  (let [functor (get-in pred [:arglist 0 :term])
-        arity (get-in pred [:arglist 1 :value])]
-    (if (= 1 (count rest))
-      (hash-map (vector functor arity) (map (comp (partial map transform-spec) utils/get-elements-of-list) rest))
-      (hash-map (vector functor arity) (list (map (comp (partial map transform-spec) utils/get-elements-of-list) rest)))
-      ))
-  )
+(defn- spec-to-map [{[outer & args] :arglist}]
+  (let [module (get-in outer [:arglist 0 :term])
+        functor (get-in outer [:arglist 1 :arglist 0 :term])
+        arity (get-in outer [:arglist 1 :arglist 1 :value])]
+    (if (= 1 (count args))
+      (hash-map (vector module functor arity) (map (comp (partial map transform-spec) utils/get-elements-of-list) args))
+      (hash-map (vector module functor arity) (list (map (comp (partial map transform-spec) utils/get-elements-of-list) args))))))
+
 
 (defn order-specs [specs]
   (->> specs
@@ -174,7 +173,8 @@
   (-> file
       read-prolog-code-as-raw-edn
       format-and-clean-up
-      pre-processor/pre-process))
+      pre-processor/pre-process
+      ))
 
 (def preamble
   ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
