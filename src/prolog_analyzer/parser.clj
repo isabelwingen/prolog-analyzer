@@ -169,8 +169,8 @@
 
       ))
 
-(defn process-prolog-file [file]
-  (-> file
+(defn process-prolog-file [file-name]
+  (-> file-name
       read-prolog-code-as-raw-edn
       format-and-clean-up
       pre-processor/pre-process
@@ -184,3 +184,19 @@
   (let [res (process-prolog-file "prolog/tmp.pl")]
     (io/delete-file "prolog/tmp.pl")
     res))
+
+(defn process-prolog-files [& file-names]
+  (let [results (for [file-name file-names] (process-prolog-file file-name))]
+    (->> results
+         (map #(dissoc % :error-msg))
+         (apply merge-with (partial merge-with merge)))))
+
+
+(defn process-prolog-directory [dir-name]
+  (->> dir-name
+      io/file
+      file-seq
+      rest
+      (filter #(clojure.string/ends-with? (str %) ".pl"))
+      (map str)
+      (apply process-prolog-files)))
