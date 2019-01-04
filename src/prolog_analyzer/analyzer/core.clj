@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.core
   (:require
-   [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]] ;; used only during development
+   [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets process-prolog-files]] ;; used only during development
    [prolog-analyzer.analyzer.domain :refer [merge-dom]]
    [prolog-analyzer.utils :as utils]
    [prolog-analyzer.analyzer.pretty-printer :as my-pp]
@@ -62,5 +62,11 @@
 (defn example []
   (->> "resources/simple-example.pl"
        process-prolog-file
+       complete-analysis
+       my-pp/pretty-print-analysis-result))
+
+(defn example2 []
+  (->> ["resources/module1.pl" "resources/module2.pl"]
+       (apply process-prolog-files)
        complete-analysis
        my-pp/pretty-print-analysis-result))
