@@ -6,19 +6,19 @@
 :- public enable_write_out/0.
 
 spec_pre(Pred,SpecPre) :-
-    (Pred = _/Arity -> true ; type_error("<predname>/<arity>",Pred)),
+    ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
     (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
     maplist(valid_spec,SpecPre).
 
 spec_post(Pred,SpecPre,SpecPost) :-
-    (Pred = _/Arity -> true ; type_error("<predname>/<arity>",Pred)),
+    ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
     (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
     (length(SpecPost,Arity) -> true ; domain_error('length of spec list',Arity)),
     maplist(valid_spec,SpecPre),
     maplist(valid_spec,SpecPost).
 
 spec_invariant(Pred,SpecInv) :-
-    (Pred = _/Arity -> true ; type_error("<predname>/<arity>",Pred)),
+    ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
     (length(SpecInv,Arity) -> true ; domain_error('length of spec list',Arity)),
     maplist(valid_spec,SpecInv).
 
@@ -356,30 +356,43 @@ expand(':-'(A,B),Module,Stream) :-
     write(Stream,Tmp2),nl(Stream).
 
 %special cases
-expand(':-'(A),_Module,Stream) :-
-    A = spec_pre(_,_),
+expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Stream) :-
     !,
     Start = "{:type :spec_pre\n:content ",
-    goal_to_map(0,13,A,Map),
+    goal_to_map(0,13,spec_pre(InternalModule:Functor/Arity,Arglist),Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
-expand(':-'(A),_Module,Stream) :-
-    A = spec_post(_,_,_),
+
+expand(':-'(spec_pre(Functor/Arity,Arglist)),Module,Stream) :-
+    !,
+    expand(':-'(spec_pre(Module:Functor/Arity,Arglist)),Module,Stream).
+
+expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,Stream) :-
     !,
     Start = "{:type :spec_post\n:content ",
-    goal_to_map(0,13,A,Map),
+    goal_to_map(0,13,spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2),Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
-expand(':-'(A),_Module,Stream) :-
-    A = spec_invariant(_,_),
+
+expand(':-'(spec_post(Functor/Arity,Arglist1,Arglist2)),Module,Stream) :-
+    !,
+    expand(':-'(spec_post(Module:Functor/Arity,Arglist1,Arglist2)),Module,Stream).
+
+expand(':-'(spec_invariant(InternalModule:Functor/Arity,Arglist)),_Module,Stream) :-
     !,
     Start = "{:type :spec_inv\n:content ",
-    goal_to_map(0,13,A,Map),
+    goal_to_map(0,13,spec_invariant(InternalModule:Functor/Arity,Arglist),Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
+
+
+expand(':-'(spec_invariant(Functor/Arity,Arglist)),Module,Stream) :-
+    !,
+    expand(':-'(spec_invariant(Module:Functor/Arity,Arglist)),Module,Stream).
+
 expand(':-'(A),_Module,Stream) :-
     A = declare_spec(_),
     !,

@@ -27,9 +27,9 @@
 (defn- add-any-pre-specs [data]
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
-    (if-let [[_ pred-name arity :as pred-id] (first pred-ids)]
+    (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
       (if (nil? (:pre-specs (utils/get-specs-of-pred pred-id data)))
-        (recur (rest pred-ids) (assoc-in result [:pre-specs pred-name arity] (list (repeat arity {:spec :any}))))
+        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (list (repeat arity {:spec :any}))))
         (recur (rest pred-ids) result))
       result)))
 

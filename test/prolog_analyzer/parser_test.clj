@@ -217,9 +217,13 @@
     ":- spec_pre(foo/2,[int,int])."
     :spec_pre
     {:goal "spec_pre", :module "self" :arity 2, :arglist [{:type :compound
-                                                           :functor "/"
-                                                           :arglist [{:term "foo" :type :atom}
-                                                                     {:value 2 :type :integer}]}
+                                                           :functor ":",
+                                                           :arglist
+                                                           [{:term "tmp" :type :atom}
+                                                            {:type :compound
+                                                             :functor "/"
+                                                             :arglist [{:term "foo" :type :atom}
+                                                                       {:value 2 :type :integer}]}]}
                                                           {:type :list
                                                            :head {:term "int" :type :atom}
                                                            :tail {:type :list
@@ -229,9 +233,13 @@
     ":- spec_post(foo/2,[any,int],[int,int])."
     :spec_post
     {:goal "spec_post", :module "self", :arity 3, :arglist [{:type :compound
-                                                             :functor "/"
-                                                             :arglist [{:term "foo" :type :atom}
-                                                                       {:value 2 :type :integer}]}
+                                                             :functor ":"
+                                                             :arglist
+                                                             [{:term "tmp" :type :atom}
+                                                              {:type :compound
+                                                               :functor "/"
+                                                               :arglist [{:term "foo" :type :atom}
+                                                                         {:value 2 :type :integer}]}]}
                                                             {:type :list
                                                              :head {:term "any" :type :atom}
                                                              :tail {:type :list
@@ -245,13 +253,17 @@
 
     ":- spec_invariant(foo/1,[int])."
     :spec_inv
-    {:goal "spec_invariant" :module "self"  :arity 2 :arglist [{:type :compound :functor "/"
-                                                                :arglist [{:term "foo" :type :atom}
-                                                                          {:value 1 :type :integer}]}
+    {:goal "spec_invariant" :module "self"  :arity 2 :arglist [{:type :compound
+                                                                :functor ":"
+                                                                :arglist
+                                                                [{:term "tmp" :type :atom}
+                                                                 {:type :compound
+                                                                  :functor "/"
+                                                                  :arglist [{:term "foo" :type :atom}
+                                                                            {:value 1 :type :integer}]}]}
                                                                {:type :list
                                                                 :head {:term "int" :type :atom}
                                                                 :tail {:term "[]" :type :atomic}}]}
-    
     ))
 
 
@@ -271,24 +283,24 @@
                                                                               {:spec :exact :value "empty"}]}}
            (:specs result)))
     (is
-     (= {"member_int"
-         {2 [[{:spec :integer} {:spec :list :type {:spec :integer}}]
-             [{:spec :var} {:spec :list :type {:spec :integer}}]]}
-         "foo"
-         {3 [[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}]]}}
+     (= {"spec_test" {"member_int"
+                      {2 [[{:spec :integer} {:spec :list :type {:spec :integer}}]
+                          [{:spec :var} {:spec :list :type {:spec :integer}}]]}
+                      "foo"
+                      {3 [[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}]]}}}
         (:pre-specs result)))
     (is
-     (= {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec :integer}}] [{:spec :integer} {:spec :list :type {:spec :integer}}]]]}
-         "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]
-                   [[{:spec :nonvar} {:spec :integer} {:spec :integer}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]]}}
+     (= {"spec_test" {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec :integer}}] [{:spec :integer} {:spec :list :type {:spec :integer}}]]]}
+                      "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]
+                                [[{:spec :nonvar} {:spec :integer} {:spec :integer}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]]}}}
         (:post-specs result)))
     (is
-     (= {"member_int" {2 [[{:spec :any} {:spec :ground}]]}}
+     (= {"spec_test" {"member_int" {2 [[{:spec :any} {:spec :ground}]]}}}
         (:inv-specs result)))
     )
   )
 
+
 (deftest process-files:preds
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
     (is (coll? (get-in result [:preds "spec_test" "member_int" 2])))))
-
