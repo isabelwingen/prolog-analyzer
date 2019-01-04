@@ -391,7 +391,7 @@ expand(':-'(spec_invariant(InternalModule:Functor/Arity,Arglist)),_Module,Stream
 
 expand(':-'(spec_invariant(Functor/Arity,Arglist)),Module,Stream) :-
     !,
-    expand(':-'(spec_invariant(Module:Functor/Arity,Arglist)),Module;Stream).
+    expand(':-'(spec_invariant(Module:Functor/Arity,Arglist)),Module,Stream).
 
 expand(':-'(A),_Module,Stream) :-
     A = declare_spec(_),
