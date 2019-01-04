@@ -6,14 +6,12 @@
 
 ;; for data extracted from a prolog file
 (defn get-specs-of-pred [pred-identity data]
-  (let [spec-identity (rest pred-identity)
-        specs data]
-    (-> specs
-        (select-keys [:pre-specs :post-specs :inv-specs])
-        (update :pre-specs #(get-in % spec-identity))
-        (update :post-specs #(get-in % spec-identity))
-        (update :inv-specs #(get-in % spec-identity))
-        )))
+  (-> data
+      (select-keys [:pre-specs :post-specs :inv-specs])
+      (update :pre-specs #(get-in % pred-identity))
+      (update :post-specs #(get-in % pred-identity))
+      (update :inv-specs #(get-in % pred-identity))
+      ))
 
 (defn get-pred-identities [data]
   (for [module (keys (:preds data))
