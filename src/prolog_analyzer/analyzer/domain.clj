@@ -1,5 +1,5 @@
 (ns prolog-analyzer.analyzer.domain
-  (:require [prolog-analyzer.utils :as util]
+  (:require [prolog-analyzer.utils :as utils]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [clojure.spec.test.alpha :as stest]
@@ -216,7 +216,7 @@
     (= :list (:spec dom1)) (intersect-with-list dom1 dom2)
     (= :tuple (:spec dom1)) (intersect-with-tuple dom1 dom2)
     (= :compound (:spec dom1)) (intersect-with-compound dom1 dom2)
-    :else (simplify-dom {:spec :and :arglist (list dom1 dom2)})))
+    :else nil))
 
 (defn intersect [dom1 dom2]
   (let [dom-intersect (intersect-doms dom1 dom2)]
@@ -227,60 +227,104 @@
 (defn merge-dom [dom1 dom2]
   (intersect dom1 dom2))
 
-(declare is-subspec?)
-
-(def spec-graph (atom (uber/digraph)))
-
-(defn- list:list-is-subspec? [{type1 :type} {type2 :type}]
-  (is-subspec? type1 type2))
-
-(defn- tuple:tuple-is-subspec? [{arglist1 :arglist} {arglist2 :arglist}]
-  (and (= (count arglist1) (count arglist2))
-       (every? true? (map is-subspec? arglist1 arglist2))))
-
-(defn- tuple:list-is-subspec? [{arglist :arglist} {type :type}]
-  (every? true? (map #(is-subspec? % type) arglist)))
-
-(defn- compound:compound-is-subspec? [{functor1 :functor arglist1 :arglist} {functor2 :functor arglist2 :arglist}]
-  (and (= functor1 functor2)
-       (every? true? (map is-subspec? arglist1 arglist2))))
-
-(defn custom-is-subspec? [{spec1 :spec arglist1 :arglist} {spec2 :spec arglist2 :arglist}]
-  (and (= spec1 spec2)
-       (every? true? (map is-subspec? arglist1 arglist2))))
-
-(defn is-subspec? [spec1 spec2]
-  (let [g @spec-graph
-        {sub-spec-cond :when :as edge} (uber/find-edge g (:spec spec1) (:spec spec2))]
-    (if (nil? edge)
-      false
-      (if (nil? sub-spec-cond)
-        true
-        (sub-spec-cond spec1 spec2)))))
 
 
-(defn create-spec-graph []
-  (reset! spec-graph (uber/digraph))
-  (swap! spec-graph uber/add-edges
-         [:integer :number]
-         [:float :number]
-         [:number :atomic]
-         [:atom :atomic]
-         [:atomic :ground]
-         [:ground :nonvar]
-         [:nonvar :any]
-         [:named-any :any]
-         [:exact :atom]
-         [:integer :integer]
-         [:float :float]
-         [:number :number]
-         [:atomic :atomic]
-         [:ground :ground]
-         [:nonvar :nonvar]
-         [:any :any]
-         [:list :list {:when list:list-is-subspec?}]
-         [:tuple :tuple {:when tuple:tuple-is-subspec?}]
-         [:tuple :list {:when tuple:list-is-subspec?}]
-         [:compound :compound {:when compound:compound-is-subspec?}]
-         )
+
+
+(defmulti get-initial-dom-from-spec* (juxt (comp :type first) (comp :spec second)))
+
+(defn get-initial-dom-from-spec [arg pre-spec]
+  (if (= :var (:type arg))
+    {arg [pre-spec]}
+    (get-initial-dom-from-spec* [arg pre-spec])))
+
+(defmethod get-initial-dom-from-spec* [:atomic :list] [[arg spec]]
+  (if (utils/empty-list? arg) {arg [spec]} {arg [:error]}))
+
+(defmethod get-initial-dom-from-spec* [:atomic :tuple] [[arg {arglist :arglist :as spec}]]
+  (if (and (utils/empty-list? arg) (empty? arglist)) {arg [spec]} {arg [:error]}))
+
+(defmethod get-initial-dom-from-spec* [:atomic :ground] [[arg _]]
+  (if (utils/empty-list? arg)
+    {arg [{:spec :list :type {:spec :ground}}]}
+    {arg [{:spec :atomic}]}))
+
+(defmethod get-initial-dom-from-spec* [:atomic :nonvar] [[arg _]]
+  (if (utils/empty-list? arg)
+    {arg [{:spec :list :type {:spec :any}}]}
+    {arg [{:spec :atomic}]}))
+
+(defmethod get-initial-dom-from-spec* [:atomic :any] [[arg _]]
+  (if (utils/empty-list? arg)
+    {arg [{:spec :list :type {:spec :any}}]}
+    {arg [{:spec :atomic}]}))
+
+(defmethod get-initial-dom-from-spec* [:list :list] [[{head :head tail :tail :as arg} {t :type :as spec}]]
+  (let [tail-dom (if (utils/empty-list? tail)
+                   {}
+                   (get-initial-dom-from-spec tail spec))
+        head-dom (get-initial-dom-from-spec head t)
+        arg-dom {arg [spec]}]
+    (merge-with concat tail-dom head-dom arg-dom)))
+
+(defmethod get-initial-dom-from-spec* [:list :tuple] [[{head :head tail :tail :as arg} {[head-type & rest-types] :arglist :as spec}]]
+  (let [tail-dom (case [(utils/empty-list? tail) (empty? rest-types)]
+                   [true true] {}
+                   [true false] {tail [:error]}
+                   [false true] {arg [:error]}
+                   [false false] (get-initial-dom-from-spec tail (update spec :arglist rest)))
+        head-dom (get-initial-dom-from-spec head head-type)
+        arg-dom {arg [spec]}]
+    (merge-with concat tail-dom head-dom arg-dom))
   )
+
+(defmethod get-initial-dom-from-spec* [:list :ground] [[{head :head tail :tail :as arg} ground-spec]]
+  (let [tail-dom (if (utils/empty-list? tail) {} (get-initial-dom-from-spec tail {:spec :list :type ground-spec}))
+        head-dom (get-initial-dom-from-spec head ground-spec)
+        arg-dom {arg [{:spec :list :type ground-spec}]}]
+    (merge-with concat tail-dom head-dom arg-dom))
+  )
+
+(defmethod get-initial-dom-from-spec* [:list :nonvar] [[{head :head tail :tail :as arg} nonvar-spec]]
+  (let [tail-dom (if (utils/empty-list? tail) {} (get-initial-dom-from-spec tail {:spec :list :type nonvar-spec}))
+        head-dom (get-initial-dom-from-spec head {:spec :any})
+        arg-dom {arg [{:spec :list :type nonvar-spec}]}]
+    (merge-with concat tail-dom head-dom arg-dom))
+  )
+
+(defmethod get-initial-dom-from-spec* [:list :any] [[{head :head tail :tail :as arg} any-spec]]
+  (let [tail-dom (if (utils/empty-list? tail) {} (get-initial-dom-from-spec tail {:spec :list :type any-spec}))
+        head-dom (get-initial-dom-from-spec head any-spec)
+        arg-dom {arg [{:spec :list :type any-spec}]}]
+    (merge-with concat tail-dom head-dom arg-dom))
+  )
+(defmethod get-initial-dom-from-spec* [:compound :compound] [[{arg-func :functor arg-elems :arglist :as arg} {spec-func :functor spec-elems :arglist :as spec}]]
+  (if (and (= arg-func spec-func) (= (count arg-elems) (count spec-elems)))
+    (let [elem-doms (for [i (range 0 (count arg-elems))
+                          :let [a (nth arg-elems i)
+                                s (nth spec-elems i)]]
+                      (get-initial-dom-from-spec a s))]
+      (apply merge-with concat {arg [spec]} elem-doms))
+    {arg [:error]}))
+
+(defmethod get-initial-dom-from-spec* [:compound :ground] [[{functor :functor arglist :arglist :as arg} spec]]
+  (let [elem-doms (for [elem arglist]
+                    (get-initial-dom-from-spec elem spec))
+        arg-dom {arg [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :ground})}]}]
+    (apply merge-with concat arg-dom elem-doms))
+  )
+
+(defmethod get-initial-dom-from-spec* [:compound :nonvar] [[{functor :functor arglist :arglist :as arg} spec]]
+  (let [elem-doms (for [elem arglist]
+                    (get-initial-dom-from-spec elem spec))
+        arg-dom {arg [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})}]}]
+    (apply merge-with concat arg-dom elem-doms)))
+
+(defmethod get-initial-dom-from-spec* [:compound :any] [[{functor :functor arglist :arglist :as arg} spec]]
+  (let [elem-doms (for [elem arglist]
+                    (get-initial-dom-from-spec elem spec))
+        arg-dom {arg [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})}]}]
+    (apply merge-with concat arg-dom elem-doms)))
+
+(defmethod get-initial-dom-from-spec* :default [[arg spec]]
+  (if-let [init-dom (intersect-doms {:spec (:type arg)} spec)] {arg [init-dom]} {arg [:error]}))
