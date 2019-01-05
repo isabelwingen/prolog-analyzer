@@ -9,6 +9,10 @@
 (defmulti to-string :type)
 (defmethod to-string :var [{n :name}] n)
 (defmethod to-string :atom [{term :term}] term)
+(defmethod to-string :atomic [{term :term}] term)
+(defmethod to-string :integer [{value :value}] value)
+(defmethod to-string :number [{value :value}] value)
+(defmethod to-string :float [{value :value}] value)
 (defmethod to-string :anon_var [{n :name}] n) 
 (defmethod to-string :list [{head :head tail :tail :as arg}]
   (cond 
