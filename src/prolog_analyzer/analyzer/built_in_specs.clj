@@ -33,3 +33,13 @@
      :inv-specs []}}})
 
 ;:specs {{:spec "expr"} {:spec :one_of :arglist [{:spec :number} {:spec :compound :arglist [{:spec "expr"}]} {:spec :compound :arglist [{:spec "expr"} {:spec "expr"}]}]}}
+
+(defn default-specs [arity]
+  {:pre-specs [(repeat arity {:spec :any})]
+   :post-specs [[(repeat arity {:spec :any}) (repeat arity {:spec :any})]]
+   :inv-specs []})
+
+(defn get-specs-of-built-in-pred [pred-name arity]
+  (if (contains? built-in-specs pred-name)
+    (get-in built-in-specs [pred-name arity])
+    (default-specs arity)))

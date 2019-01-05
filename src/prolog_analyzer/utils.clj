@@ -1,17 +1,21 @@
 (ns prolog-analyzer.utils
-  (:require [ubergraph.core :as uber]
+  (:require [prolog-analyzer.analyzer.built-in-specs :as built-ins]
+            [ubergraph.core :as uber]
             [ubergraph.protocols]
             [loom.graph]
             ))
 
 ;; for data extracted from a prolog file
-(defn get-specs-of-pred [pred-identity data]
-  (-> data
-      (select-keys [:pre-specs :post-specs :inv-specs])
-      (update :pre-specs #(get-in % pred-identity))
-      (update :post-specs #(get-in % pred-identity))
-      (update :inv-specs #(get-in % pred-identity))
-      ))
+(defn get-specs-of-pred [[module pred-name arity :as pred-identity] data]
+  (if (= :built-in module)
+    (built-ins/get-specs-of-built-in-pred pred-name arity)
+    (-> data
+        (select-keys [:pre-specs :post-specs :inv-specs])
+        (update :pre-specs #(get-in % pred-identity))
+        (update :post-specs #(get-in % pred-identity))
+        (update :inv-specs #(get-in % pred-identity))
+        )))
+
 
 (defn get-pred-identities [data]
   (for [module (keys (:preds data))
