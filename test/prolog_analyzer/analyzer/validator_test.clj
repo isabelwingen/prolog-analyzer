@@ -3,7 +3,7 @@
             [clojure.test :refer [deftest are]]))
 
 (deftest valid-simple-types-test
-  (are [spec arg] (sut/valid spec arg)
+  (are [spec arg] (sut/valid? spec arg)
     {:spec :integer} {:value 2 :type :integer}
     {:spec :atom} {:term "a" :type :atom}
     {:spec :atom} {:term "+++" :type :atom}
@@ -18,7 +18,7 @@
     {:spec :nonvar} {:value 3 :type :integer}
     {:spec :nonvar} {:type :compound :functor "foo" :arglist [{:name "X" :type :var}]}
     )
-  (are [spec arg] (not (sut/valid spec arg))
+  (are [spec arg] (not (sut/valid? spec arg))
     {:spec :integer} {:term "a" :type :atom}
     {:spec :ground} {:name "H" :type :var}
     {:spec :var} {:value 3 :type :integer}
@@ -28,13 +28,13 @@
 
 
 (deftest valid-complex-types-test
-  (are [spec arg] (sut/valid spec arg)
+  (are [spec arg] (sut/valid? spec arg)
     {:spec :ground} {:type :compound :functor "bar" :arglist [{:term "a" :type :atom}]}
     {:spec :list :type {:spec :integer}} {:type :list :head {:value 2 :type :integer} :tail {:type :list :head {:value 2 :type :integer} :tail {:term "[]" :type :atomic}}}
     {:spec :list :type {:spec :integer}} {:type :atomic :term "[]"}
     {:spec :tuple :arglist [{:spec :number} {:spec :atomic}]} {:type :list :head {:value 2 :type :integer} :tail {:type :list :head {:term "a" :type :atom} :tail {:term "[]" :type :atomic}}}
     )
-  (are [spec arg] (not (sut/valid spec arg))
+  (are [spec arg] (not (sut/valid? spec arg))
     {:spec :ground} {:type :compound :functor "bar" :arglist [{:term "a" :type :atom} {:name "X" :type :var}]}
     {:spec :list :type {:spec :integer}} {:type :list :arglist [{:name "X" :type :var}]}
     {:spec :list :type {:spec :integer}} {:type :head-tail-list :head {:value 2 :type :integer} :tail {:name "X" :type :var}}
@@ -43,4 +43,6 @@
   )
 
 
-;TODO should [1|T] be valid arg for spec `tuple([int])`?
+;TODO should [1|T] be valid? arg for spec `tuple([int])`?
+
+
