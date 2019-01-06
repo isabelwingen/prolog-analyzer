@@ -41,7 +41,7 @@
    :exact :atom})
 
 
-(defn get-built-in-parent-specs [spec]
+(defn- get-built-in-parent-specs [spec]
   (if (contains? built-ins-relations spec)
     (loop [parent (get built-ins-relations spec)
            ancestors [spec parent]]
@@ -50,8 +50,13 @@
         ancestors))
     [spec]))
 
+(defn- is-parent? [parent child]
+  (if (some #(= (:spec parent) %) (get-built-in-parent-specs (:spec child))) true false))
+
+
 (defn built-in? [dom] (contains? built-ins (:spec dom)))
 
+; TODO: currently only working for built-ins
 (defn is-subdom? [dom1 dom2]
   (if (built-in? dom1)
     (case (:spec dom1)
@@ -74,9 +79,7 @@
       :exact (if (= :exact (:spec dom2))
                (= (:value dom1) (:value dom2))
                (is-subdom? {:spec :atom} dom2))
-      (if (some #(= (:spec dom2) %) (get-built-in-parent-specs (:spec dom1)))
-        true
-        false)
+      (is-parent? dom2 dom1)
       )
     false))
 
@@ -140,65 +143,78 @@
         (assoc :spec :or))))
 
 
-(s/fdef simplify-dom
-        :args (s/cat :dom ::dom)
-        :ret (s/and ::dom)
-        :fn #(knf? (:ret %)))
+
 (defn simplify-dom [dom]
   (-> dom
       to-knf))
+
 (declare intersect)
+
 (defn union [dom1 dom2]
   (cond
     (is-subdom? dom1 dom2) dom2
     (is-subdom? dom2 dom1) dom1
-    :else (simplify-dom {:spec :or :arglist (list dom1 dom2)})))
+    :else                  (simplify-dom {:spec :or :arglist (list dom1 dom2)})))
 
 (defn- intersect-with-ground [other-dom]
   (case (:spec other-dom)
-    :list (update other-dom :type (partial intersect {:spec :ground}))
-    (:tuple :compound) (update other-dom :arglist #(map (partial intersect {:spec :ground}) %))
-    other-dom))
+    :list               (update other-dom :type (partial intersect {:spec :ground}))
+    (:tuple :compound)  (update other-dom :arglist #(map (partial intersect {:spec :ground}) %))
+                        other-dom
+
+    ))
 
 (defn- intersect-with-list [{type :type} other-dom]
-  (case (:spec other-dom)
-    :list (update other-dom :type (partial intersect type))
-    :tuple (update other-dom :arglist #(map (partial intersect type) %))
-    :ground {:spec :list :type (intersect other-dom type)}
-    nil))
+  (let [new-dom (case (:spec other-dom)
+                  :list               (update other-dom :type (partial intersect type))
+                  :tuple              (update other-dom :arglist #(map (partial intersect type) %))
+                  :ground             {:spec :list :type (intersect other-dom type)}
+                  nil
+                  )]
+    (if (contains? new-dom :type)
+      (if (= :error (:type new-dom)) :error new-dom)
+      (if (some (partial = :error) (:arglist new-dom)) :error new-dom))))
 
 (defn- intersect-with-tuple [{arglist :arglist :as dom1} other-dom]
-  (case (:spec other-dom)
-    :tuple (update other-dom :arglist #(map intersect arglist %))
-    :list (update dom1 :arglist #(map (partial intersect {:type other-dom}) %))
-    :ground (update dom1 :arglist #(map (partial intersect other-dom) %))
-    nil))
+  (let [new-dom (case (:spec other-dom)
+                  :tuple              (if (= (count arglist) (count (:arglist other-dom)))
+                                        (update other-dom :arglist #(map intersect arglist %))
+                                        nil)
+                  :list               (update dom1 :arglist #(map (partial intersect {:type other-dom}) %))
+                  :ground             (update dom1 :arglist #(map (partial intersect other-dom) %))
+                  nil
+                  )]
+    (if (some (partial = :error) (:arglist new-dom)) nil new-dom)))
 
 (defn- intersect-with-compound [{functor :functor arglist :arglist :as dom1} other-dom]
-  (case (:spec other-dom)
-    :compound (if (and (= functor (:functor other-dom))
-                       (= (count arglist) (count (:arglist other-dom))))
-                (update other-dom :arglist #(map intersect arglist %)))
-    :ground (update dom1 :arglist #(map (partial intersect other-dom) %))
-    nil))
+  (let [new-dom (case (:spec other-dom)
+                  :compound           (if (and (= functor (:functor other-dom))
+                                               (= (count arglist) (count (:arglist other-dom))))
+                                        (update other-dom :arglist #(map intersect arglist %)))
+                  :ground             (update dom1 :arglist #(map (partial intersect other-dom) %))
+                  nil
+                  )]
+    (if (some (partial = :error) (:arglist new-dom)) nil new-dom)))
+
+(some #{2} [1 3 3])
 
 (defn- intersect-with-named-any [dom1 dom2]
   {:spec :and :arglist [dom1 dom2]})
 
 
-(defn intersect-with-var [dom1 dom2]
+(defn- intersect-with-var [dom1 dom2]
   (if (= :var (:spec dom2))
     dom2
     (assoc dom2 :was-var true)))
 
-(defn intersect-with-exact [{value :value :as dom1} dom2]
+(defn- intersect-with-exact [{value :value :as dom1} dom2]
   (case (:spec dom2)
     :exact (if (= value (:value dom2)) dom1 nil)
     (:atom :atomic :ground) dom1
     nil)
   )
 
-(defn intersect-doms [dom1 dom2]
+(defn- intersect-doms [dom1 dom2]
   (cond
     (is-subdom? dom1 dom2) dom1
     (is-subdom? dom2 dom1) dom2
@@ -221,16 +237,10 @@
 
 (defn intersect [dom1 dom2]
   (let [dom-intersect (intersect-doms dom1 dom2)]
-    (if (or (:was-var dom1) (:was-var dom2))
-      (assoc dom-intersect :was-var true)
-      dom-intersect)))
-
-(defn merge-dom [dom1 dom2]
-  (intersect dom1 dom2))
-
-
-
-
+    (cond
+      (nil? dom-intersect) :error
+      (or (:was-var dom1) (:was-var dom2)) (assoc dom-intersect :was-var true)
+      :else dom-intersect)))
 
 (defmulti get-initial-dom-from-spec* (juxt (comp :type first) (comp :spec second)))
 
