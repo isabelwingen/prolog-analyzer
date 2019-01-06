@@ -65,7 +65,8 @@
       :compound (if (and
                      (= (:functor dom1) (:functor dom2))
                      (= (count (:arglist dom1)) (count (:arglist dom2))))
-                  (every? true? (map is-subdom? (:arglist dom1) (:arglist dom2))) false)
+                  (every? true? (map is-subdom? (:arglist dom1) (:arglist dom2)))
+                  false)
       :any (if (= :any (:spec dom2))
              (or (nil? (:name dom2))
                  (= (:name dom1) (:name dom2)))
@@ -314,9 +315,9 @@
     (apply merge-with concat arg-dom elem-doms))
   )
 
-(defmethod get-initial-dom-from-spec* [:compound :nonvar] [[{functor :functor arglist :arglist :as arg} spec]]
+(defmethod get-initial-dom-from-spec* [:compound :nonvar] [[{functor :functor arglist :arglist :as arg} _]]
   (let [elem-doms (for [elem arglist]
-                    (get-initial-dom-from-spec elem spec))
+                    (get-initial-dom-from-spec elem {:spec :any}))
         arg-dom {arg [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})}]}]
     (apply merge-with concat arg-dom elem-doms)))
 
@@ -326,5 +327,15 @@
         arg-dom {arg [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})}]}]
     (apply merge-with concat arg-dom elem-doms)))
 
-(defmethod get-initial-dom-from-spec* :default [[arg spec]]
-  (if-let [init-dom (intersect-doms {:spec (:type arg)} spec)] {arg [init-dom]} {arg [:error]}))
+(defmethod get-initial-dom-from-spec* :default [[term spec]]
+  (case (:type term)
+    :list {term [:error]}
+    :compound {term [:error]}
+    (if-let [init-dom (intersect-doms {:spec (:type term)} spec)]
+      {term [init-dom]}
+      {term [:error]})))
+
+(defn dom-invalid? [dom]
+  (some (partial = :error) (flatten (vals dom))))
+
+(dom-invalid? {:a [:r :bla] :b [:bla]})
