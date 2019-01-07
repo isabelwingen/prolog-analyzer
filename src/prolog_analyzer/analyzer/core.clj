@@ -17,11 +17,11 @@
 (defn id [arg]
   (hash arg))
 
-
-
 (defn analyzing [{arglist :arglist body :body} pre-spec]
-  (let [env (uber/digraph)]
-    env))
+  (let [env (uber/digraph)
+        dom (apply merge-with concat (map dom/get-initial-dom-from-spec arglist pre-spec))
+        nodes (map #(vector (id %) {:original % :dom (get dom %)}) (keys dom))]
+    (apply uber/add-nodes-with-attrs env nodes)))
 
 
 (defn complete-analysis [input-data]
