@@ -83,6 +83,7 @@
     {:spec :compound :functor "foo" :arglist [{:spec :integer}]} {:spec :compound :functor "foo2" :arglist [{:spec :integer}]}))
 
 
+
 (deftest intersect-test
   (are [a b result] (= result (sut/intersect a b))
                                         ; simple types
@@ -103,38 +104,39 @@
     {:spec :list :type {:spec :any}} {:spec :ground} {:spec :list :type {:spec :ground}}
     {:spec :list :type {:spec :var}} {:spec :ground} {:spec :list :type {:spec :ground :was-var true}}
     {:spec :tuple :arglist [{:spec :nonvar} {:spec :var :name "X"}]} {:spec :ground} {:spec :tuple :arglist [{:spec :ground} {:spec :ground :was-var true}]}
-    {:spec :compound :functor "+" :arglist [{:spec :var :name "B"} {:spec :any}]} {:spec :ground} {:spec :compound :functor "+" :arglist [{:spec :ground :was-var true} {:spec :ground}]}
+    {:spec :compound :functor "+" :arglist [{:spec :var :name "B"} {:spec :any}]} {:spec :ground} {:spec :compound :functor "+" :arglist [{:spec :ground :was-var true} {:spec :ground}]}))
 
                                         ; cases, where the intersect is empty:
-
-    {:spec :float} {:spec :atom} :error
+(deftest intersect-test-empty-result
+  (are [a b] (= :error (:spec (sut/intersect a b)))
+    {:spec :float} {:spec :atom}
                                         ; list - atom
-    {:spec :list :type {:spec :any}} {:spec :atom} :error
+    {:spec :list :type {:spec :any}} {:spec :atom}
                                         ; list - atomic
-    {:spec :list :type {:spec :any}} {:spec :atomic} :error
+    {:spec :list :type {:spec :any}} {:spec :atomic}
                                         ; list - incompatible tuple
-    {:spec :list :type {:spec :float}} {:spec :tuple :arglist [{:spec :atom} {:spec :atom}]} :error
+    {:spec :list :type {:spec :float}} {:spec :tuple :arglist [{:spec :atom} {:spec :atom}]}
                                         ; list - incompatible list
-    {:spec :list :type {:spec :float}} {:spec :list :type {:spec :atom}} :error
+    {:spec :list :type {:spec :float}} {:spec :list :type {:spec :atom}}
 
                                         ; tuple - tuple: wrong arg length
-    {:spec :tuple :arglist [{:spec :integer}]} {:spec :tuple :arglist [{:spec :integer} {:spec :integer}]} :error
+    {:spec :tuple :arglist [{:spec :integer}]} {:spec :tuple :arglist [{:spec :integer} {:spec :integer}]}
                                         ; tuple - tuple: wrong arg type
-    {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]} {:spec :tuple :arglist [{:spec :integer} {:spec :integer}]} :error
+    {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]} {:spec :tuple :arglist [{:spec :integer} {:spec :integer}]}
 
                                         ; compound - compound: other functor
-    {:spec :compound :functor "a" :arglist []} {:spec :compound :functor "b" :arglist []} :error
+    {:spec :compound :functor "a" :arglist []} {:spec :compound :functor "b" :arglist []}
                                         ; compound - compound: other arg length
-    {:spec :compound :functor "a" :arglist [{:spec :integer}]} {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :integer}]} :error
+    {:spec :compound :functor "a" :arglist [{:spec :integer}]} {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :integer}]}
                                         ; compound - compound: wrong arg type
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :integer}]} :error
+    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :integer}]}
                                         ; compound - integer
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :integer} :error
+    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :integer}
                                         ; compound - list
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :list :type {:spec :integer}} :error
+    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :list :type {:spec :integer}}
                                         ; compound - tuple
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :type :arglist [{:spec :integer}]} :error
-    ))
+    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :type :arglist [{:spec :integer}]}))
+
 
 
 (deftest get-initial-dom-non-trivial

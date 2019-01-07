@@ -148,7 +148,6 @@
   (-> dom
       to-knf))
 
-(declare intersect)
 
 (defn union [dom1 dom2]
   (cond
@@ -156,47 +155,49 @@
     (is-subdom? dom2 dom1) dom1
     :else                  (simplify-dom {:spec :or :arglist (list dom1 dom2)})))
 
+(defn dom-invalid? [dom]
+  (some #(= :error (:spec %)) (flatten (vals dom))))
+
+(declare intersect-doms-aux)
 (defn- intersect-with-ground [other-dom]
   (case (:spec other-dom)
-    :list               (update other-dom :type (partial intersect {:spec :ground}))
-    (:tuple :compound)  (update other-dom :arglist #(map (partial intersect {:spec :ground}) %))
+    :list               (update other-dom :type (partial intersect-doms-aux {:spec :ground}))
+    (:tuple :compound)  (update other-dom :arglist #(map (partial intersect-doms-aux {:spec :ground}) %))
                         other-dom
-
     ))
 
 (defn- intersect-with-list [{type :type} other-dom]
   (let [new-dom (case (:spec other-dom)
-                  :list               (update other-dom :type (partial intersect type))
-                  :tuple              (update other-dom :arglist #(map (partial intersect type) %))
-                  :ground             {:spec :list :type (intersect other-dom type)}
+                  :list               (update other-dom :type (partial intersect-doms-aux type))
+                  :tuple              (update other-dom :arglist #(map (partial intersect-doms-aux type) %))
+                  :ground             {:spec :list :type (intersect-doms-aux other-dom type)}
                   nil
                   )]
     (if (contains? new-dom :type)
-      (if (= :error (:type new-dom)) :error new-dom)
-      (if (some (partial = :error) (:arglist new-dom)) :error new-dom))))
+      (if (nil? (:type new-dom)) nil new-dom)
+      (if (some nil? (:arglist new-dom)) nil new-dom))))
 
 (defn- intersect-with-tuple [{arglist :arglist :as dom1} other-dom]
   (let [new-dom (case (:spec other-dom)
                   :tuple              (if (= (count arglist) (count (:arglist other-dom)))
-                                        (update other-dom :arglist #(map intersect arglist %))
+                                        (update other-dom :arglist #(map intersect-doms-aux arglist %))
                                         nil)
-                  :list               (update dom1 :arglist #(map (partial intersect {:type other-dom}) %))
-                  :ground             (update dom1 :arglist #(map (partial intersect other-dom) %))
+                  :list               (update dom1 :arglist #(map (partial intersect-doms-aux {:type other-dom}) %))
+                  :ground             (update dom1 :arglist #(map (partial intersect-doms-aux other-dom) %))
                   nil
                   )]
-    (if (some (partial = :error) (:arglist new-dom)) nil new-dom)))
+    (if (some nil? (:arglist new-dom)) nil new-dom)))
 
 (defn- intersect-with-compound [{functor :functor arglist :arglist :as dom1} other-dom]
   (let [new-dom (case (:spec other-dom)
                   :compound           (if (and (= functor (:functor other-dom))
                                                (= (count arglist) (count (:arglist other-dom))))
-                                        (update other-dom :arglist #(map intersect arglist %)))
-                  :ground             (update dom1 :arglist #(map (partial intersect other-dom) %))
+                                        (update other-dom :arglist #(map intersect-doms-aux arglist %)))
+                  :ground             (update dom1 :arglist #(map (partial intersect-doms-aux other-dom) %))
                   nil
                   )]
-    (if (some (partial = :error) (:arglist new-dom)) nil new-dom)))
+    (if (some nil? (:arglist new-dom)) nil new-dom)))
 
-(some #{2} [1 3 3])
 
 (defn- intersect-with-named-any [dom1 dom2]
   {:spec :and :arglist [dom1 dom2]})
@@ -214,7 +215,7 @@
     nil)
   )
 
-(defn- intersect-doms [dom1 dom2]
+(defn- intersect-doms-aux [dom1 dom2]
   (cond
     (is-subdom? dom1 dom2) dom1
     (is-subdom? dom2 dom1) dom2
@@ -235,10 +236,11 @@
     (= :compound (:spec dom1)) (intersect-with-compound dom1 dom2)
     :else nil))
 
+
 (defn intersect [dom1 dom2]
-  (let [dom-intersect (intersect-doms dom1 dom2)]
+  (let [dom-intersect (intersect-doms-aux dom1 dom2)]
     (cond
-      (nil? dom-intersect) :error
+      (nil? dom-intersect) {:spec :error :reason (str "No common subtype of " (:spec dom1) " and " (:spec dom2))}
       (or (:was-var dom1) (:was-var dom2)) (assoc dom-intersect :was-var true)
       :else dom-intersect)))
 
@@ -250,10 +252,10 @@
     (get-initial-dom-from-spec* [arg pre-spec])))
 
 (defmethod get-initial-dom-from-spec* [:atomic :list] [[arg spec]]
-  (if (utils/empty-list? arg) {arg [spec]} {arg [:error]}))
+  (if (utils/empty-list? arg) {arg [spec]} {arg [{:spec :error :reason "atomic cannnot be a list"}]}))
 
 (defmethod get-initial-dom-from-spec* [:atomic :tuple] [[arg {arglist :arglist :as spec}]]
-  (if (and (utils/empty-list? arg) (empty? arglist)) {arg [spec]} {arg [:error]}))
+  (if (and (utils/empty-list? arg) (empty? arglist)) {arg [spec]} {arg [{:spec :error :reason "atomic cannot be a tuple"}]}))
 
 (defmethod get-initial-dom-from-spec* [:atomic :ground] [[arg _]]
   (if (utils/empty-list? arg)
@@ -278,11 +280,11 @@
         arg-dom {arg [spec]}]
     (merge-with concat tail-dom head-dom arg-dom)))
 
-(defmethod get-initial-dom-from-spec* [:list :tuple] [[{head :head tail :tail :as arg} {[head-type & rest-types] :arglist :as spec}]]
+(defmethod get-initial-dom-from-spec* [:list :tuple] [[{head :head tail :tail :as arg} {[head-type & rest-types :as r] :arglist :as spec}]]
   (let [tail-dom (case [(utils/empty-list? tail) (empty? rest-types)]
                    [true true] {}
-                   [true false] {tail [:error]}
-                   [false true] {arg [:error]}
+                   [true false] {tail [{:spec :error :reason (str "empty list cannot be a tuple with" (count r) "positions")}]}
+                   [false true] {arg [{:spec :error :reason "non-empty list cannot be a tuple with no elements"}]}
                    [false false] (get-initial-dom-from-spec tail (update spec :arglist rest)))
         head-dom (get-initial-dom-from-spec head head-type)
         arg-dom {arg [spec]}]
@@ -310,13 +312,14 @@
     (merge-with concat tail-dom head-dom arg-dom))
   )
 (defmethod get-initial-dom-from-spec* [:compound :compound] [[{arg-func :functor arg-elems :arglist :as arg} {spec-func :functor spec-elems :arglist :as spec}]]
-  (if (and (= arg-func spec-func) (= (count arg-elems) (count spec-elems)))
-    (let [elem-doms (for [i (range 0 (count arg-elems))
-                          :let [a (nth arg-elems i)
-                                s (nth spec-elems i)]]
-                      (get-initial-dom-from-spec a s))]
-      (apply merge-with concat {arg [spec]} elem-doms))
-    {arg [:error]}))
+  (cond
+    (not= arg-func spec-func) {arg [{:spec :error :reason "functor not identical"}]}
+    (not= (count arg-elems) (count spec-elems)) {arg [{:spec :error :reason "length of argument list not identical"}]}
+    :else (let [elem-doms (for [i (range 0 (count arg-elems))
+                                :let [a (nth arg-elems i)
+                                      s (nth spec-elems i)]]
+                            (get-initial-dom-from-spec a s))]
+            (apply merge-with concat {arg [spec]} elem-doms))))
 
 (defmethod get-initial-dom-from-spec* [:compound :ground] [[{functor :functor arglist :arglist :as arg} spec]]
   (let [elem-doms (for [elem arglist]
@@ -339,13 +342,6 @@
 
 (defmethod get-initial-dom-from-spec* :default [[term spec]]
   (case (:type term)
-    :list {term [:error]}
-    :compound {term [:error]}
-    (if-let [init-dom (intersect-doms {:spec (:type term)} spec)]
-      {term [init-dom]}
-      {term [:error]})))
-
-(defn dom-invalid? [dom]
-  (some (partial = :error) (flatten (vals dom))))
-
-(dom-invalid? {:a [:r :bla] :b [:bla]})
+    :list {term [{:spec :error :reason (str "list cannot be of type " (:spec spec))}]}
+    :compound {term [{:spec :error :reason (str "compound cannot be of type " (:spec spec))}]}
+    {term [(intersect {:spec (:type term)} spec)]}))
