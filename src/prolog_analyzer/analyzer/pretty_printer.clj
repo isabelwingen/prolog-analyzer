@@ -49,7 +49,7 @@
     (println nd-num "Nodes:")
     (doseq [node nodes]
       (print "\t")
-      (print-in-columns [29 10] (to-string (uber/attr graph node :original)) "domain:" (str (uber/attr graph node :dom))))
+      (print-in-columns [29 10] (to-string (uber/attr graph node :original)) "domain:" (str (apply vector (uber/attr graph node :dom)))))
     (println edg-num "Edges:")
     (doseq [edge edges]
       (let [src (uber/src edge)
