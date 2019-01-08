@@ -6,6 +6,8 @@
             ))
 
 ;; for data extracted from a prolog file
+
+
 (defn get-specs-of-pred [[module pred-name arity :as pred-identity] data]
   (if (= :built-in module)
     (built-ins/get-specs-of-built-in-pred pred-name arity)
@@ -15,7 +17,6 @@
         (update :post-specs #(get-in % pred-identity))
         (update :inv-specs #(get-in % pred-identity))
         )))
-
 
 (defn get-pred-identities [data]
   (for [module (keys (:preds data))

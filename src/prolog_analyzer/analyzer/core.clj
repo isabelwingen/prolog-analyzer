@@ -17,11 +17,24 @@
 (defn id [arg]
   (hash arg))
 
+(defn initialize-env [env arglist spec]
+  (let [dom (apply merge-with (comp (partial apply vector) concat) (map dom/get-initial-dom-from-spec arglist spec))
+        nodes (map #(vector % {:dom (get dom %)}) (keys dom))
+        arglist-nodes (map-indexed #(vector  %2 {:index %1}) arglist)]
+    (apply uber/add-nodes-with-attrs env (concat nodes arglist-nodes))))
+
+(defmulti add-relationships-for-type (comp :type second))
+(defn add-relationships-between-arguments [env]
+  (reduce #(add-relationships-for-type [%1 %2]) env (uber/nodes env)))
+(defmethod add-relationships-for-type :list [[env {head :head tail :tail :as l}]]
+  (uber/add-edges env [head l {:relation :is-head-of}] [tail l {:relation :is-tail-of}]))
+(defmethod add-relationships-for-type :default [[env _]] env)
+
+
 (defn analyzing [{arglist :arglist body :body} pre-spec]
-  (let [env (uber/digraph)
-        dom (apply merge-with concat (map dom/get-initial-dom-from-spec arglist pre-spec))
-        nodes (map #(vector (id %) {:original % :dom (get dom %)}) (keys dom))]
-    (apply uber/add-nodes-with-attrs env nodes)))
+  (-> (uber/digraph)
+      (initialize-env arglist pre-spec)
+      (add-relationships-between-arguments)))
 
 
 (defn complete-analysis [input-data]
@@ -42,3 +55,7 @@
        (apply process-prolog-files)
        complete-analysis
        my-pp/pretty-print-analysis-result))
+
+(example)
+
+(map identity {:a :b :c :d})

@@ -49,16 +49,16 @@
     (println nd-num "Nodes:")
     (doseq [node nodes]
       (print "\t")
-      (print-in-columns [29 10] (to-string (uber/attr graph node :original)) "domain:" (str (apply vector (uber/attr graph node :dom)))))
+      (print-in-columns [29] (to-string node) (uber/attrs graph node)))
     (println edg-num "Edges:")
     (doseq [edge edges]
       (let [src (uber/src edge)
             dest (uber/dest edge)]
         (print "\t")
         (print-in-columns [10 4 15]
-                          (to-string (uber/attr graph src :original))
+                          (to-string src)
                           "->"
-                          (to-string (uber/attr graph dest :original))
+                          (to-string dest)
                           (str (uber/attrs graph edge)))))))
 
 (defn pretty-print-analysis-result [res]
