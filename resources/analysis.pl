@@ -16,3 +16,9 @@ bar(X,X).
 int(X) :-
     integer(X).
 
+
+:- spec_pre(filter/2,[list(atomic),var]).
+filter([X|L],X) :-
+    int(X), !.
+filter([_|L],X) :-
+    filter(X,L).
