@@ -3,6 +3,7 @@
             [ubergraph.core :as uber]
             [ubergraph.protocols]
             [loom.graph]
+            [loom.attr]
             ))
 
 ;; for data extracted from a prolog file
@@ -45,6 +46,13 @@
 
 
 ;; transform head-tail-list
+(defn to-head-tail-list [& specs]
+  (if (empty? specs)
+    {:term "[]" :type :atomic}
+    {:type :list :head (first specs) :tail (apply to-head-tail-list (rest specs))}))
+
+(to-head-tail-list :a :b :c)
+
 (defn head-tail-list-to-list [{head :head tail :tail}]
   (if (= "[]" (:term tail))
     {:type :list :elements [head]}
@@ -76,3 +84,35 @@
               :when (uber/find-edge @tmp-graph k j)]
         (swap! tmp-graph uber/add-edges [i j])))
     @tmp-graph))
+
+(defn- merge-attr [attr1 attr2]
+  (let [dom1 (:dom attr1)
+        dom2 (:dom attr2)]
+    (assoc (merge attr1 attr2)
+           :dom
+           (apply vector (concat dom1 dom2)))))
+
+
+
+(defn- merge-nodes [env1 env2]
+  (loop [result env1
+         nodes (uber/nodes env2)]
+    (if-let [node (first nodes)]
+      (if (uber/has-node? result node)
+        (recur (uber/set-attrs result node (merge-attr (uber/attrs result node) (uber/attrs env2 node))) (rest nodes))
+        (recur (uber/add-nodes-with-attrs result [node (uber/attrs env2 node)]) (rest nodes)))
+      result)))
+
+(defn- merge-edges [env1 env2]
+  (apply uber/add-edges env1 (uber/edges env2)))
+
+
+(defn merge-envs [env & envs]
+  (reduce
+   merge-edges
+   (reduce merge-nodes env envs)
+   envs))
+
+(defn dom-map-to-env [dom-map]
+  (let [nodes (map #(vector % {:dom (get dom-map %)}) (keys dom-map))]
+    (apply uber/add-nodes-with-attrs (uber/digraph) nodes)))
