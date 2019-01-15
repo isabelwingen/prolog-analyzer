@@ -21,4 +21,4 @@ int(X) :-
 filter([X|L],X) :-
     int(X), !.
 filter([_|L],X) :-
-    filter(X,L).
+    filter(L,X).
