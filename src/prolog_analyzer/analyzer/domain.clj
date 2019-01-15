@@ -287,11 +287,14 @@
     (add-doms-to-node env term {:spec :list :type {:spec :any}})
     (add-doms-to-node env term {:spec :atomic})))
 
+(defmethod fill-env-for-term-with-spec* [:atomic :one-of] [[term spec env]] ;TODO: add check for valid
+  (add-doms-to-node env term spec))
+
 (defmethod fill-env-for-term-with-spec* [:list :list] [[{head :head tail :tail :as term} {t :type :as spec} env]]
-  (-> env
-      (add-doms-to-node term spec)
-      (fill-env-for-term-with-spec tail spec)
-      (fill-env-for-term-with-spec head t)))
+  (let [tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail spec))]
+    (-> tail-env
+        (add-doms-to-node term spec)
+        (fill-env-for-term-with-spec head t))))
 
 (defmethod fill-env-for-term-with-spec* [:list :tuple] [[{head :head tail :tail :as term} {[head-type & rest-types :as r] :arglist :as spec} env]]
   (let [tail-env (case [(utils/empty-list? tail) (empty? rest-types)]
@@ -312,17 +315,21 @@
   )
 
 (defmethod fill-env-for-term-with-spec* [:list :nonvar] [[{head :head tail :tail :as term} nonvar-spec env]]
-  (let [tail-env (if (utils/empty-list? tail) {} (fill-env-for-term-with-spec env tail {:spec :list :type nonvar-spec}))]
+  (let [tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail {:spec :list :type nonvar-spec}))]
     (-> tail-env
         (add-doms-to-node term {:spec :list :type {:type :any}})
         (fill-env-for-term-with-spec head {:spec :any}))))
 
 (defmethod fill-env-for-term-with-spec* [:list :any] [[{head :head tail :tail :as term} any-spec env]]
-  (let [tail-env (if (utils/empty-list? tail) {} (fill-env-for-term-with-spec env tail {:spec :list :type any-spec}))]
+  (let [tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail {:spec :list :type any-spec}))]
     (-> tail-env
         (add-doms-to-node term {:spec :list :type {:spec :any}})
-        (fill-env-for-term-with-spec head any-spec)))
-  )
+        (fill-env-for-term-with-spec head any-spec))))
+
+(defmethod fill-env-for-term-with-spec* [:list :one-of] [[term spec env]] ;TODO: add check for valid
+  (add-doms-to-node env term spec))
+
+
 (defmethod fill-env-for-term-with-spec* [:compound :compound] [[{term-func :functor term-elems :arglist :as term} {spec-func :functor spec-elems :arglist :as spec} env]]
   (cond
     (not= term-func spec-func) (add-doms-to-node env term {:spec :error :reason "functor not identical"})
@@ -342,8 +349,11 @@
   (let [term-env (add-doms-to-node env term {:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})})]
     (reduce #(apply fill-env-for-term-with-spec %1 %2) term-env (map vector arglist (repeat {:spec :any})))))
 
+(defmethod fill-env-for-term-with-spec* [:compound :one-of] [[term spec env]] ;TODO
+  (add-doms-to-node env term spec))
+
 (defmethod fill-env-for-term-with-spec* :default [[term spec env]]
   (case (:type term)
-    :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " (:spec spec))})
-    :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " (:spec spec))})
+    :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " spec)})
+    :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
     (add-doms-to-node env term (intersect {:spec (:type term)} spec))))

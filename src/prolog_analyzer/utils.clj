@@ -51,7 +51,13 @@
     {:term "[]" :type :atomic}
     {:type :list :head (first specs) :tail (apply to-head-tail-list (rest specs))}))
 
-(to-head-tail-list :a :b :c)
+(defn to-tuple-spec [& specs]
+  {:spec :tuple :arglist specs})
+
+(defn to-or-spec [& specs]
+  {:spec :one-of :arglist specs})
+
+(to-tuple-spec {:spec :integer} {:spec :var})
 
 (defn head-tail-list-to-list [{head :head tail :tail}]
   (if (= "[]" (:term tail))
