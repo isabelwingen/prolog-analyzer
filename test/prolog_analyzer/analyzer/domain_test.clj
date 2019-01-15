@@ -1,12 +1,15 @@
 (ns prolog-analyzer.analyzer.domain-test
   (:require [prolog-analyzer.analyzer.domain :as sut]
+            [prolog-analyzer.utils :as utils]
             [prolog-analyzer.analyzer.pretty-printer :refer [to-string]]
             [clojure.test :refer [deftest is are]]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [clojure.test.check :as tc]
             [clojure.test.check.properties :as prop]
-
+            [ubergraph.core :as uber]
+            [loom.graph]
+            [ubergraph.protocols]
             [clojure.spec.test.alpha :as stest]
             ))
 
@@ -137,142 +140,156 @@
                                         ; compound - tuple
     {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :type :arglist [{:spec :integer}]}))
 
+(deftest add-doms-to-node-test
+  (is (= [:a :b :c]
+         (-> (uber/digraph)
+             (uber/add-nodes-with-attrs [:x {:dom [:a]}])
+             (sut/add-doms-to-node :x :b :c)
+             (uber/attr :x :dom))))
+  (is (= [:a :b]
+         (-> (uber/digraph)
+             (sut/add-doms-to-node :x :a :b)
+             (uber/attr :x :dom)))))
 
+(defn- filled-env [term]
+  (-> (uber/digraph) (uber/add-nodes-with-attrs [term {:dom [:initial-spec] :other-key :some-value}])))
 
-(deftest get-initial-dom-non-trivial
-  (are [arg spec env] (= env (reduce-kv #(assoc %1 (to-string %2) %3) {} (sut/get-initial-dom-from-spec arg spec)))
+(comment 
+  (deftest add-spec-for-term-non-trivial
+    (are [term spec dom-map] (= (utils/dom-map-to-env dom-map)(sut/add-spec-for-term (uber/digraph) term spec))
+                                        ;(are [arg spec env] (= env (reduce-kv #(assoc %1 (to-string %2) %3) {} (sut/get-initial-dom-from-spec arg spec)))
 
-                                          ; empty-list
-    {:type :atomic :term "[]"},   {:spec :list :type {:spec :number}},   {"[]" [{:spec :list :type {:spec :number}}]}
-    {:type :atomic :term "[]"},   {:spec :tuple :arglist []},            {"[]" [{:spec :tuple :arglist []}]}
-    {:type :atomic :term "[]"},   {:spec :ground},                       {"[]" [{:spec :list :type {:spec :ground}}]}
-    {:type :atomic :term "[]"},   {:spec :nonvar},                       {"[]" [{:spec :list :type {:spec :any}}]}
-    {:type :atomic :term "[]"},   {:spec :any},                          {"[]" [{:spec :list :type {:spec :any}}]}
+                                        ; empty-list
+      {:type :atomic :term "[]"},   {:spec :list :type {:spec :number}},   {"[]" [{:spec :list :type {:spec :number}}]}
+      {:type :atomic :term "[]"},   {:spec :tuple :arglist []},            {"[]" [{:spec :tuple :arglist []}]}
+      {:type :atomic :term "[]"},   {:spec :ground},                       {"[]" [{:spec :list :type {:spec :ground}}]}
+      {:type :atomic :term "[]"},   {:spec :nonvar},                       {"[]" [{:spec :list :type {:spec :any}}]}
+      {:type :atomic :term "[]"},   {:spec :any},                          {"[]" [{:spec :list :type {:spec :any}}]}
 
                                         ; list - list
-    {:type :list :head {:type :integer :value 2} :tail {:type :list :head {:type :integer :value 3} :tail {:type :atomic :term "[]"}}}, {:spec :list :type {:spec :number}},
-    {2,       [{:spec :integer}]
-     "[3]",   [{:spec :list :type {:spec :number}}]
-     3,       [{:spec :integer}]
-     "[2, 3]", [{:spec :list :type {:spec :number}}]
-     }
+      {:type :list :head {:type :integer :value 2} :tail {:type :list :head {:type :integer :value 3} :tail {:type :atomic :term "[]"}}}, {:spec :list :type {:spec :number}},
+      {2,       [{:spec :integer}]
+       "[3]",   [{:spec :list :type {:spec :number}}]
+       3,       [{:spec :integer}]
+       "[2, 3]", [{:spec :list :type {:spec :number}}]
+       }
 
-    {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}} {:spec :list :type {:spec :integer}}
-    {"X" [{:spec :integer}]
-     "T" [{:spec :list :type {:spec :integer}}]
-     "[X|T]" [{:spec :list :type {:spec :integer}}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}} {:spec :list :type {:spec :integer}}
+      {"X" [{:spec :integer}]
+       "T" [{:spec :list :type {:spec :integer}}]
+       "[X|T]" [{:spec :list :type {:spec :integer}}]}
 
                                         ; list - tuple
-    {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :atom :term "hallo"} :tail {:type :atomic :term "[]"}}}, {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}
-    {"[X, hallo]"    [{:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}]
-     "X"             [{:spec :integer}]
-     "[hallo]"       [{:spec :tuple :arglist [{:spec :atom}]}]
-     "hallo"         [{:spec :atom}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :atom :term "hallo"} :tail {:type :atomic :term "[]"}}}, {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}
+      {"[X, hallo]"    [{:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}]
+       "X"             [{:spec :integer}]
+       "[hallo]"       [{:spec :tuple :arglist [{:spec :atom}]}]
+       "hallo"         [{:spec :atom}]}
 
                                         ; list - ground
-    {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :ground}
-    {"[X|T]",  [{:spec :list :type {:spec :ground}}]
-     "X",      [{:spec :ground}]
-     "T",      [{:spec :list :type {:spec :ground}}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :ground}
+      {"[X|T]",  [{:spec :list :type {:spec :ground}}]
+       "X",      [{:spec :ground}]
+       "T",      [{:spec :list :type {:spec :ground}}]}
 
-    {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :ground}
-    {"[2|T]",  [{:spec :list :type {:spec :ground}}]
-     2,        [{:spec :integer}]
-     "T",      [{:spec :list :type {:spec :ground}}]}
+      {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :ground}
+      {"[2|T]",  [{:spec :list :type {:spec :ground}}]
+       2,        [{:spec :integer}]
+       "T",      [{:spec :list :type {:spec :ground}}]}
 
                                         ; list - nonvar
-    {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :nonvar}
-    {"[X|T]",  [{:spec :list :type {:spec :nonvar}}]
-     "X",      [{:spec :any}]
-     "T",      [{:spec :list :type {:spec :nonvar}}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :nonvar}
+      {"[X|T]",  [{:spec :list :type {:spec :nonvar}}]
+       "X",      [{:spec :any}]
+       "T",      [{:spec :list :type {:spec :nonvar}}]}
 
-    {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :nonvar}
-    {"[2|T]",  [{:spec :list :type {:spec :nonvar}}]
-     2,        [{:spec :integer}]
-     "T",      [{:spec :list :type {:spec :nonvar}}]}
+      {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :nonvar}
+      {"[2|T]",  [{:spec :list :type {:spec :nonvar}}]
+       2,        [{:spec :integer}]
+       "T",      [{:spec :list :type {:spec :nonvar}}]}
 
                                         ; list - any
-    {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :any}
-    {"[X|T]",  [{:spec :list :type {:spec :any}}]
-     "X",      [{:spec :any}]
-     "T",      [{:spec :list :type {:spec :any}}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :any}
+      {"[X|T]",  [{:spec :list :type {:spec :any}}]
+       "X",      [{:spec :any}]
+       "T",      [{:spec :list :type {:spec :any}}]}
 
-    {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :any}
-    {"[2|T]",  [{:spec :list :type {:spec :any}}]
-     2,        [{:spec :integer}]
-     "T",      [{:spec :list :type {:spec :any}}]}
+      {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :any}
+      {"[2|T]",  [{:spec :list :type {:spec :any}}]
+       2,        [{:spec :integer}]
+       "T",      [{:spec :list :type {:spec :any}}]}
 
 
                                         ; compound - compound
-    {:type :compound :functor "foo" :arglist [{:type :var :name "A"} {:type :var :name "B"}]}, {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :list :type {:spec :integer}}]}
-    {"foo(A, B)" [{:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :list :type {:spec :integer}}]}]
-     "A" [{:spec :integer}]
-     "B" [{:spec :list :type {:spec :integer}}]}
+      {:type :compound :functor "foo" :arglist [{:type :var :name "A"} {:type :var :name "B"}]}, {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :list :type {:spec :integer}}]}
+      {"foo(A, B)" [{:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :list :type {:spec :integer}}]}]
+       "A" [{:spec :integer}]
+       "B" [{:spec :list :type {:spec :integer}}]}
                                         ; compound - ground
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :ground}
-    {2 [{:spec :integer}]
-     "X" [{:spec :ground}]
-     "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :ground} {:spec :ground}]}]} ;;TODO: would it be better, if additional information of the components are displayed in the compound directly? e.g. 2 is an integer, but the spec in the compound is ground
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :ground}
+      {2 [{:spec :integer}]
+       "X" [{:spec :ground}]
+       "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :ground} {:spec :ground}]}]} ;;TODO: would it be better, if additional information of the components are displayed in the compound directly? e.g. 2 is an integer, but the spec in the compound is ground
                                         ; compound - nonvar
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :nonvar}
-    {2 [{:spec :integer}]
-     "X" [{:spec :any}]
-     "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :any} {:spec :any}]}]}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :nonvar}
+      {2 [{:spec :integer}]
+       "X" [{:spec :any}]
+       "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :any} {:spec :any}]}]}
                                         ; compound - any
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :any}
-    {2 [{:spec :integer}]
-     "X" [{:spec :any}]
-     "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :any} {:spec :any}]}]}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :any}
+      {2 [{:spec :integer}]
+       "X" [{:spec :any}]
+       "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :any} {:spec :any}]}]}
                                         ; var - list
-    {:type :var :name "X"} {:spec :list :type {:spec :atom}} {"X" [{:spec :list :type {:spec :atom}}]}
+      {:type :var :name "X"} {:spec :list :type {:spec :atom}} {"X" [{:spec :list :type {:spec :atom}}]}
                                         ; var - number
-    {:type :var :name "X"} {:spec :number} {"X" [{:spec :number}]}
+      {:type :var :name "X"} {:spec :number} {"X" [{:spec :number}]}
                                         ; var - atomic
-    {:type :var :name "X"} {:spec :atomic} {"X" [{:spec :atomic}]}
+      {:type :var :name "X"} {:spec :atomic} {"X" [{:spec :atomic}]}
                                         ; integer - number
-    {:type :integer :value 2} {:spec :number} {2 [{:spec :integer}]}
-    ))
+      {:type :integer :value 2} {:spec :number} {2 [{:spec :integer}]}
+      )))
 
 
-
-(deftest get-initial-dom-not-valid
-  (are [term spec] (sut/dom-invalid? (sut/get-initial-dom-from-spec term spec))
+(comment 
+  (deftest get-initial-dom-not-valid
+    (are [term spec] (sut/dom-invalid? (sut/get-initial-dom-from-spec term spec))
                                         ; list - number
-    {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}} {:spec :number}
+      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}} {:spec :number}
                                         ; compound - list
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :list :type :integer}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :list :type :integer}
                                         ; compound - different functors
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :compound :functor "bar" :arglist [{:spec :integer}]}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :compound :functor "bar" :arglist [{:spec :integer}]}
                                         ; compound - different arglength
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :compound :functor "foo" :arglist [{:spec :integer}]}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :compound :functor "foo" :arglist [{:spec :integer}]}
                                         ; compound - different arg types
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :atom}]}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :atom}]}
                                         ; compound - atom
-    {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :atom}
+      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :atom}
                                         ; list - tuple: different arglength
-    {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "Y"} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :integer}]}
-    {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "Y"} :tail {:type :list :head {:type :var :name "Z"} :tail {:type :atomic :term "[]"}}}} {:spec :tuple :arglist [{:spec :integer} {:spec :integer} {:spec :integer} {:spec :integer}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "Y"} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :integer}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "Y"} :tail {:type :list :head {:type :var :name "Z"} :tail {:type :atomic :term "[]"}}}} {:spec :tuple :arglist [{:spec :integer} {:spec :integer} {:spec :integer} {:spec :integer}]}
                                         ; list - tuple: wrong argtypes
-    {:type :list :head {:type :interger :value 2} :tail {:type :list :head {:type :number :value 3} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :float} {:spec :atom}]}
+      {:type :list :head {:type :interger :value 2} :tail {:type :list :head {:type :number :value 3} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :float} {:spec :atom}]}
                                         ; integer - atom
-    {:type :integer :value 2} {:spec :atom}
+      {:type :integer :value 2} {:spec :atom}
                                         ; integer - list
-    {:type :integer :value 2} {:spec :list :type {:spec :integer}}
-    ))
+      {:type :integer :value 2} {:spec :list :type {:spec :integer}}
+      )))
 
+(comment 
+  (deftest get-initial-dom-multiple-occurence
+    (are [term spec env] (= env (reduce-kv #(assoc %1 (to-string %2) %3) {} (sut/get-initial-dom-from-spec term spec)))
+      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "X"} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :number} {:spec :integer}]}
+      {"X" [{:spec :integer} {:spec :number}]
+       "[X]" [{:spec :tuple :arglist [{:spec :integer}]}]
+       "[X, X]" [{:spec :tuple :arglist [{:spec :number} {:spec :integer}]}]}
 
-(deftest get-initial-dom-multiple-occurence
-  (are [term spec env] (= env (reduce-kv #(assoc %1 (to-string %2) %3) {} (sut/get-initial-dom-from-spec term spec)))
-    {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "X"} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :number} {:spec :integer}]}
-    {"X" [{:spec :integer} {:spec :number}]
-     "[X]" [{:spec :tuple :arglist [{:spec :integer}]}]
-     "[X, X]" [{:spec :tuple :arglist [{:spec :number} {:spec :integer}]}]}
+      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "X"} :tail {:type :atomic :term "[]"}}} {:spec :list :type {:spec :integer}}
+      {"X" [{:spec :integer} {:spec :integer}]
+       "[X, X]" [{:spec :list :type {:spec :integer}}]
+       "[X]" [{:spec :list :type {:spec :integer}}]}
 
-    {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "X"} :tail {:type :atomic :term "[]"}}} {:spec :list :type {:spec :integer}}
-    {"X" [{:spec :integer} {:spec :integer}]
-     "[X, X]" [{:spec :list :type {:spec :integer}}]
-     "[X]" [{:spec :list :type {:spec :integer}}]}
-
-    ))
+      )))
 

@@ -5,6 +5,7 @@
             [clojure.spec.test.alpha :as stest]
             [ubergraph.core :as uber]
             [loom.graph]
+            [loom.attr]
             [ubergraph.protocols]
             ))
 
@@ -244,104 +245,105 @@
       (or (:was-var dom1) (:was-var dom2)) (assoc dom-intersect :was-var true)
       :else dom-intersect)))
 
-(defmulti get-initial-dom-from-spec* (juxt (comp :type first) (comp :spec second)))
 
-(defn get-initial-dom-from-spec [term pre-spec]
+(defmulti fill-env-for-term-with-spec* (juxt (comp :type first) (comp :spec second)))
+
+(defn add-doms-to-node [env node & doms]
+  (if (uber/has-node? env node)
+    (uber/set-attrs env node (update (uber/attrs env node) :dom #(concat % doms)))
+    (uber/add-nodes-with-attrs env [node {:dom doms}])))
+
+
+(defn fill-env-for-term-with-spec [env term spec]
   (if (or (= :var (:type term)) (= :anon_var (:type term)))
-    {term [pre-spec]}
-    (get-initial-dom-from-spec* [term pre-spec])))
+    (add-doms-to-node env term spec)
+    (fill-env-for-term-with-spec* [term spec env])))
 
-(defmethod get-initial-dom-from-spec* [:atomic :list] [[term spec]]
-  (if (utils/empty-list? term) {term [spec]} {term [{:spec :error :reason "atomic cannnot be a list"}]}))
-
-(defmethod get-initial-dom-from-spec* [:atomic :tuple] [[term {arglist :arglist :as spec}]]
-  (if (and (utils/empty-list? term) (empty? arglist)) {term [spec]} {term [{:spec :error :reason "atomic cannot be a tuple"}]}))
-
-(defmethod get-initial-dom-from-spec* [:atomic :ground] [[term _]]
+(defmethod fill-env-for-term-with-spec* [:atomic :list] [[term spec env]]
   (if (utils/empty-list? term)
-    {term [{:spec :list :type {:spec :ground}}]}
-    {term [{:spec :atomic}]}))
+    (add-doms-to-node env term spec)
+    (add-doms-to-node env term {:spec :error :reason "atomic cannot be a list"})
+    ))
 
-(defmethod get-initial-dom-from-spec* [:atomic :nonvar] [[term _]]
+(defmethod fill-env-for-term-with-spec* [:atomic :tuple] [[term {arglist :arglist :as spec} env]]
   (if (utils/empty-list? term)
-    {term [{:spec :list :type {:spec :any}}]}
-    {term [{:spec :atomic}]}))
+    (if (empty? arglist)
+      (add-doms-to-node env term spec)
+      (add-doms-to-node env term {:spec :error :reason "empty list cannot be a tuple with non-empty arglist"}))
+    (add-doms-to-node env term {:spec :error :reason "atomic cannot be a tuple"})))
 
-(defmethod get-initial-dom-from-spec* [:atomic :any] [[term _]]
+(defmethod fill-env-for-term-with-spec* [:atomic :ground] [[term _ env]]
   (if (utils/empty-list? term)
-    {term [{:spec :list :type {:spec :any}}]}
-    {term [{:spec :atomic}]}))
+    (add-doms-to-node env term {:spec :list :type {:spec :ground}})
+    (add-doms-to-node env term {:spec :atomic})))
 
-(defmethod get-initial-dom-from-spec* [:list :list] [[{head :head tail :tail :as term} {t :type :as spec}]]
-  (let [tail-dom (if (utils/empty-list? tail)
-                   {}
-                   (get-initial-dom-from-spec tail spec))
-        head-dom (get-initial-dom-from-spec head t)
-        term-dom {term [spec]}]
-    (merge-with concat tail-dom head-dom term-dom)))
+(defmethod fill-env-for-term-with-spec* [:atomic :nonvar] [[term _ env]]
+  (if (utils/empty-list? term)
+    (add-doms-to-node env term {:spec :list :type {:spec :any}})
+    (add-doms-to-node env term {:spec :atomic})))
 
-(defmethod get-initial-dom-from-spec* [:list :tuple] [[{head :head tail :tail :as term} {[head-type & rest-types :as r] :arglist :as spec}]]
-  (let [tail-dom (case [(utils/empty-list? tail) (empty? rest-types)]
-                   [true true] {}
-                   [true false] {tail [{:spec :error :reason (str "empty list cannot be a tuple with" (count r) "positions")}]}
-                   [false true] {term [{:spec :error :reason "non-empty list cannot be a tuple with no elements"}]}
-                   [false false] (get-initial-dom-from-spec tail (update spec :arglist rest)))
-        head-dom (get-initial-dom-from-spec head head-type)
-        term-dom {term [spec]}]
-    (merge-with concat tail-dom head-dom term-dom))
+(defmethod fill-env-for-term-with-spec* [:atomic :any] [[term _ env]]
+  (if (utils/empty-list? term)
+    (add-doms-to-node env term {:spec :list :type {:spec :any}})
+    (add-doms-to-node env term {:spec :atomic})))
+
+(defmethod fill-env-for-term-with-spec* [:list :list] [[{head :head tail :tail :as term} {t :type :as spec} env]]
+  (-> env
+      (add-doms-to-node term spec)
+      (fill-env-for-term-with-spec tail spec)
+      (fill-env-for-term-with-spec head t)))
+
+(defmethod fill-env-for-term-with-spec* [:list :tuple] [[{head :head tail :tail :as term} {[head-type & rest-types :as r] :arglist :as spec} env]]
+  (let [tail-env (case [(utils/empty-list? tail) (empty? rest-types)]
+                   [true true] env
+                   [true false] (add-doms-to-node env tail {:spec :error :reason (str "empty list cannot be a tuple with non-empty arglist")})
+                   [false true] (add-doms-to-node env term {:spec :error :reason "non-empty list cannot be a tuple with no elements"})
+                   [false false] (fill-env-for-term-with-spec env tail (update spec :arglist rest)))]
+    (-> tail-env
+        (fill-env-for-term-with-spec head head-type)
+        (add-doms-to-node term spec)))
   )
 
-(defmethod get-initial-dom-from-spec* [:list :ground] [[{head :head tail :tail :as term} ground-spec]]
-  (let [tail-dom (if (utils/empty-list? tail) {} (get-initial-dom-from-spec tail {:spec :list :type ground-spec}))
-        head-dom (get-initial-dom-from-spec head ground-spec)
-        term-dom {term [{:spec :list :type ground-spec}]}]
-    (merge-with concat tail-dom head-dom term-dom))
+(defmethod fill-env-for-term-with-spec* [:list :ground] [[{head :head tail :tail :as term} ground-spec env]]
+  (let [tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail {:spec :list :type ground-spec}))]
+    (-> tail-env
+        (fill-env-for-term-with-spec head ground-spec)
+        (add-doms-to-node term {:spec :list :type ground-spec})))
   )
 
-(defmethod get-initial-dom-from-spec* [:list :nonvar] [[{head :head tail :tail :as term} nonvar-spec]]
-  (let [tail-dom (if (utils/empty-list? tail) {} (get-initial-dom-from-spec tail {:spec :list :type nonvar-spec}))
-        head-dom (get-initial-dom-from-spec head {:spec :any})
-        term-dom {term [{:spec :list :type nonvar-spec}]}]
-    (merge-with concat tail-dom head-dom term-dom))
-  )
+(defmethod fill-env-for-term-with-spec* [:list :nonvar] [[{head :head tail :tail :as term} nonvar-spec env]]
+  (let [tail-env (if (utils/empty-list? tail) {} (fill-env-for-term-with-spec env tail {:spec :list :type nonvar-spec}))]
+    (-> tail-env
+        (add-doms-to-node term {:spec :list :type {:type :any}})
+        (fill-env-for-term-with-spec head {:spec :any}))))
 
-(defmethod get-initial-dom-from-spec* [:list :any] [[{head :head tail :tail :as term} any-spec]]
-  (let [tail-dom (if (utils/empty-list? tail) {} (get-initial-dom-from-spec tail {:spec :list :type any-spec}))
-        head-dom (get-initial-dom-from-spec head any-spec)
-        term-dom {term [{:spec :list :type any-spec}]}]
-    (merge-with concat tail-dom head-dom term-dom))
+(defmethod fill-env-for-term-with-spec* [:list :any] [[{head :head tail :tail :as term} any-spec env]]
+  (let [tail-env (if (utils/empty-list? tail) {} (fill-env-for-term-with-spec env tail {:spec :list :type any-spec}))]
+    (-> tail-env
+        (add-doms-to-node term {:spec :list :type {:spec :any}})
+        (fill-env-for-term-with-spec head any-spec)))
   )
-(defmethod get-initial-dom-from-spec* [:compound :compound] [[{term-func :functor term-elems :arglist :as term} {spec-func :functor spec-elems :arglist :as spec}]]
+(defmethod fill-env-for-term-with-spec* [:compound :compound] [[{term-func :functor term-elems :arglist :as term} {spec-func :functor spec-elems :arglist :as spec} env]]
   (cond
-    (not= term-func spec-func) {term [{:spec :error :reason "functor not identical"}]}
-    (not= (count term-elems) (count spec-elems)) {term [{:spec :error :reason "length of argument list not identical"}]}
-    :else (let [elem-doms (for [i (range 0 (count term-elems))
-                                :let [a (nth term-elems i)
-                                      s (nth spec-elems i)]]
-                            (get-initial-dom-from-spec a s))]
-            (apply merge-with concat {term [spec]} elem-doms))))
+    (not= term-func spec-func) (add-doms-to-node env term {:spec :error :reason "functor not identical"})
+    (not= (count term-elems) (count spec-elems)) (add-doms-to-node env term {:spec :error :reason "length of argument list not identical"})
+    :else (let [pairs (map vector term-elems spec-elems)]
+            (reduce #(apply fill-env-for-term-with-spec %1 %2) (add-doms-to-node env term spec) pairs))))
 
-(defmethod get-initial-dom-from-spec* [:compound :ground] [[{functor :functor arglist :arglist :as term} spec]]
-  (let [elem-doms (for [elem arglist]
-                    (get-initial-dom-from-spec elem spec))
-        term-dom {term [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :ground})}]}]
-    (apply merge-with concat term-dom elem-doms))
-  )
+(defmethod fill-env-for-term-with-spec* [:compound :ground] [[{functor :functor arglist :arglist :as term} spec env]]
+  (let [term-env (add-doms-to-node env term {:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :ground})})]
+    (reduce #(apply fill-env-for-term-with-spec %1 %2) term-env (map vector arglist (repeat spec)))))
 
-(defmethod get-initial-dom-from-spec* [:compound :nonvar] [[{functor :functor arglist :arglist :as term} _]]
-  (let [elem-doms (for [elem arglist]
-                    (get-initial-dom-from-spec elem {:spec :any}))
-        term-dom {term [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})}]}]
-    (apply merge-with concat term-dom elem-doms)))
+(defmethod fill-env-for-term-with-spec* [:compound :nonvar] [[{functor :functor arglist :arglist :as term} _ env]]
+  (let [term-env (add-doms-to-node env term {:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})})]
+    (reduce #(apply fill-env-for-term-with-spec %1 %2) term-env (map vector arglist (repeat {:spec :any})))))
 
-(defmethod get-initial-dom-from-spec* [:compound :any] [[{functor :functor arglist :arglist :as term} spec]]
-  (let [elem-doms (for [elem arglist]
-                    (get-initial-dom-from-spec elem spec))
-        term-dom {term [{:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})}]}]
-    (apply merge-with concat term-dom elem-doms)))
+(defmethod fill-env-for-term-with-spec* [:compound :any] [[{functor :functor arglist :arglist :as term} spec env]]
+  (let [term-env (add-doms-to-node env term {:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})})]
+    (reduce #(apply fill-env-for-term-with-spec %1 %2) term-env (map vector arglist (repeat {:spec :any})))))
 
-(defmethod get-initial-dom-from-spec* :default [[term spec]]
+(defmethod fill-env-for-term-with-spec* :default [[term spec env]]
   (case (:type term)
-    :list {term [{:spec :error :reason (str "list cannot be of type " (:spec spec))}]}
-    :compound {term [{:spec :error :reason (str "compound cannot be of type " (:spec spec))}]}
-    {term [(intersect {:spec (:type term)} spec)]}))
+    :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " (:spec spec))})
+    :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " (:spec spec))})
+    (add-doms-to-node env term (intersect {:spec (:type term)} spec))))

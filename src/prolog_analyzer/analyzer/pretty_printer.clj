@@ -23,9 +23,9 @@
     :else "blabla"))
 (defmethod to-string :compound [{functor :functor arglist :arglist}]
   (str functor "(" (clojure.string/join ", " (map to-string arglist)) ")"))
-(defmethod to-string :default [arg] (println arg) "yo")
+(defmethod to-string :default [arg] (str arg))
 
-
+ 
 (defn print-in-two-columns [n str1 str2]
   (let [diff (- n (count str1))]
     (print str1)
