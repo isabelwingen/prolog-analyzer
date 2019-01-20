@@ -15,4 +15,4 @@
                    :plugins [[lein-githooks "0.1.0"]]
                    :githooks {:auto-install true
                               :pre-push ["lein test"]
-                              :pre-commit ["lein eastwood"]}}})
+                              :pre-commit []}}})

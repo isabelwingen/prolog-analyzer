@@ -122,3 +122,14 @@
 (defn dom-map-to-env [dom-map]
   (let [nodes (map #(vector % {:dom (get dom-map %)}) (keys dom-map))]
     (apply uber/add-nodes-with-attrs (uber/digraph) nodes)))
+
+
+(defn assoc-attr [graph node attr-key attr-value]
+  (let [attrs (uber/attrs graph node)]
+    (uber/set-attrs graph node (assoc attrs attr-key attr-value))))
+
+(defn update-attr [graph node attr-key func]
+  (let [attrs (uber/attrs graph node)]
+    (uber/set-attrs graph node (update attrs attr-key func))))
+
+(defn pred-key? [key] (= 3 (count key)))

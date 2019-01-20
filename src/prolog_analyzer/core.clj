@@ -2,7 +2,10 @@
   (:gen-class)
   (:require [prolog-analyzer.parser :as parser]
             [prolog-analyzer.analyzer.core :as analyzer]
+            [prolog-analyzer.structural.draw :as draw]
+            [prolog-analyzer.structural.predicate-relations :as rel]
             [prolog-analyzer.analyzer.pretty-printer :as my-pp]
+            [ubergraph.core :as uber]
             [clojure.pprint :refer [pprint]]))
 
 (def data (atom {}))
@@ -20,8 +23,9 @@
 (defn -main
   "Start analyzing of source file"
   [file]
-  (-> (init-data-with-file file)
-      analyzer/complete-analysis
-      ))
+  (init-data-with-file file)
+  (draw/draw-relationships @data)
+  (uber/pprint @rel/graph))
 
-(-main "resources/spec-test.pl")
+;(-main "resources/analysis.pl")
+ 
