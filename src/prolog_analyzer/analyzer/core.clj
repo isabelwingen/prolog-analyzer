@@ -1,10 +1,8 @@
 (ns prolog-analyzer.analyzer.core
   (:require
-   [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets process-prolog-files]] ;; used only during development
    [prolog-analyzer.analyzer.domain :as dom]
    [prolog-analyzer.analyzer.validator :as validator]
    [prolog-analyzer.utils :as utils]
-   [prolog-analyzer.analyzer.pretty-printer :as my-pp]
    [ubergraph.core :as uber]
    [ubergraph.protocols]
    [loom.graph]
@@ -13,10 +11,6 @@
    [clojure.pprint :as pp]
    ))
 
-(def data (atom {}))
-
-(defn id [arg]
-  (hash arg))
 
 (defmulti add-relationships-aux (comp :type second))
 (defmethod add-relationships-aux :list [[env {head :head tail :tail :as term}]]
@@ -35,8 +29,8 @@
 (defn add-relationships [env]
   (reduce #(add-relationships-aux [%1 %2]) env (uber/nodes env)))
 
-(defn evaluate-goal [env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
-  (let [goal-specs (:pre-specs (utils/get-specs-of-pred [module goal-name arity] @data))
+(defn evaluate-goal [data env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
+  (let [goal-specs (:pre-specs (utils/get-specs-of-pred [module goal-name arity] data))
         [term goal-specs-as-tuple] [(if (= arity 1) (first arglist) (apply utils/to-head-tail-list arglist))
                                     (if (= arity 1) (map first goal-specs) (map (partial apply utils/to-tuple-spec) goal-specs))]]
     (if (> arity 0)
@@ -45,8 +39,8 @@
         (dom/fill-env-for-term-with-spec env term (apply utils/to-or-spec goal-specs-as-tuple)))
       env)))
 
-(defn evaluate-body [env body]
-  (reduce evaluate-goal env body))
+(defn evaluate-body [env body data]
+  (reduce (partial evaluate-goal data) env body))
 
 (defn- add-index-to-input-arguments [env arglist]
   (apply uber/add-nodes-with-attrs env (map-indexed #(vector %2 {:index %1}) arglist)))
@@ -58,29 +52,15 @@
     step3))
 
 
-(defn analyzing [{arglist :arglist body :body :as clause} pre-spec]
+(defn analyzing [{arglist :arglist body :body :as clause} pre-spec data]
   (-> (initial-env arglist pre-spec)
-      (evaluate-body body)
+      (evaluate-body body data)
       (add-relationships)
       ))
 
-(defn complete-analysis [input-data]
-  (reset! data input-data)
-  (for [pred-id (utils/get-pred-identities @data)
-        clause-id (utils/get-clause-identities-of-pred pred-id @data)
-        pre-spec (:pre-specs (utils/get-specs-of-pred pred-id @data))]
-    [[clause-id pre-spec] (analyzing (utils/get-clause clause-id @data) pre-spec)]))
+(defn complete-analysis [data]
+  (for [pred-id (utils/get-pred-identities data)
+        clause-id (utils/get-clause-identities-of-pred pred-id data)
+        pre-spec (:pre-specs (utils/get-specs-of-pred pred-id data))]
+    [[clause-id pre-spec] (analyzing (utils/get-clause clause-id data) pre-spec data)]))
 
-(defn example []
-  (->> "resources/analysis.pl"
-       process-prolog-file
-       complete-analysis
-       my-pp/pretty-print-analysis-result
-       ))
-
-(defn example2 []
-  (->> ["resources/module1.pl" "resources/module2.pl"]
-       (apply process-prolog-files)
-       complete-analysis
-       my-pp/pretty-print-analysis-result
-       ))
