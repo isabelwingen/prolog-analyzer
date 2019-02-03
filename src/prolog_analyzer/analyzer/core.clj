@@ -26,6 +26,12 @@
         (dom/fill-env-for-term-with-spec tail {:spec :list :type {:spec :any}})
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
+(defmethod add-relationships-aux :compound [[env {functor :functor arglist :arglist :as term}]]
+  (apply
+   uber/add-edges
+   (dom/fill-env-for-terms-with-specs env arglist (repeat (count arglist) {:spec :any}))
+   (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) arglist)))
+
 (defmethod add-relationships-aux :default [[env _]]
   env)
 
