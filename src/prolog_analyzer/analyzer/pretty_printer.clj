@@ -7,13 +7,13 @@
             [clojure.string]))
 
 (defmulti to-string :type)
-(defmethod to-string :var [{n :name}] n)
-(defmethod to-string :atom [{term :term}] term)
-(defmethod to-string :atomic [{term :term}] term)
+(defmethod to-string :var [{n :name}] (str n))
+(defmethod to-string :atom [{term :term}] (str term))
+(defmethod to-string :atomic [{term :term}] (str term))
 (defmethod to-string :integer [{value :value}] (str value))
 (defmethod to-string :number [{value :value}] (str value))
 (defmethod to-string :float [{value :value}] (str value))
-(defmethod to-string :anon_var [{n :name}] n) 
+(defmethod to-string :anon_var [{n :name}] (str n)) 
 (defmethod to-string :list [{head :head tail :tail :as arg}]
   (cond 
     (= "[]" (:term tail)) (str "[" (to-string head) "]")
@@ -40,6 +40,39 @@
       (println (clojure.string/join " " strs))
       (apply print-in-columns ns strs))))
 
+(defn print-nodes [graph]
+  (let [nodes (uber/nodes graph)
+        max-length (->> nodes
+                        (map to-string)
+                        (map count)
+                        (apply max)
+                        (+ 4))]
+    (doseq [node nodes]
+      (print "\t")
+      (print-in-columns [max-length] (to-string node) (uber/attrs graph node)))))
+
+(defn print-edges [graph]
+  (let [edges (uber/edges graph)
+        srcs (map uber/src edges)
+        dests (map uber/dest edges)
+        max-src-length (->> srcs
+                            (map to-string)
+                            (map count)
+                            (apply max)
+                            (+ 2))
+        max-dest-length (->> dests
+                             (map to-string)
+                             (map count)
+                             (apply max)
+                             (+ 5))]
+    (doseq [edge edges]
+      (print "\t")
+      (print-in-columns [max-src-length 4 max-dest-length]
+                        (to-string (uber/src edge))
+                        "->"
+                        (to-string (uber/dest edge))
+                        (str (uber/attrs graph edge))))))
+
 
 (defn pretty-print-graph [graph]
   (let [nodes (uber/nodes graph)
@@ -47,19 +80,10 @@
         edges (uber/edges graph)
         edg-num (count edges)]
     (println nd-num "Nodes:")
-    (doseq [node nodes]
-      (print "\t")
-      (print-in-columns [29] (to-string node) (uber/attrs graph node)))
+    (print-nodes graph)
     (println edg-num "Edges:")
-    (doseq [edge edges]
-      (let [src (uber/src edge)
-            dest (uber/dest edge)]
-        (print "\t")
-        (print-in-columns [10 4 15]
-                          (to-string src)
-                          "->"
-                          (to-string dest)
-                          (str (uber/attrs graph edge)))))))
+    (when (> edg-num 0)
+      (print-edges graph))))
 
 (defn pretty-print-analysis-result [res]
   (doseq [[[clause-id pre-spec] g] res]
