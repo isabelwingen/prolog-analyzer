@@ -3,13 +3,13 @@
 
 :- enable_write_out.
 
-:- declare_spec(tree(any(X))).
-:- define_spec(tree(any(X)),one_of([compound(node(tree(any(X)),any(X),tree(any(X)))),atom(empty)])).
+:- declare_spec(tree(specvar(_))).
+:- define_spec(tree(specvar(X)),one_of([compound(node(tree(specvar(X)),specvar(X),tree(specvar(X)))),atom(empty)])).
 
-get_root(tree(_,Root,_),Root).
+get_root(node(_,Root,_),Root).
 
-get_left_tree(tree(L,_,_),L).
-get_right_tree(tree(_,_,R),R).
+get_left_tree(node(L,_,_),L).
+get_right_tree(node(_,_,R),R).
 
 
 

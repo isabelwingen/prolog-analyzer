@@ -94,8 +94,8 @@
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
   {:spec :exact :value (:term (first arglist))})
 
-(defmethod transform-spec [:compound "any"] [{[spec] :arglist}]
-  {:spec :named-any :name (:name spec)}
+(defmethod transform-spec [:compound "specvar"] [{[spec] :arglist}]
+  {:spec :specvar :name (:name spec)}
   )
 
 (defmethod transform-spec :default [spec]
