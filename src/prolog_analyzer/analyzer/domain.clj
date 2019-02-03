@@ -253,11 +253,13 @@
     (uber/set-attrs env node (update (uber/attrs env node) :dom #(concat % doms)))
     (uber/add-nodes-with-attrs env [node {:dom doms}])))
 
-
 (defn fill-env-for-term-with-spec [env term spec]
   (if (or (= :var (:type term)) (= :anon_var (:type term)))
     (add-doms-to-node env term spec)
     (fill-env-for-term-with-spec* [term spec env])))
+
+(defn fill-env-for-terms-with-specs [env terms specs]
+  (reduce #(apply fill-env-for-term-with-spec %1 %2) env (map vector terms specs)))
 
 (defmethod fill-env-for-term-with-spec* [:atomic :list] [[term spec env]]
   (if (utils/empty-list? term)

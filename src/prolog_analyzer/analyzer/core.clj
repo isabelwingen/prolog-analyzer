@@ -15,9 +15,6 @@
 
 (def data (atom {}))
 
-(defn id [arg]
-  (hash arg))
-
 (defmulti add-relationships-aux (comp :type second))
 (defmethod add-relationships-aux :list [[env {head :head tail :tail :as term}]]
   (if (utils/empty-list? tail)
@@ -52,11 +49,9 @@
   (apply uber/add-nodes-with-attrs env (map-indexed #(vector %2 {:index %1}) arglist)))
 
 (defn initial-env [arglist pre-spec]
-  (let [step1 (reduce #(apply dom/fill-env-for-term-with-spec %1 %2) (uber/digraph) (map vector arglist pre-spec))
-        step2 (apply uber/add-nodes-with-attrs step1 (map-indexed #(vector %2 {:index %1}) arglist))
-        step3 (add-index-to-input-arguments step2 arglist)]
-    step3))
-
+  (-> (uber/digraph)
+      (dom/fill-env-for-terms-with-specs arglist pre-spec)
+      (add-index-to-input-arguments arglist)))
 
 (defn analyzing [{arglist :arglist body :body :as clause} pre-spec]
   (-> (initial-env arglist pre-spec)
