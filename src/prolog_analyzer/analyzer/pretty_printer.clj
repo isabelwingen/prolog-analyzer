@@ -41,7 +41,7 @@
       (apply print-in-columns ns strs))))
 
 (defn print-nodes [graph]
-  (let [nodes (uber/nodes graph)
+  (let [nodes (remove #{:ENVIRONMENT} (uber/nodes graph))
         max-length (->> nodes
                         (map to-string)
                         (map count)
@@ -75,7 +75,7 @@
 
 
 (defn pretty-print-graph [graph]
-  (let [nodes (uber/nodes graph)
+  (let [nodes (remove #{:ENVIRONMENT} (uber/nodes graph))
         nd-num (count nodes)
         edges (uber/edges graph)
         edg-num (count edges)]

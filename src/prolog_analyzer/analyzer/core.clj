@@ -56,6 +56,7 @@
 
 (defn initial-env [arglist pre-spec]
   (-> (uber/digraph)
+      (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get @data :specs)}])
       (dom/fill-env-for-terms-with-specs arglist pre-spec)
       (add-index-to-input-arguments arglist)))
 

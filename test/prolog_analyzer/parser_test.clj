@@ -270,11 +270,11 @@
 (deftest process-files:spec_def
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
     (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
-            {:spec "intOrVar"} {:spec :one_of :arglist [{:spec :integer} {:spec :var}]}
+            {:spec "intOrVar"} {:spec :one-of :arglist [{:spec :integer} {:spec :var}]}
             {:spec "a"} {:spec :and :arglist [{:spec :integer} {:spec :atom}]}
             {:spec "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
             {:spec "c"} {:spec :exact :value "empty"}
-            {:spec "tree" :arglist [{:spec :named-any :name "X"}]} {:spec :one_of
+            {:spec "tree" :arglist [{:spec :named-any :name "X"}]} {:spec :one-of
                                                                     :arglist [{:spec :compound
                                                                                :functor "node"
                                                                                :arglist [{:spec "tree" :arglist [{:spec :named-any :name "X"}]}

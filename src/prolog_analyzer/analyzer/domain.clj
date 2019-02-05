@@ -241,10 +241,33 @@
 (defn intersect [dom1 dom2]
   (let [dom-intersect (intersect-doms-aux dom1 dom2)]
     (cond
-      (nil? dom-intersect) {:spec :error :reason (str "No common subtype of " (:spec dom1) " and " (:spec dom2))}
+      (nil? dom-intersect) {:spec :error :reason (str "No common subtype of " dom1 " and " (:spec dom2))}
       (or (:was-var dom1) (:was-var dom2)) (assoc dom-intersect :was-var true)
       :else dom-intersect)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- get-definition-of-alias [env user-defined-alias]
+  (get (uber/attr env :ENVIRONMENT :user-defined-specs) user-defined-alias))
+
+(defn- replace-spec-var-with-value [spec src dest]
+  (case (:spec spec)
+    :specvar (if (= src (:name spec)) dest spec)
+    (:user-defined, :one-of, :and, :compound, :tuple) (update spec :arglist (partial map #(replace-spec-var-with-value % src dest)))
+    :list (update spec :type #(replace-spec-var-with-value % src dest))
+    spec
+    ))
+
+(defn- find-matching-def [{n :name arglist :arglist :as user-def-spec} env]
+  (if (nil? arglist)
+    user-def-spec
+    (->> (uber/attr env :ENVIRONMENT :user-defined-specs)
+         keys
+         (filter #(= (:name %) n))
+         (filter #(= (count (:arglist %)) (count arglist)))
+         first)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(declare remove-invalid-or-parts)
 
 (defmulti fill-env-for-term-with-spec* (juxt (comp :type first) (comp :spec second)))
 
@@ -261,6 +284,7 @@
 (defn fill-env-for-terms-with-specs [env terms specs]
   (reduce #(apply fill-env-for-term-with-spec %1 %2) env (map vector terms specs)))
 
+;; Special case atomic
 (defmethod fill-env-for-term-with-spec* [:atomic :list] [[term spec env]]
   (if (utils/empty-list? term)
     (add-doms-to-node env term spec)
@@ -290,7 +314,13 @@
     (add-doms-to-node env term {:spec :atomic})))
 
 (defmethod fill-env-for-term-with-spec* [:atomic :one-of] [[term spec env]] ;TODO: add check for valid
-  (add-doms-to-node env term spec))
+  (add-doms-to-node env term (remove-invalid-or-parts term spec)))
+
+(defmethod fill-env-for-term-with-spec* [:atomic :and] [[term {arglist :arglist} env]]
+  (reduce #(fill-env-for-term-with-spec %1 term %2) env arglist))
+
+(defmethod fill-env-for-term-with-spec* [:atomic :user-defined] [[term {n :name arglist :arglist :as spec} env]]
+  (add-doms-to-node env term (get-definition-of-alias env spec)))
 
 (defmethod fill-env-for-term-with-spec* [:list :list] [[{head :head tail :tail :as term} {t :type :as spec} env]]
   (let [tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail spec))]
@@ -328,9 +358,17 @@
         (add-doms-to-node term {:spec :list :type {:spec :any}})
         (fill-env-for-term-with-spec head any-spec))))
 
-(defmethod fill-env-for-term-with-spec* [:list :one-of] [[term spec env]] ;TODO: add check for valid
-  (add-doms-to-node env term spec))
+(defmethod fill-env-for-term-with-spec* [:list :one-of] [[{tail :tail :as term} spec env]]
+  (let [simplified-or (remove-invalid-or-parts term spec)]
+    (if (= :one-of (:spec simplified-or))
+      (add-doms-to-node env term (remove-invalid-or-parts term spec))
+      (fill-env-for-term-with-spec env term spec))))
 
+(defmethod fill-env-for-term-with-spec* [:list :and] [[term {speclist :arglist} env]]
+  (reduce #(fill-env-for-term-with-spec %1 term %2) env speclist))
+
+(defmethod fill-env-for-term-with-spec* [:list :user-defined] [[term spec env]]
+  (fill-env-for-term-with-spec env term (get-definition-of-alias env spec)))
 
 (defmethod fill-env-for-term-with-spec* [:compound :compound] [[{term-func :functor term-elems :arglist :as term} {spec-func :functor spec-elems :arglist :as spec} env]]
   (cond
@@ -351,11 +389,39 @@
   (let [term-env (add-doms-to-node env term {:spec :compound :functor functor :arglist (repeat (count arglist) {:spec :any})})]
     (reduce #(apply fill-env-for-term-with-spec %1 %2) term-env (map vector arglist (repeat {:spec :any})))))
 
-(defmethod fill-env-for-term-with-spec* [:compound :one-of] [[term spec env]] ;TODO
-  (add-doms-to-node env term spec))
+(defmethod fill-env-for-term-with-spec* [:compound :one-of] [[term spec env]]
+  (let [simplified-or (remove-invalid-or-parts term spec)]
+    (if (= :one-of (:spec simplified-or))
+      (add-doms-to-node env term (remove-invalid-or-parts term spec))
+      (fill-env-for-term-with-spec env term spec)))
+  )
+
+(defmethod fill-env-for-term-with-spec* [:compound :and] [[term {speclist :arglist} env]]
+  (reduce #(fill-env-for-term-with-spec %1 term %2) env speclist))
+
+(defmethod fill-env-for-term-with-spec* [:compound :user-defined] [[term spec env]]
+  (fill-env-for-term-with-spec env term (get-definition-of-alias env spec)))
 
 (defmethod fill-env-for-term-with-spec* :default [[term spec env]]
   (case (:type term)
     :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " spec)})
     :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
     (add-doms-to-node env term (intersect {:spec (:type term)} spec))))
+
+(defn valid-env? [env]
+  (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (uber/nodes env))))
+
+
+(defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec}]
+  (let [simplified-or (->> speclist
+                           (map #(fill-env-for-term-with-spec (uber/digraph) term %))
+                           (map-indexed #(if (valid-env? %2) %1 nil))
+                           (filter #(not= nil %))
+                           (map #(get speclist %))
+                           (apply vector)
+                           (hash-map :spec :one-of :arglist)
+                           )]
+    (case (count (:arglist simplified-or))
+      0 {:spec :error :reason "No valid or component"}
+      1 (first (:arglist simplified-or))
+      simplified-or)))

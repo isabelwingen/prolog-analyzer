@@ -72,7 +72,7 @@
     (= :list (:type arg)) (and (valid? (first spec-arglist) (:head arg)) (valid? (update spec :arglist rest) (:tail arg)))
     :else false))
 
-(defmethod valid-helper :one_of [[spec arg]]
+(defmethod valid-helper :one-of [[spec arg]]
   (not (not-any? true? (for [x (:arglist spec)]
                          (valid? x arg)))))
 
