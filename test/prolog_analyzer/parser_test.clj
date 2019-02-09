@@ -269,30 +269,30 @@
 
 (deftest process-files:spec_def
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-    (is (= {{:spec "foo"} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
-            {:spec "intOrVar"} {:spec :one-of :arglist [{:spec :integer} {:spec :var}]}
-            {:spec "a"} {:spec :and :arglist [{:spec :integer} {:spec :atom}]}
-            {:spec "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
-            {:spec "c"} {:spec :exact :value "empty"}
-            {:spec "tree" :arglist [{:spec :named-any :name "X"}]} {:spec :one-of
-                                                                    :arglist [{:spec :compound
-                                                                               :functor "node"
-                                                                               :arglist [{:spec "tree" :arglist [{:spec :named-any :name "X"}]}
-                                                                                         {:spec :named-any :name "X"}
-                                                                                         {:spec "tree" :arglist [{:spec :named-any :name "X"}]}]}
-                                                                              {:spec :exact :value "empty"}]}}
+    (is (= {{:spec :user-defined :name "foo"} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
+            {:spec :user-defined :name "intOrVar"} {:spec :one-of :arglist [{:spec :integer} {:spec :var}]}
+            {:spec :user-defined :name "a"} {:spec :and :arglist [{:spec :integer} {:spec :atom}]}
+            {:spec :user-defined :name "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
+            {:spec :user-defined :name "c"} {:spec :exact :value "empty"}
+            {:spec :user-defined :name "tree" :arglist [{:spec :specvar :name "X"}]} {:spec :one-of
+                                                                                      :arglist [{:spec :compound
+                                                                                                 :functor "node"
+                                                                                                 :arglist [{:spec :user-defined :name "tree" :arglist [{:spec :specvar :name "X"}]}
+                                                                                                           {:spec :specvar :name "X"}
+                                                                                                           {:spec :user-defined :name "tree" :arglist [{:spec :specvar :name "X"}]}]}
+                                                                                                {:spec :exact :value "empty"}]}}
            (:specs result)))
     (is
      (= {"spec_test" {"member_int"
                       {2 [[{:spec :integer} {:spec :list :type {:spec :integer}}]
                           [{:spec :var} {:spec :list :type {:spec :integer}}]]}
                       "foo"
-                      {3 [[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}]]}}}
+                      {3 [[{:spec :user-defined :name "foo"} {:spec :user-defined :name "intOrVar"} {:spec :user-defined :name "intOrVar"}]]}}}
         (:pre-specs result)))
     (is
      (= {"spec_test" {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec :integer}}] [{:spec :integer} {:spec :list :type {:spec :integer}}]]]}
-                      "foo" {3 [[[{:spec "foo"} {:spec "intOrVar"} {:spec "intOrVar"}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]
-                                [[{:spec :nonvar} {:spec :integer} {:spec :integer}] [{:spec "foo"} {:spec :integer} {:spec :integer}]]]}}}
+                      "foo" {3 [[[{:spec :user-defined :name "foo"} {:spec :user-defined :name "intOrVar"} {:spec :user-defined :name "intOrVar"}] [{:spec :user-defined :name "foo"} {:spec :integer} {:spec :integer}]]
+                                [[{:spec :nonvar} {:spec :integer} {:spec :integer}] [{:spec :user-defined :name "foo"} {:spec :integer} {:spec :integer}]]]}}}
         (:post-specs result)))
     (is
      (= {"spec_test" {"member_int" {2 [[{:spec :any} {:spec :ground}]]}}}
@@ -301,6 +301,9 @@
   )
 
 
+
 (deftest process-files:preds
   (let [result (sut/process-prolog-file "resources/spec-test.pl")]
     (is (coll? (get-in result [:preds "spec_test" "member_int" 2])))))
+
+(sut/process-prolog-file "resources/spec-test.pl")

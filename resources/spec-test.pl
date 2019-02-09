@@ -19,7 +19,7 @@
 :- define_spec(c,atom(empty)).
 
 
-:- define_spec(tree(any(X)),one_of([compound(node(tree(any(X)),any(X),tree(any(X)))),atom(empty)])).
+:- define_spec(tree(specvar(X)),one_of([compound(node(tree(specvar(X)),specvar(X),tree(specvar(X)))),atom(empty)])).
 
 :- spec_pre(member_int/2,[int,list(int)]).
 :- spec_pre(member_int/2,[var,list(int)]).
