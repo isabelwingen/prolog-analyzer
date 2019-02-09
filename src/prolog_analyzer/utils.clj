@@ -160,3 +160,9 @@
         start-uuid (if (empty? uuids) 0 (inc (last uuids)))
         uuids (drop start-uuid (range))]
     (apply hash-map (interleave specvars uuids))))
+
+(defn get-all-specvars-in-doms [env]
+  (->> (uber/nodes env)
+       (mapcat #(uber/attr env % :dom))
+       (filter #(= :specvar (:spec %)))
+       distinct))
