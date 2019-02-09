@@ -14,30 +14,23 @@
    ))
 
 (def data (atom {}))
-(def uuids (atom (vector)))
+(def last-uuid (atom 0))
 
 (defn get-next-uuid []
-  (if (empty? @uuids) 0 (inc (last @uuids))))
-
-(defn add-uuids [ids]
-  (swap! uuids concat ids)
-  (swap! uuids distinct)
-  (swap! uuids sort))
-
-(defn add-specvars-to-env [env]
-  (apply uber/add-nodes-with-attrs env (map #(vector (hash-map :spec :specvar :name %)  {:dom (list {:spec :any})}) @uuids)))
+  (inc @last-uuid))
 
 (defn replace-specvars-with-uuid
-  ([pre-spec] (let [specvars (->> pre-spec
-                                  (reduce #(concat %1 (utils/find-specvars %2)) [])
-                                  distinct
-                                  sort
-                                  (map :name))
-                    ids (take (count specvars) (drop (get-next-uuid) (range)))
-                    uuid-map (apply hash-map (interleave specvars ids))]
-                (add-uuids ids)
-                (map #(reduce-kv utils/replace-specvar-name-with-value % uuid-map) pre-spec)))
-  ([pre-spec & pre-specs] (map replace-specvars-with-uuid (cons pre-spec pre-specs))))
+  ([pre-spec]
+   (let [specvars (->> pre-spec
+                       (reduce #(concat %1 (utils/find-specvars %2)) [])
+                       distinct
+                       (map :name))
+         ids (take (count specvars) (drop (get-next-uuid) (range)))
+         uuid-map (apply hash-map (interleave specvars ids))]
+     (if ((complement empty?) ids)
+       (reset! last-uuid (last ids)))
+     (vector (map #(reduce-kv utils/replace-specvar-name-with-value % uuid-map) pre-spec))))
+  ([pre-spec & pre-specs] (reduce #(concat %1 (replace-specvars-with-uuid %2)) [] (cons pre-spec pre-specs))))
 
 (defmulti add-relationships-aux (comp :type second))
 (defmethod add-relationships-aux :list [[env {head :head tail :tail :as term}]]
@@ -62,8 +55,9 @@
 (defn add-relationships [env]
   (reduce #(add-relationships-aux [%1 %2]) env (uber/nodes env)))
 
+
 (defn evaluate-goal [env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
-  (let [goal-specs (:pre-specs (utils/get-specs-of-pred [module goal-name arity] @data))
+  (let [goal-specs (apply replace-specvars-with-uuid (:pre-specs (utils/get-specs-of-pred [module goal-name arity] @data)))
         [term goal-specs-as-tuple] [(if (= arity 1) (first arglist) (apply utils/to-head-tail-list arglist))
                                     (if (= arity 1) (map first goal-specs) (map (partial apply utils/to-tuple-spec) goal-specs))]]
     (if (> arity 0)
@@ -84,6 +78,10 @@
       (dom/fill-env-for-terms-with-specs arglist pre-spec)
       (add-index-to-input-arguments arglist)))
 
+(defn add-specvars-to-env [env]
+  (apply uber/add-nodes-with-attrs env (map #(vector % {:dom (list {:spec :any})}) (utils/get-all-specvars-in-doms env))))
+
+
 (defn analyzing [{arglist :arglist body :body :as clause} pre-spec]
   (-> (initial-env arglist pre-spec)
       (evaluate-body body)
@@ -93,16 +91,16 @@
 
 (defn complete-analysis [input-data]
   (reset! data input-data)
-  (reset! uuids [])
+  (reset! last-uuid 0)
   (for [pred-id (utils/get-pred-identities @data)
         clause-id (utils/get-clause-identities-of-pred pred-id @data)
         pre-spec (:pre-specs (utils/get-specs-of-pred pred-id @data))]
-    (let [mod-pre-spec (replace-specvars-with-uuid pre-spec)]
+    (let [mod-pre-spec (first (replace-specvars-with-uuid pre-spec))]
       [[clause-id mod-pre-spec] (analyzing (utils/get-clause clause-id @data) mod-pre-spec)]
       )))
 
 (defn example []
-  (->> "resources/analysis.pl"
+  (->> "prolog/playground.pl"
        process-prolog-file
        complete-analysis
        my-pp/pretty-print-analysis-result
@@ -114,3 +112,5 @@
        complete-analysis
        my-pp/pretty-print-analysis-result
        ))
+
+(example)
