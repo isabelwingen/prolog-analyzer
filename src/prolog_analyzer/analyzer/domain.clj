@@ -268,10 +268,19 @@
     (uber/set-attrs env node (update (uber/attrs env node) :dom #(concat % doms)))
     (uber/add-nodes-with-attrs env [node {:dom doms}])))
 
+(defn special-case-var [env term var-spec]
+  (if (uber/has-node? env term)
+    (if (every? #{:var :any :specvar} (map :spec (uber/attr env term :dom))) ;;TODO: should :user-defined be added to this list?
+      (add-doms-to-node env term var-spec)
+      (add-doms-to-node env term {:spec :error :reason "is already nonvar"}))
+    (uber/add-nodes-with-attrs env [term {:dom (list var-spec)}])))
+
 (defn fill-env-for-term-with-spec [env term spec]
-  (if (or (= :var (:type term)) (= :anon_var (:type term)))
-    (add-doms-to-node env term spec)
-    (fill-env-for-term-with-spec* [term spec env])))
+  (if (= :var (:spec spec))
+    (special-case-var env term spec)
+    (if (or (= :var (:type term)) (= :anon_var (:type term)))
+      (add-doms-to-node env term spec)
+      (fill-env-for-term-with-spec* [term spec env]))))
 
 (defn fill-env-for-terms-with-specs [env terms specs]
   (reduce #(apply fill-env-for-term-with-spec %1 %2) env (map vector terms specs)))
