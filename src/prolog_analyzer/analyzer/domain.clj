@@ -395,10 +395,12 @@
   (add-doms-to-node env term spec))
 
 (defmethod fill-env-for-term-with-spec* :default [[term spec env]]
-  (case (:type term)
-    :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " spec)})
-    :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
-    (add-doms-to-node env term (intersect {:spec (:type term)} spec))))
+  (if (= :user-defined (:spec spec))
+    (add-doms-to-node env term spec)
+    (case (:type term)
+      :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " spec)})
+      :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
+      (add-doms-to-node env term (intersect {:spec (:type term)} spec)))))
 
  (defn valid-env? [env]
   (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (uber/nodes env))))
