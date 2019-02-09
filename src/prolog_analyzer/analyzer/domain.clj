@@ -361,8 +361,8 @@
 (defmethod fill-env-for-term-with-spec* [:list :one-of] [[{tail :tail :as term} spec env]]
   (let [simplified-or (remove-invalid-or-parts term spec)]
     (if (= :one-of (:spec simplified-or))
-      (add-doms-to-node env term (remove-invalid-or-parts term spec))
-      (fill-env-for-term-with-spec env term spec))))
+      (add-doms-to-node env term simplified-or)
+      (fill-env-for-term-with-spec env term simplified-or))))
 
 (defmethod fill-env-for-term-with-spec* [:list :and] [[term {speclist :arglist} env]]
   (reduce #(fill-env-for-term-with-spec %1 term %2) env speclist))
@@ -392,8 +392,8 @@
 (defmethod fill-env-for-term-with-spec* [:compound :one-of] [[term spec env]]
   (let [simplified-or (remove-invalid-or-parts term spec)]
     (if (= :one-of (:spec simplified-or))
-      (add-doms-to-node env term (remove-invalid-or-parts term spec))
-      (fill-env-for-term-with-spec env term spec)))
+      (add-doms-to-node env term simplified-or)
+      (fill-env-for-term-with-spec env term simplified-or)))
   )
 
 (defmethod fill-env-for-term-with-spec* [:compound :and] [[term {speclist :arglist} env]]
@@ -408,7 +408,7 @@
     :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
     (add-doms-to-node env term (intersect {:spec (:type term)} spec))))
 
-(defn valid-env? [env]
+ (defn valid-env? [env]
   (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (uber/nodes env))))
 
 
@@ -417,7 +417,7 @@
                            (map #(fill-env-for-term-with-spec (uber/digraph) term %))
                            (map-indexed #(if (valid-env? %2) %1 nil))
                            (filter #(not= nil %))
-                           (map #(get speclist %))
+                           (map #(nth speclist %))
                            (apply vector)
                            (hash-map :spec :one-of :arglist)
                            )]
