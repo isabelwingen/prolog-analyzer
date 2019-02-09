@@ -249,14 +249,6 @@
 (defn- get-definition-of-alias [env user-defined-alias]
   (get (uber/attr env :ENVIRONMENT :user-defined-specs) user-defined-alias))
 
-(defn- replace-spec-var-with-value [spec src dest]
-  (case (:spec spec)
-    :specvar (if (= src (:name spec)) dest spec)
-    (:user-defined, :one-of, :and, :compound, :tuple) (update spec :arglist (partial map #(replace-spec-var-with-value % src dest)))
-    :list (update spec :type #(replace-spec-var-with-value % src dest))
-    spec
-    ))
-
 (defn- find-matching-def [{n :name arglist :arglist :as user-def-spec} env]
   (if (nil? arglist)
     user-def-spec
@@ -320,7 +312,7 @@
   (reduce #(fill-env-for-term-with-spec %1 term %2) env arglist))
 
 (defmethod fill-env-for-term-with-spec* [:atomic :user-defined] [[term {n :name arglist :arglist :as spec} env]]
-  (add-doms-to-node env term (get-definition-of-alias env spec)))
+  (add-doms-to-node env term spec))
 
 (defmethod fill-env-for-term-with-spec* [:list :list] [[{head :head tail :tail :as term} {t :type :as spec} env]]
   (let [tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail spec))]
@@ -368,7 +360,7 @@
   (reduce #(fill-env-for-term-with-spec %1 term %2) env speclist))
 
 (defmethod fill-env-for-term-with-spec* [:list :user-defined] [[term spec env]]
-  (fill-env-for-term-with-spec env term (get-definition-of-alias env spec)))
+  (fill-env-for-term-with-spec env term spec))
 
 (defmethod fill-env-for-term-with-spec* [:compound :compound] [[{term-func :functor term-elems :arglist :as term} {spec-func :functor spec-elems :arglist :as spec} env]]
   (cond
@@ -400,7 +392,7 @@
   (reduce #(fill-env-for-term-with-spec %1 term %2) env speclist))
 
 (defmethod fill-env-for-term-with-spec* [:compound :user-defined] [[term spec env]]
-  (fill-env-for-term-with-spec env term (get-definition-of-alias env spec)))
+  (add-doms-to-node env term spec))
 
 (defmethod fill-env-for-term-with-spec* :default [[term spec env]]
   (case (:type term)

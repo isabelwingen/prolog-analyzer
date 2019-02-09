@@ -23,7 +23,10 @@
     :else "blabla"))
 (defmethod to-string :compound [{functor :functor arglist :arglist}]
   (str functor "(" (clojure.string/join ", " (map to-string arglist)) ")"))
-(defmethod to-string :default [arg] (str arg))
+(defmethod to-string :default [arg]
+  (if (contains? arg :spec)
+    (str "Specvar " (:name arg))
+    (str arg)))
 
  
 (defn print-in-two-columns [n str1 str2]

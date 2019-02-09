@@ -122,3 +122,41 @@
 (defn dom-map-to-env [dom-map]
   (let [nodes (map #(vector % {:dom (get dom-map %)}) (keys dom-map))]
     (apply uber/add-nodes-with-attrs (uber/digraph) nodes)))
+
+
+(defn- new-uuid [env]
+  (->> (uber/nodes env)
+       (filter #(= :specvar (:spec %)))
+       (map :name)
+       sort
+       last 
+       (#(if (nil? %) 0 (inc %)))
+       ))
+
+(defn replace-specvar-name-with-value [spec specvar-name replace-value]
+  (case (:spec spec)
+    :specvar
+    (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
+
+    (:user-defined, :one-of, :and, :compound, :tuple)
+    (update spec :arglist (fn [s] (seq (map #(replace-specvar-name-with-value % specvar-name replace-value) s))))
+
+    :list
+    (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
+
+    spec
+    ))
+
+
+(defn find-specvars [spec]
+  (case (:spec spec)
+    :specvar [spec]
+    (:user-defined, :one-of, :and, :compound, :tuple) (distinct (reduce concat (map find-specvars (:arglist spec))))
+    :list (find-specvars (:type spec))
+    []))
+
+(defn get-uuids-for-specvars [uuids spec]
+  (let [specvars (map :name (find-specvars spec))
+        start-uuid (if (empty? uuids) 0 (inc (last uuids)))
+        uuids (drop start-uuid (range))]
+    (apply hash-map (interleave specvars uuids))))

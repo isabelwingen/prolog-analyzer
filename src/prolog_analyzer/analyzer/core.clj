@@ -14,6 +14,30 @@
    ))
 
 (def data (atom {}))
+(def uuids (atom (vector)))
+
+(defn get-next-uuid []
+  (if (empty? @uuids) 0 (inc (last @uuids))))
+
+(defn add-uuids [ids]
+  (swap! uuids concat ids)
+  (swap! uuids distinct)
+  (swap! uuids sort))
+
+(defn add-specvars-to-env [env]
+  (apply uber/add-nodes-with-attrs env (map #(vector (hash-map :spec :specvar :name %)  {:dom (list {:spec :any})}) @uuids)))
+
+(defn replace-specvars-with-uuid
+  ([pre-spec] (let [specvars (->> pre-spec
+                                  (reduce #(concat %1 (utils/find-specvars %2)) [])
+                                  distinct
+                                  sort
+                                  (map :name))
+                    ids (take (count specvars) (drop (get-next-uuid) (range)))
+                    uuid-map (apply hash-map (interleave specvars ids))]
+                (add-uuids ids)
+                (map #(reduce-kv utils/replace-specvar-name-with-value % uuid-map) pre-spec)))
+  ([pre-spec & pre-specs] (map replace-specvars-with-uuid (cons pre-spec pre-specs))))
 
 (defmulti add-relationships-aux (comp :type second))
 (defmethod add-relationships-aux :list [[env {head :head tail :tail :as term}]]
@@ -64,14 +88,18 @@
   (-> (initial-env arglist pre-spec)
       (evaluate-body body)
       (add-relationships)
+      (add-specvars-to-env)
       ))
 
 (defn complete-analysis [input-data]
   (reset! data input-data)
+  (reset! uuids [])
   (for [pred-id (utils/get-pred-identities @data)
         clause-id (utils/get-clause-identities-of-pred pred-id @data)
         pre-spec (:pre-specs (utils/get-specs-of-pred pred-id @data))]
-    [[clause-id pre-spec] (analyzing (utils/get-clause clause-id @data) pre-spec)]))
+    (let [mod-pre-spec (replace-specvars-with-uuid pre-spec)]
+      [[clause-id mod-pre-spec] (analyzing (utils/get-clause clause-id @data) mod-pre-spec)]
+      )))
 
 (defn example []
   (->> "resources/analysis.pl"
