@@ -23,7 +23,10 @@
     :else "blabla"))
 (defmethod to-string :compound [{functor :functor arglist :arglist}]
   (str functor "(" (clojure.string/join ", " (map to-string arglist)) ")"))
-(defmethod to-string :default [arg] (str arg))
+(defmethod to-string :default [arg]
+  (if (contains? arg :spec)
+    (str "Specvar " (:name arg))
+    (str arg)))
 
  
 (defn print-in-two-columns [n str1 str2]
@@ -41,7 +44,7 @@
       (apply print-in-columns ns strs))))
 
 (defn print-nodes [graph]
-  (let [nodes (uber/nodes graph)
+  (let [nodes (remove #{:ENVIRONMENT} (uber/nodes graph))
         max-length (->> nodes
                         (map to-string)
                         (map count)
@@ -75,7 +78,7 @@
 
 
 (defn pretty-print-graph [graph]
-  (let [nodes (uber/nodes graph)
+  (let [nodes (remove #{:ENVIRONMENT} (uber/nodes graph))
         nd-num (count nodes)
         edges (uber/edges graph)
         edg-num (count edges)]

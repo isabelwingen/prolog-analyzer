@@ -35,18 +35,18 @@ spec_and_nonvar(Spec) :-
 
 match_specs([],[]) :- !.
 match_specs([E|T],[E|S]) :-
-    !,match_specs(T,S).
-match_specs([_|T],[any(_)|S]) :-
-    !,match_specs(T,S).
-match_specs([any(_)|T],[_|S]) :-
-    !,match_specs(T,S).
+    !, match_specs(T,S).
+match_specs([_|T],[specvar(_)|S]) :-
+    !, match_specs(T,S).
+match_specs([specvar(_)|T],[_|S]) :-
+    !, match_specs(T,S).
 
 spec(var).
 spec(ground).
 spec(nonvar).
 spec(any).
-spec(any(X)) :- var(X),!.
-spec(any(X)) :- compound(X), \+ ground(X), spec(X).
+spec(specvar(X)) :- var(X),!.
+spec(specvar(X)) :- compound(X), \+ ground(X), spec(X).
 
 % Definition of spec predicates
 spec(atomic).
@@ -56,7 +56,7 @@ spec(integer).
 spec(number).
 spec(float).
 
-spec(compound(X)) :- compound(X), compound_name_arguments(X,_,Args),maplist(spec_and_nonvar,Args).
+spec(compound(X)) :- compound(X), compound_name_arguments(X,_,Args), maplist(spec_and_nonvar,Args).
 spec(list(X)) :- spec_and_nonvar(X).
 spec(tuple(X)) :- is_list(X),maplist(spec_and_nonvar,X).
 
@@ -82,7 +82,7 @@ check_if_vars_are_wrapped(Spec) :-
     ground(Spec),!.
 check_if_vars_are_wrapped(Spec) :-
     compound(Spec),
-    Spec =.. [any,_],!.
+    Spec =.. [specvar,_],!.
 check_if_vars_are_wrapped(Spec) :-
     compound(Spec),
     Spec =.. [_|Arglist],
@@ -98,7 +98,7 @@ define_spec(SpecName,SpecAlias) :-
     check_if_vars_are_wrapped(SpecName),
     valid_spec(SpecAlias),
     assert(spec_alias(SpecName,SpecAlias)),
-    retract(spec_alias(SpecName,empty)).
+    retract(spec_alias(SpecName,empty)), !.
 
 
 

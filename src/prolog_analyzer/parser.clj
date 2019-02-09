@@ -68,8 +68,10 @@
                "atom" :atom
                "atomic" :atomic
                "int" :integer
-               term)]
-    {:spec spec}))
+               nil)]
+    (if (nil? spec)
+      {:spec :user-defined :name term}
+      {:spec spec})))
 
 
 (defmethod transform-spec [:compound "list"] [{[type] :arglist}]
@@ -81,7 +83,7 @@
 
 (defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
-    {:spec :one_of :arglist (map transform-spec arglist)}))
+    {:spec :one-of :arglist (map transform-spec arglist)}))
 
 (defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
@@ -94,12 +96,12 @@
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
   {:spec :exact :value (:term (first arglist))})
 
-(defmethod transform-spec [:compound "any"] [{[spec] :arglist}]
-  {:spec :named-any :name (:name spec)}
+(defmethod transform-spec [:compound "specvar"] [{[spec] :arglist}]
+  {:spec :specvar :name (:name spec)}
   )
 
 (defmethod transform-spec :default [spec]
-  {:spec (:functor spec) :arglist (map transform-spec (:arglist spec))}
+  {:spec :user-defined :name (:functor spec) :arglist (map transform-spec (:arglist spec))}
   )
 
 (defn- spec-to-map [{[outer & args] :arglist}]
