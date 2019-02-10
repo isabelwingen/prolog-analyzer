@@ -29,7 +29,6 @@
       (reduce-kv utils/replace-specvars-with-spec definition replace-map))))
 
 
-
 (declare remove-invalid-or-parts)
 
 (defmulti fill-env-for-term-with-spec* (juxt (comp :type first) (comp :spec second)))
@@ -56,7 +55,6 @@
 (defn fill-env-for-terms-with-specs [env terms specs]
   (reduce #(apply fill-env-for-term-with-spec %1 %2) env (map vector terms specs)))
 
-;; Special case atomic
 (defmethod fill-env-for-term-with-spec* [:atomic :list] [[term spec env]]
   (if (utils/empty-list? term)
     (add-doms-to-node env term spec)
@@ -190,15 +188,13 @@
       :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
       (add-doms-to-node env term {:spec :and :arglist [{:spec (:type term)} spec]}))))
 
- (defn valid-env? [env]
-  (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (utils/get-terms env))))
 
 
 (defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec} env]
   (let [env-attrs (uber/attrs env :ENVIRONMENT)
         simplified-or (->> speclist
                            (map #(fill-env-for-term-with-spec (-> (uber/digraph) (uber/add-nodes-with-attrs [:ENVIRONMENT env-attrs])) term %))
-                           (map-indexed #(if (valid-env? %2) %1 nil))
+                           (map-indexed #(if (utils/valid-env? %2) %1 nil))
                            (filter #(not= nil %))
                            (map #(nth speclist %))
                            (apply vector)

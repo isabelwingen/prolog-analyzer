@@ -135,3 +135,8 @@
        (mapcat #(uber/attr env % :dom))
        (filter #(= :specvar (:spec %)))
        distinct))
+
+(defn valid-env?
+  "Checks, if a env is valid and contains no errors."
+  [env]
+  (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (get-terms env))))
