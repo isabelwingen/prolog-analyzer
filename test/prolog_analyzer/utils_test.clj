@@ -126,3 +126,7 @@
   (is (false? (sut/valid-env? (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :error}]}])))))
   (is (false? (sut/valid-env? (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :error} {:spec :int}]}])))))
   (is (true? (sut/valid-env? (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :int} {:spec :atom}]}]))))))
+
+(deftest get-dom-of-term-test
+  (is (= [{:spec :integer} {:spec :any}] (sut/get-dom-of-term (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :integer} {:spec :any}]}]))
+                                                              :a))))

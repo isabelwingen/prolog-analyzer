@@ -133,3 +133,6 @@
   "Checks, if a env is valid and contains no errors."
   [env]
   (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (get-terms env))))
+
+(defn get-dom-of-term [env term]
+  (uber/attr env term :dom))
