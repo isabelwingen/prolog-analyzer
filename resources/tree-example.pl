@@ -13,13 +13,13 @@ get_right_tree(node(_,_,R),R).
 
 
 
-:- spec_pre(tree_search/3,[tree(int),int,var]).
-:- spec_post(tree_search/3,[tree(int),int,var],[tree(int),int,list(int)]).
+:- spec_pre(tree_search/3,[tree(specvar(X)),specvar(X),var]).
+:- spec_post(tree_search/3,[tree(specvar(X)),specvar(X),var],[tree(specvar(X)),specvar(X),list(specvar(X))]).
 tree_search(T,Elem,Path) :-
     tree_search(T,Elem,[],Path).
 
-:- spec_pre(tree_search/4,[tree(int),int,list(int),var]).
-:- spec_post(tree_search/4,[tree(int),int,list(int),var],[tree(int),int,list(int),list(int)]).
+:- spec_pre(tree_search/4,[tree(specvar(X)),specvar(X),list(specvar(X)),var]).
+:- spec_post(tree_search/4,[tree(specvar(X)),specvar(X),list(specvar(X)),var],[tree(specvar(X)),specvar(X),list(specvar(X)),list(specvar(X))]).
 tree_search(node(_,Elem,_),Elem,In,[Elem|In]) :- !.
 tree_search(node(L,Root,_),Elem,In,Res) :-
     Elem < Root,!,
@@ -29,10 +29,10 @@ tree_search(node(_,Root,R),Elem,In,Res) :-
 
 
 
-:- spec_pre(add_to_tree/3,[int,tree(int),var]).
-:- spec_pre(add_to_tree/3,[int,tree(int),tree(int)]).
-:- spec_post(add_to_tree/3,[int,tree(int),var],[int,tree(int),tree(int)]).
-:- spec_post(add_to_tree/3,[int,tree(int),tree(int)],[int,tree(int),tree(int)]).
+:- spec_pre(add_to_tree/3,[specvar(X),tree(specvar(X)),var]).
+:- spec_pre(add_to_tree/3,[specvar(X),tree(specvar(X)),tree(specvar(X))]).
+:- spec_post(add_to_tree/3,[specvar(X),tree(specvar(X)),var],[specvar(X),tree(specvar(X)),tree(specvar(X))]).
+:- spec_post(add_to_tree/3,[specvar(X),tree(specvar(X)),tree(specvar(X))],[specvar(X),tree(specvar(X)),tree(specvar(X))]).
 add_to_tree(Elem,empty,node(empty,Elem,empty)) :- !.
 add_to_tree(Elem,node(empty,Root,Right),node(node(empty,Elem,empty),Root,Right)) :-
     Elem < Root, !.
