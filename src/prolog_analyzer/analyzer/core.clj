@@ -99,8 +99,15 @@
       [[clause-id mod-pre-spec] (analyzing (utils/get-clause clause-id @data) mod-pre-spec)]
       )))
 
-(defn example []
+(defn playground []
   (->> "prolog/playground.pl"
+       process-prolog-file
+       complete-analysis
+       my-pp/pretty-print-analysis-result
+       ))
+
+(defn example []
+  (->> "resources/tree-example.pl"
        process-prolog-file
        complete-analysis
        my-pp/pretty-print-analysis-result
@@ -113,4 +120,5 @@
        my-pp/pretty-print-analysis-result
        ))
 
-(example)
+(playground)
+@data
