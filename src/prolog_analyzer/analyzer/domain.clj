@@ -322,7 +322,7 @@
     (add-doms-to-node env term {:spec :atomic})))
 
 (defmethod fill-env-for-term-with-spec* [:atomic :one-of] [[term spec env]]
-  (add-doms-to-node env term (remove-invalid-or-parts term spec)))
+  (add-doms-to-node env term (remove-invalid-or-parts term spec env)))
 
 (defmethod fill-env-for-term-with-spec* [:atomic :and] [[term {arglist :arglist} env]]
   (reduce #(fill-env-for-term-with-spec %1 term %2) env arglist))
@@ -369,7 +369,7 @@
         (fill-env-for-term-with-spec head any-spec))))
 
 (defmethod fill-env-for-term-with-spec* [:list :one-of] [[{tail :tail :as term} spec env]]
-  (let [simplified-or (remove-invalid-or-parts term spec)]
+  (let [simplified-or (remove-invalid-or-parts term spec env)]
     (if (= :one-of (:spec simplified-or))
       (add-doms-to-node env term simplified-or)
       (fill-env-for-term-with-spec env term simplified-or))))
@@ -402,7 +402,7 @@
     (reduce #(apply fill-env-for-term-with-spec %1 %2) term-env (map vector arglist (repeat {:spec :any})))))
 
 (defmethod fill-env-for-term-with-spec* [:compound :one-of] [[term spec env]]
-  (let [simplified-or (remove-invalid-or-parts term spec)]
+  (let [simplified-or (remove-invalid-or-parts term spec env)]
     (if (= :one-of (:spec simplified-or))
       (add-doms-to-node env term simplified-or)
       (fill-env-for-term-with-spec env term simplified-or)))
@@ -427,12 +427,13 @@
       (add-doms-to-node env term (intersect {:spec (:type term)} spec)))))
 
  (defn valid-env? [env]
-  (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (uber/nodes env))))
+  (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (utils/get-terms env))))
 
 
-(defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec}]
-  (let [simplified-or (->> speclist
-                           (map #(fill-env-for-term-with-spec (uber/digraph) term %))
+(defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec} env]
+  (let [env-attrs (uber/attrs env :ENVIRONMENT)
+        simplified-or (->> speclist
+                           (map #(fill-env-for-term-with-spec (-> (uber/digraph) (uber/add-nodes-with-attrs [:ENVIRONMENT env-attrs])) term %))
                            (map-indexed #(if (valid-env? %2) %1 nil))
                            (filter #(not= nil %))
                            (map #(nth speclist %))

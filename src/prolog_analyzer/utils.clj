@@ -169,14 +169,11 @@
     :list (find-specvars (:type spec))
     []))
 
-(defn get-uuids-for-specvars [uuids spec]
-  (let [specvars (map :name (find-specvars spec))
-        start-uuid (if (empty? uuids) 0 (inc (last uuids)))
-        uuids (drop start-uuid (range))]
-    (apply hash-map (interleave specvars uuids))))
+(defn get-terms [env]
+  (remove #{:ENVIRONMENT} (uber/nodes env)))
 
 (defn get-all-specvars-in-doms [env]
-  (->> (uber/nodes env)
+  (->> (get-terms env)
        (mapcat #(uber/attr env % :dom))
        (filter #(= :specvar (:spec %)))
        distinct))

@@ -53,7 +53,7 @@
   env)
 
 (defn add-relationships [env]
-  (reduce #(add-relationships-aux [%1 %2]) env (uber/nodes env)))
+  (reduce #(add-relationships-aux [%1 %2]) env (utils/get-terms env)))
 
 
 (defn evaluate-goal [env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
