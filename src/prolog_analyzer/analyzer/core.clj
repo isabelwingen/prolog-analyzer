@@ -119,6 +119,3 @@
        complete-analysis
        my-pp/pretty-print-analysis-result
        ))
-
-(playground)
-@data

@@ -147,6 +147,20 @@
     spec
     ))
 
+(defn replace-specvars-with-spec [spec specvar-name replace-spec]
+  (case (:spec spec)
+    :specvar
+    (if (= specvar-name (:name spec)) replace-spec spec)
+
+    (:user-defined, :one-of, :and, :compound, :tuple)
+    (update spec :arglist (fn [s] (seq (map #(replace-specvars-with-spec % specvar-name replace-spec) s))))
+
+    :list
+    (update spec :type #(replace-specvars-with-spec % specvar-name replace-spec))
+
+    spec
+    ))
+
 
 (defn find-specvars [spec]
   (case (:spec spec)

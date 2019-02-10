@@ -245,19 +245,26 @@
       (or (:was-var dom1) (:was-var dom2)) (assoc dom-intersect :was-var true)
       :else dom-intersect)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- get-definition-of-alias [env user-defined-alias]
   (get (uber/attr env :ENVIRONMENT :user-defined-specs) user-defined-alias))
 
-(defn- find-matching-def [{n :name arglist :arglist :as user-def-spec} env]
+(defn- resolve-definition-with-parameters
+  "User-defined specs can have parameters and when in use in spec annotations,
+  there are values assigned to these parameters. To get the correct definition,
+  we have to replace the parameter with their value."
+  [{n :name arglist :arglist :as user-def-spec} env]
   (if (nil? arglist)
-    user-def-spec
-    (->> (uber/attr env :ENVIRONMENT :user-defined-specs)
-         keys
-         (filter #(= (:name %) n))
-         (filter #(= (count (:arglist %)) (count arglist)))
-         first)))
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    (get-definition-of-alias env user-def-spec)
+    (let [alias (->> (uber/attr env :ENVIRONMENT :user-defined-specs)
+                     keys
+                     (filter #(= (:name %) n))
+                     (filter #(= (count (:arglist %)) (count arglist)))
+                     first)
+          definition (get-definition-of-alias env alias)
+          replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))]
+      (reduce-kv utils/replace-specvars-with-spec definition replace-map))))
+
+
 
 (declare remove-invalid-or-parts)
 
@@ -314,14 +321,16 @@
     (add-doms-to-node env term {:spec :list :type {:spec :any}})
     (add-doms-to-node env term {:spec :atomic})))
 
-(defmethod fill-env-for-term-with-spec* [:atomic :one-of] [[term spec env]] ;TODO: add check for valid
+(defmethod fill-env-for-term-with-spec* [:atomic :one-of] [[term spec env]]
   (add-doms-to-node env term (remove-invalid-or-parts term spec)))
 
 (defmethod fill-env-for-term-with-spec* [:atomic :and] [[term {arglist :arglist} env]]
   (reduce #(fill-env-for-term-with-spec %1 term %2) env arglist))
 
 (defmethod fill-env-for-term-with-spec* [:atomic :user-defined] [[term {n :name arglist :arglist :as spec} env]]
-  (add-doms-to-node env term spec))
+  (-> env
+      (add-doms-to-node term spec)
+      (fill-env-for-term-with-spec term (resolve-definition-with-parameters spec env))))
 
 (defmethod fill-env-for-term-with-spec* [:list :list] [[{head :head tail :tail :as term} {t :type :as spec} env]]
   (let [tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail spec))]
@@ -369,7 +378,9 @@
   (reduce #(fill-env-for-term-with-spec %1 term %2) env speclist))
 
 (defmethod fill-env-for-term-with-spec* [:list :user-defined] [[term spec env]]
-  (fill-env-for-term-with-spec env term spec))
+  (-> env
+      (add-doms-to-node term spec)
+      (fill-env-for-term-with-spec term (resolve-definition-with-parameters spec env))))
 
 (defmethod fill-env-for-term-with-spec* [:compound :compound] [[{term-func :functor term-elems :arglist :as term} {spec-func :functor spec-elems :arglist :as spec} env]]
   (cond
@@ -399,13 +410,17 @@
 
 (defmethod fill-env-for-term-with-spec* [:compound :and] [[term {speclist :arglist} env]]
   (reduce #(fill-env-for-term-with-spec %1 term %2) env speclist))
-
+ 
 (defmethod fill-env-for-term-with-spec* [:compound :user-defined] [[term spec env]]
-  (add-doms-to-node env term spec))
+  (-> env
+      (add-doms-to-node term spec)
+      (fill-env-for-term-with-spec term (resolve-definition-with-parameters spec env))))
 
 (defmethod fill-env-for-term-with-spec* :default [[term spec env]]
   (if (= :user-defined (:spec spec))
-    (add-doms-to-node env term spec)
+    (-> env
+        (add-doms-to-node term spec)
+        (fill-env-for-term-with-spec term (resolve-definition-with-parameters spec env)))
     (case (:type term)
       :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " spec)})
       :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
