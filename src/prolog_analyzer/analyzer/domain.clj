@@ -1,9 +1,7 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils]
-            [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as gen]
-            [clojure.spec.test.alpha :as stest]
             [ubergraph.core :as uber]
+            [clojure.tools.logging :as log]
             [loom.graph]
             [loom.attr]
             [ubergraph.protocols]
@@ -35,14 +33,97 @@
 
 (defn add-doms-to-node [env node & doms]
   (if (uber/has-node? env node)
-    (uber/set-attrs env node (update (uber/attrs env node) :dom #(concat % doms)))
+    (uber/set-attrs env node (-> (uber/attrs env node)
+                                 (update :dom #(concat % doms))
+                                 (update :dom distinct)))
     (uber/add-nodes-with-attrs env [node {:dom doms}])))
+
+(defn WRONG-TYPE [term spec]
+  (log/error "term" term "cannot be of type " spec)
+  {:spec :error :reason (str "Cannot be of spec " spec)})
+
+(defn fill-env-for-term-with-spec-integer [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (add-doms-to-node env term (case (:type term)
+                               (:integer, :var :anon_var) spec
+                               :number (if (int? (:value term)) spec (WRONG-TYPE term spec))
+                               :atomic (if (int? (read-string (:term term))) spec (WRONG-TYPE term spec))
+                               (WRONG-TYPE term spec))))
+
+(defn fill-env-for-term-with-spec-float [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (add-doms-to-node env term (case (:type term)
+                               (:float, :var :anon_var) spec
+                               :number (if (float? (:value term)) spec (WRONG-TYPE term spec))
+                               :atomic (if (float? (read-string (:term term))) spec (WRONG-TYPE term spec))
+                               (WRONG-TYPE term spec))))
+
+(defn fill-env-for-term-with-spec-number [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (add-doms-to-node env term (case (:type term)
+                               (:number, :var :anon_var) spec
+                               :integer {:spec :integer}
+                               :float {:spec :float}
+                               :atomic (if (number? (read-string (:term term))) spec (WRONG-TYPE term spec))
+                               (WRONG-TYPE term spec))))
+
+(defn fill-env-for-term-with-spec-atom [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (add-doms-to-node env term (case (:type term)
+                               (:atom, :var :anon_var) spec
+                               :atomic (if (and (not= "[]" (:term term)) ((complement number?) (read-string (:term term)))) spec (WRONG-TYPE term spec))
+                               (WRONG-TYPE term spec))))
+
+(defn fill-env-for-term-with-spec-atomic [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (add-doms-to-node env term (case (:type term)
+                               (:atomic, :var :anon_var) spec
+                               :atom {:spec :atom}
+                               :number {:spec :number}
+                               :integer {:spec :integer}
+                               :float {:spec :float}
+                               (WRONG-TYPE term spec))))
+
+(defn fill-env-for-term-with-spec-exact [env term {value :value :as spec}]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (add-doms-to-node env term (case (:type term)
+                               (:var :anon_var) spec
+                               (:atomic, :atom) (if (= value (:term term)) spec (WRONG-TYPE term spec))
+                               (WRONG-TYPE term spec))))
+
+
+
+
+(defn fill-env-for-term-with-spec2 [env term spec]
+  (case (:spec spec)
+    :any env
+    :ground env
+    :nonvar env
+    :var env
+    :exact (fill-env-for-term-with-spec-exact env term spec)
+    :atomic (fill-env-for-term-with-spec-atomic env term spec)
+    :atom (fill-env-for-term-with-spec-atom env term spec)
+    :number (fill-env-for-term-with-spec-number env term spec)
+    :float (fill-env-for-term-with-spec-float env term spec)
+    :integer (fill-env-for-term-with-spec-integer env term spec)
+    :list env
+    :tuple env
+    :compound env
+    :specvar env
+    :one-of env
+    :and env
+    :user-defined env
+    (do
+      (log/error "I don't know what to do with" spec)
+      env))
+  )
+
 
 (defn special-case-var [env term var-spec]
   (if (uber/has-node? env term)
     (if (every? #{:var :any :specvar} (map :spec (uber/attr env term :dom))) ;;TODO: should :user-defined be added to this list?
       (add-doms-to-node env term var-spec)
-      (add-doms-to-node env term {:spec :error :reason "is already nonvar"}))
+      (add-doms-to-node env term {:spec :error :reason "Term is already nonvar"}))
     (uber/add-nodes-with-attrs env [term {:dom (list var-spec)}])))
 
 (defn fill-env-for-term-with-spec [env term spec]
@@ -187,8 +268,6 @@
       :list (add-doms-to-node env term {:spec :error :reason (str "list cannot be of type " spec)})
       :compound (add-doms-to-node env term {:spec :error :reason (str "compound cannot be of type " spec)})
       (add-doms-to-node env term {:spec :and :arglist [{:spec (:type term)} spec]}))))
-
-
 
 (defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec} env]
   (let [env-attrs (uber/attrs env :ENVIRONMENT)
