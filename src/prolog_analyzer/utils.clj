@@ -85,13 +85,6 @@
     (list head)
     (conj (get-elements-of-list tail) head)))
 
-(defn- merge-attr [attr1 attr2]
-  (let [dom1 (:dom attr1)
-        dom2 (:dom attr2)]
-    (assoc (merge attr1 attr2)
-           :dom
-           (apply vector (concat dom1 dom2)))))
-
 (defn replace-specvar-name-with-value [spec specvar-name replace-value]
   (case (:spec spec)
     :specvar
@@ -133,7 +126,7 @@
 (defn get-all-specvars-in-doms [env]
   (->> (get-terms env)
        (mapcat #(uber/attr env % :dom))
-       (filter #(= :specvar (:spec %)))
+       (mapcat find-specvars)
        distinct))
 
 (defn valid-env?
