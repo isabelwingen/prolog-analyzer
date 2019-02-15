@@ -54,6 +54,157 @@
 
 (def unfolded-tree-int {:spec :one-of :arglist [{:spec :compound :functor "node" :arglist [spec-tree-int {:spec :integer} spec-tree-int]} {:spec :exact :value "empty"}]})
 
+(deftest fill-env-for-term-with-spec-test-any
+  (are [in out]
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :any}) in))
+    {:type :any :term "anyanyany"} {:spec :any}
+    {:type :ground :term "anyanyany"} {:spec :ground}
+    {:type :nonvar :term "anyanyany"} {:spec :nonvar}
+    {:type :atom :term "ize"} {:spec :atom}
+    {:type :atomic :term "cake"} {:spec :atomic}
+    {:type :integer :value 42} {:spec :integer}
+    {:type :number :value 23} {:spec :number}
+    {:type :float :value 3.1415} {:spec :float}
+    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} {:spec :list :type {:spec :any}}
+    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} {:spec :compound :functor "wrap" :arglist [{:spec :any} {:spec :any}]}
+    {:type :var :name "X"} {:spec :var} ;;TODO: any or var?
+    {:type :anon_var :name "_1603"} {:spec :var};; TODO: any or var?
+    ))
+
+
+(deftest fill-env-for-term-with-spec-test-ground
+  (are [in out]
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :ground}) in))
+    {:type :any :term "anyanyany"} {:spec :ground}
+    {:type :ground :term "anyanyany"} {:spec :ground}
+    {:type :nonvar :term "anyanyany"} {:spec :ground}
+    {:type :atom :term "bunker"} {:spec :atom}
+    {:type :atomic :term "cake"} {:spec :atomic}
+    {:type :integer :value 42} {:spec :integer}
+    {:type :number :value 23} {:spec :number}
+    {:type :float :value 3.1415} {:spec :float}
+    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} {:spec :list :type {:spec :ground}}
+    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} {:spec :compound :functor "wrap" :arglist [{:spec :ground} {:spec :ground}]}
+    {:type :var :name "X"} {:spec :ground}
+    {:type :anon_var :name "_1603"} {:spec :ground}
+    ))
+
+(deftest fill-env-for-term-with-spec-test-nonvar
+  (are [in out]
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :nonvar}) in))
+    {:type :any :term "anyanyany"} {:spec :nonvar}
+    {:type :ground :term "anyanyany"} {:spec :ground}
+    {:type :nonvar :term "anyanyany"} {:spec :nonvar}
+    {:type :atom :term "cake"} {:spec :atom}
+    {:type :atomic :term "cake"} {:spec :atomic}
+    {:type :integer :value 42} {:spec :integer}
+    {:type :number :value 23} {:spec :number}
+    {:type :float :value 3.1415} {:spec :float}
+    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} {:spec :list :type {:spec :any}}
+    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} {:spec :compound :functor "wrap" :arglist [{:spec :any} {:spec :any}]}
+    {:type :var :name "X"} {:spec :nonvar}
+    {:type :anon_var :name "_1603"} {:spec :nonvar}
+    ))
+
+(deftest fill-env-for-term-with-spec-test-var
+  (are [in out]
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :var}) in))
+    {:type :ground :term "anyanyany"} (sut/ALREADY-NONVAR)
+    {:type :nonvar :term "nonononvar"} (sut/ALREADY-NONVAR)
+    {:type :atom :term "batman"} (sut/ALREADY-NONVAR)
+    {:type :atomic :term "cake"} (sut/ALREADY-NONVAR)
+    {:type :integer :value 42} (sut/ALREADY-NONVAR)
+    {:type :number :value 23} (sut/ALREADY-NONVAR)
+    {:type :float :value 3.1415} (sut/ALREADY-NONVAR)
+    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} (sut/ALREADY-NONVAR)
+    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} (sut/ALREADY-NONVAR)
+    )
+  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 test-env {:type :var :name "X"} {:spec :var})))
+  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :var :name "X"} {:spec :any}) {:type :var :name "X"} {:spec :var})))
+  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :var :name "X"} {:spec :var} {:spec :var} {:spec :any}) {:type :var :name "X"} {:spec :var})))
+  (is ((complement utils/valid-env?) (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :var :name "X"} {:spec :ground}) {:type :var :name "X"} {:spec :var})))
+  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 test-env {:type :anon_var :name "X"} {:spec :var})))
+  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :anon_var :name "X"} {:spec :any}) {:type :anon_var :name "X"} {:spec :var})))
+  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :anon_var :name "X"} {:spec :var} {:spec :var} {:spec :any}) {:type :anon_var :name "X"} {:spec :var})))
+  (is ((complement utils/valid-env?) (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :anon_var :name "X"} {:spec :ground}) {:type :anon_var :name "X"} {:spec :var}))))
+
+
+(deftest fill-env-for-term-with-spec-test-atomic
+  (are [term]
+      (= [{:spec :atomic}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atomic}) term))
+    {:type :atomic :term "cake"}
+    {:type :atomic :term "1603"}
+    {:type :var :name "X"}
+    {:type :anon_var :name "_0410"}
+    )
+  (is (= [{:spec :atom}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :atom :term "cake"} {:spec :atomic}) {:type :atom :term "cake"})))
+  (is (= [{:spec :number}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :number :value 2} {:spec :atomic}) {:type :number :value 2})))
+  (is (= [{:spec :integer}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :integer :value 2} {:spec :atomic}) {:type :integer :value 2})))
+  (is (= [{:spec :float}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :float :value 2.0} {:spec :atomic}) {:type :float :value 2.0})))
+  (are [term]
+      (= [(sut/WRONG-TYPE term {:spec :atomic})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atomic}) term))
+    {:type :list :head {:type :integer :value 2} :tail {:type :atomic :term "[]"}}
+    {:type :compound :functor "foo" :arglist [{:spec :atom :term "foo"}]}
+    )
+  )
+
+(deftest fill-env-for-term-with-spec-test-atom
+  (are [term]
+      (= [{:spec :atom}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atom}) term))
+    {:type :atom :term "cake"}
+    {:type :atomic :term "cake"}
+    {:type :var :name "X"}
+    {:type :anon_var :name "_0410"}
+    )
+  (are [term]
+      (= [(sut/WRONG-TYPE term {:spec :atom})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atom}) term))
+    {:type :atomic :term "[]"}
+    {:type :atomic :term "1603"}
+    {:type :list :head {:type :integer :value 2} :tail {:type :atomic :term "[]"}}
+    {:type :compound :functor "foo" :arglist [{:spec :atom :term "foo"}]}
+    )
+  )
+
+(deftest fill-env-for-term-with-spec-test-exact
+  (are [term]
+      (= [{:spec :exact :value "cake"}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :exact :value "cake"}) term))
+    {:type :atomic :term "cake"}
+    {:type :atom :term "cake"}
+    {:type :var :name "X"}
+    {:type :anon_var :name "_0410"}
+    )
+  (are [term]
+        (= [(sut/WRONG-TYPE term {:spec :exact :value "cake"})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :exact :value "cake"}) term))
+   {:type :list :head {:type :integer :value 2} :tail {:type :atomic :term "[]"}}
+   {:type :compound :functor "foo" :arglist [{:spec :atom :term "foo"}]}
+   {:type :atom :term "nocake"}
+   {:type :atomic :term "1"}
+   {:type :integer :value 2}
+   {:type :number :value 2}
+   {:type :float :value 2.0}
+   )
+  )
+
+(deftest fill-env-for-term-with-spec-test-number
+  (are [term]
+      (= [{:spec :number}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :number}) term))
+    {:type :atomic :term "3.14"}
+    {:type :atomic :term "100"}
+    {:type :var :name "X"}
+    {:type :anon_var :name "_234"})
+  (is (= [{:spec :integer}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :integer :value 2} {:spec :number}) {:type :integer :value 2})))
+  (is (= [{:spec :float}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :float :value 2.5} {:spec :number}) {:type :float :value 2.5})))
+  (are [term]
+      (= [(sut/WRONG-TYPE term {:spec :number})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :number}) term))
+    {:type :atomic :term "no"}
+    {:type :atom}
+    {:type :exact :term "no"}
+    {:type :list :head {:type :number :value 0} :tail {:type :atomic :term "[]"}}
+    {:type :compound :functor "node" :arglist [{:type :atom :term "hello"}]}
+    )
+  )
+
+
 (deftest fill-env-for-term-with-spec-test-integer
   (are [term]
       (= [{:spec :integer}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :integer}) term))
@@ -95,81 +246,6 @@
     {:type :exact :term "no"}
     {:type :list :head {:type :float :value 0} :tail {:type :atomic :term "[]"}}
     {:type :compound :functor "node" :arglist [{:type :atom :term "hello"}]}
-    )
-  )
-
-(deftest fill-env-for-term-with-spec-test-number
-  (are [term]
-      (= [{:spec :number}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :number}) term))
-    {:type :atomic :term "3.14"}
-    {:type :atomic :term "100"}
-    {:type :var :name "X"}
-    {:type :anon_var :name "_234"})
-  (is (= [{:spec :integer}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :integer :value 2} {:spec :number}) {:type :integer :value 2})))
-  (is (= [{:spec :float}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :float :value 2.5} {:spec :number}) {:type :float :value 2.5})))
-  (are [term]
-      (= [(sut/WRONG-TYPE term {:spec :number})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :number}) term))
-    {:type :atomic :term "no"}
-    {:type :atom}
-    {:type :exact :term "no"}
-    {:type :list :head {:type :number :value 0} :tail {:type :atomic :term "[]"}}
-    {:type :compound :functor "node" :arglist [{:type :atom :term "hello"}]}
-    )
-  )
-
-(deftest fill-env-for-term-with-spec-test-atom
-  (are [term]
-      (= [{:spec :atom}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atom}) term))
-    {:type :atom :term "cake"}
-    {:type :atomic :term "cake"}
-    {:type :var :name "X"}
-    {:type :anon_var :name "_0410"}
-    )
-  (are [term]
-      (= [(sut/WRONG-TYPE term {:spec :atom})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atom}) term))
-    {:type :atomic :term "[]"}
-    {:type :atomic :term "1603"}
-    {:type :list :head {:type :integer :value 2} :tail {:type :atomic :term "[]"}}
-    {:type :compound :functor "foo" :arglist [{:spec :atom :term "foo"}]}
-    )
-  )
-
-(deftest fill-env-for-term-with-spec-test-atomic
-  (are [term]
-      (= [{:spec :atomic}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atomic}) term))
-    {:type :atomic :term "cake"}
-    {:type :atomic :term "1603"}
-    {:type :var :name "X"}
-    {:type :anon_var :name "_0410"}
-    )
-  (is (= [{:spec :atom}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :atom :term "cake"} {:spec :atomic}) {:type :atom :term "cake"})))
-  (is (= [{:spec :number}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :number :value 2} {:spec :atomic}) {:type :number :value 2})))
-  (is (= [{:spec :integer}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :integer :value 2} {:spec :atomic}) {:type :integer :value 2})))
-  (is (= [{:spec :float}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env {:type :float :value 2.0} {:spec :atomic}) {:type :float :value 2.0})))
-  (are [term]
-      (= [(sut/WRONG-TYPE term {:spec :atomic})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :atomic}) term))
-    {:type :list :head {:type :integer :value 2} :tail {:type :atomic :term "[]"}}
-    {:type :compound :functor "foo" :arglist [{:spec :atom :term "foo"}]}
-    )
-  )
-
-(deftest fill-env-for-term-with-spec-test-exact
-  (are [term]
-      (= [{:spec :exact :value "cake"}] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :exact :value "cake"}) term))
-    {:type :atomic :term "cake"}
-    {:type :atom :term "cake"}
-    {:type :var :name "X"}
-    {:type :anon_var :name "_0410"}
-    )
-  (are [term]
-      (= [(sut/WRONG-TYPE term {:spec :exact :value "cake"})] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term {:spec :exact :value "cake"}) term))
-    {:type :list :head {:type :integer :value 2} :tail {:type :atomic :term "[]"}}
-    {:type :compound :functor "foo" :arglist [{:spec :atom :term "foo"}]}
-    {:type :atom :term "nocake"}
-    {:type :atomic :term "1"}
-    {:type :integer :value 2}
-    {:type :number :value 2}
-    {:type :float :value 2.0}
     )
   )
 
@@ -234,81 +310,30 @@
     {:type :number :value 2}
     {:type :float :value 2.0}))
 
-(deftest fill-env-for-term-with-spec-test-any
-  (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :any}) in))
-    {:type :any :term "anyanyany"} {:spec :any}
-    {:type :ground :term "anyanyany"} {:spec :ground}
-    {:type :nonvar :term "anyanyany"} {:spec :nonvar}
-    {:type :atom :term "ize"} {:spec :atom}
-    {:type :atomic :term "cake"} {:spec :atomic}
-    {:type :integer :value 42} {:spec :integer}
-    {:type :number :value 23} {:spec :number}
-    {:type :float :value 3.1415} {:spec :float}
-    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} {:spec :list :type {:spec :any}}
-    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} {:spec :compound :functor "wrap" :arglist [{:spec :any} {:spec :any}]}
-    {:type :var :name "X"} {:spec :var} ;;TODO: any or var?
-    {:type :anon_var :name "_1603"} {:spec :var};; TODO: any or var?
-    ))
 
-(deftest fill-env-for-term-with-spec-test-ground
-  (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :ground}) in))
-    {:type :any :term "anyanyany"} {:spec :ground}
-    {:type :ground :term "anyanyany"} {:spec :ground}
-    {:type :nonvar :term "anyanyany"} {:spec :ground}
-    {:type :atom :term "bunker"} {:spec :atom}
-    {:type :atomic :term "cake"} {:spec :atomic}
-    {:type :integer :value 42} {:spec :integer}
-    {:type :number :value 23} {:spec :number}
-    {:type :float :value 3.1415} {:spec :float}
-    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} {:spec :list :type {:spec :ground}}
-    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} {:spec :compound :functor "wrap" :arglist [{:spec :ground} {:spec :ground}]}
-    {:type :var :name "X"} {:spec :ground}
-    {:type :anon_var :name "_1603"} {:spec :ground}
-    ))
-
-(deftest fill-env-for-term-with-spec-test-nonvar
-  (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :nonvar}) in))
-    {:type :any :term "anyanyany"} {:spec :nonvar}
-    {:type :ground :term "anyanyany"} {:spec :ground}
-    {:type :nonvar :term "anyanyany"} {:spec :nonvar}
-    {:type :atom :term "cake"} {:spec :atom}
-    {:type :atomic :term "cake"} {:spec :atomic}
-    {:type :integer :value 42} {:spec :integer}
-    {:type :number :value 23} {:spec :number}
-    {:type :float :value 3.1415} {:spec :float}
-    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} {:spec :list :type {:spec :any}}
-    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} {:spec :compound :functor "wrap" :arglist [{:spec :any} {:spec :any}]}
-    {:type :var :name "X"} {:spec :nonvar}
-    {:type :anon_var :name "_1603"} {:spec :nonvar}
-    ))
-
-(deftest fill-env-for-term-with-spec-test-var
-  (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env in {:spec :var}) in))
-    {:type :ground :term "anyanyany"} (sut/ALREADY-NONVAR)
-    {:type :nonvar :term "nonononvar"} (sut/ALREADY-NONVAR)
-    {:type :atom :term "batman"} (sut/ALREADY-NONVAR)
-    {:type :atomic :term "cake"} (sut/ALREADY-NONVAR)
-    {:type :integer :value 42} (sut/ALREADY-NONVAR)
-    {:type :number :value 23} (sut/ALREADY-NONVAR)
-    {:type :float :value 3.1415} (sut/ALREADY-NONVAR)
-    {:type :list :head {:type :integer :value 11235813} :tail {:type :atomic :term "[]"}} (sut/ALREADY-NONVAR)
-    {:type :compound :functor "wrap" :arglist [{:type :atom :term "salad"} {:type :atom :term "tomatoes"}]} (sut/ALREADY-NONVAR)
-    )
-  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 test-env {:type :var :name "X"} {:spec :var})))
-  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :var :name "X"} {:spec :any}) {:type :var :name "X"} {:spec :var})))
-  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :var :name "X"} {:spec :var} {:spec :var} {:spec :any}) {:type :var :name "X"} {:spec :var})))
-  (is ((complement utils/valid-env?) (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :var :name "X"} {:spec :ground}) {:type :var :name "X"} {:spec :var})))
-  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 test-env {:type :anon_var :name "X"} {:spec :var})))
-  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :anon_var :name "X"} {:spec :any}) {:type :anon_var :name "X"} {:spec :var})))
-  (is (utils/valid-env? (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :anon_var :name "X"} {:spec :var} {:spec :var} {:spec :any}) {:type :anon_var :name "X"} {:spec :var})))
-  (is ((complement utils/valid-env?) (sut/fill-env-for-term-with-spec2 (sut/add-doms-to-node test-env {:type :anon_var :name "X"} {:spec :ground}) {:type :anon_var :name "X"} {:spec :var}))))
-
-(utils/valid-env? (sut/fill-env-for-term-with-spec2 test-env {:type :var :name "X"} {:spec :var}))
-
+(deftest fill-env-for-term-with-spec-test-specvar
+  (let [term {:type :integer :value 42}
+        specvar {:spec :specvar :name 0}
+        expected-env (-> test-env
+                         (sut/add-doms-to-node term specvar {:spec :integer})
+                         (sut/add-doms-to-node specvar {:spec :integer}))]
+    (is (= expected-env (sut/fill-env-for-term-with-spec2 test-env term specvar))))
+  (let [term {:type :atom :term "nevegonnagiveyouup"}
+        specvar {:spec :specvar :name 0}
+        expected-env (-> test-env
+                      (sut/add-doms-to-node term specvar {:spec :atom})
+                      (sut/add-doms-to-node specvar {:spec :atom}))]
+    (is (= expected-env (sut/fill-env-for-term-with-spec2 test-env term specvar))))
+  (let [term {:type :list :head {:type :integer :value 1} :tail {:type :atomic :term "[]"}}
+        specvar {:spec :specvar :name 0}
+        spec-to-be-filled {:spec :list :type specvar}
+        expected-env (-> test-env
+                         (sut/add-doms-to-node term spec-to-be-filled)
+                         (sut/add-doms-to-node {:type :integer :value 1} specvar {:spec :integer})
+                         (sut/add-doms-to-node specvar {:spec :integer})
+                         )
+        actual-env (sut/fill-env-for-term-with-spec2 test-env term spec-to-be-filled)]
+    (is (= expected-env actual-env))))
 (comment (deftest fill-env-for-term-with-spec-test
            (are [term spec expected-dom]
                (= (vector term spec expected-dom) (vector term spec (utils/get-dom-of-term (sut/fill-env-for-term-with-spec2 test-env term spec) term)))
