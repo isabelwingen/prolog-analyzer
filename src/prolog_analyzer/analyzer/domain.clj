@@ -7,9 +7,6 @@
             [ubergraph.protocols]
             ))
 
-(defn get-doms-of-term [env term]
-  (uber/attr env term :dom))
-
 (defn- get-definition-of-alias [env user-defined-alias]
   (get (uber/attr env :ENVIRONMENT :user-defined-specs) user-defined-alias))
 
@@ -219,7 +216,7 @@
                    :list (add-doms-to-node env term spec {:spec :list :type {:spec :any}})
                    :compound (add-doms-to-node env term spec {:spec :compound :functor (:functor term) :arglist (repeat (count (:arglist term)) {:spec :any})})
                    (add-doms-to-node env term (WRONG-TYPE term spec)))]
-    (apply add-doms-to-node term-env spec (get-doms-of-term term-env term))
+    (apply add-doms-to-node term-env spec (remove #{spec} (utils/get-dom-of-term term-env term)))
     ))
 
 (defn fill-env-for-term-with-spec-one-of [env term spec]
@@ -244,27 +241,28 @@
         (fill-env-for-term-with-spec2 term transformed-definition))))
 
 (defn fill-env-for-term-with-spec2 [env term spec]
-  (case (:spec spec)
-    :any (fill-env-for-term-with-spec-any env term spec)
-    :ground (fill-env-for-term-with-spec-ground env term spec)
-    :nonvar (fill-env-for-term-with-spec-nonvar env term spec)
-    :var (fill-env-for-term-with-spec-var env term spec)
-    :exact (fill-env-for-term-with-spec-exact env term spec)
-    :atomic (fill-env-for-term-with-spec-atomic env term spec)
-    :atom (fill-env-for-term-with-spec-atom env term spec)
-    :number (fill-env-for-term-with-spec-number env term spec)
-    :float (fill-env-for-term-with-spec-float env term spec)
-    :integer (fill-env-for-term-with-spec-integer env term spec)
-    :list (fill-env-for-term-with-spec-list env term spec)
-    :tuple (fill-env-for-term-with-spec-tuple env term spec)
-    :compound (fill-env-for-term-with-spec-compound env term spec)
-    :specvar (fill-env-for-term-with-spec-specvar env term spec)
-    :one-of (fill-env-for-term-with-spec-one-of env term spec)
-    :and (fill-env-for-term-with-spec-and env term spec)
-    :user-defined (fill-env-for-term-with-spec-user-defined env term spec)
-    (do
-      (log/error "I don't know what to do with" spec)
-      env))
+  (let [func (case (:spec spec)
+             :any fill-env-for-term-with-spec-any
+             :ground fill-env-for-term-with-spec-ground
+             :nonvar fill-env-for-term-with-spec-nonvar
+             :var fill-env-for-term-with-spec-var
+             :atomic fill-env-for-term-with-spec-atomic
+             :atom fill-env-for-term-with-spec-atom
+             :exact fill-env-for-term-with-spec-exact
+             :number fill-env-for-term-with-spec-number
+             :float fill-env-for-term-with-spec-float
+             :integer fill-env-for-term-with-spec-integer
+             :list fill-env-for-term-with-spec-list
+             :tuple fill-env-for-term-with-spec-tuple
+             :compound fill-env-for-term-with-spec-compound
+             :specvar fill-env-for-term-with-spec-specvar
+             :one-of fill-env-for-term-with-spec-one-of
+             :and fill-env-for-term-with-spec-and
+             :user-defined fill-env-for-term-with-spec-user-defined
+             (do
+               (log/error "I don't know what to do with" spec)
+               identity))]
+    (func env term spec))
   )
 
 
