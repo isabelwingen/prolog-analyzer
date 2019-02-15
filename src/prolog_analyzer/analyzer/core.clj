@@ -46,8 +46,9 @@
 (defmethod add-relationships-aux :compound [[env {functor :functor arglist :arglist :as term}]]
   (apply
    uber/add-edges
-   (dom/fill-env-for-terms-with-specs env arglist (repeat (count arglist) {:spec :any}))
+   (dom/multiple-fills env arglist (repeat (count arglist) {:spec :any}))
    (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) arglist)))
+
 
 (defmethod add-relationships-aux :default [[env _]]
   env)
@@ -75,7 +76,7 @@
 (defn initial-env [arglist pre-spec]
   (-> (uber/digraph)
       (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get @data :specs)}])
-      (dom/fill-env-for-terms-with-specs arglist pre-spec)
+      (dom/multiple-fills arglist pre-spec)
       (add-index-to-input-arguments arglist)))
 
 (defn add-specvars-to-env [env]
