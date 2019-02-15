@@ -7,6 +7,9 @@
             [ubergraph.protocols]
             ))
 
+(defn get-doms-of-term [env term]
+  (uber/attr env term :dom))
+
 (defn- get-definition-of-alias [env user-defined-alias]
   (get (uber/attr env :ENVIRONMENT :user-defined-specs) user-defined-alias))
 
@@ -207,6 +210,38 @@
     :compound (add-doms-to-node env term (ALREADY-NONVAR))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
+(defn fill-env-for-term-with-spec-specvar [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (let [term-env (case (:type term)
+                   (:ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term spec {:spec (:type term)})
+                   (:var, :anon_var) (add-doms-to-node env term spec {:spec :var})
+                   :any (add-doms-to-node env term spec {:spec :any})
+                   :list (add-doms-to-node env term spec {:spec :list :type {:spec :any}})
+                   :compound (add-doms-to-node env term spec {:spec :compound :functor (:functor term) :arglist (repeat (count (:arglist term)) {:spec :any})})
+                   (add-doms-to-node env term (WRONG-TYPE term spec)))]
+    (apply add-doms-to-node term-env spec (get-doms-of-term term-env term))
+    ))
+
+(defn fill-env-for-term-with-spec-one-of [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (case (:type term)
+    (:ground, :nonvar, :atom, :atomic, :integer, :float, :number, :any) (add-doms-to-node env term (remove-invalid-or-parts term spec env))
+    (:var, :anon_var) (add-doms-to-node env term (remove-invalid-or-parts term spec env))
+    :list (add-doms-to-node env term (remove-invalid-or-parts term spec env))
+    :compound (add-doms-to-node env term (remove-invalid-or-parts term spec env))
+    (add-doms-to-node env term (WRONG-TYPE term spec))))
+
+(defn fill-env-for-term-with-spec-and [env term spec]
+  (log/debug "Fill env for term" term "and spec" spec)
+  (if (contains? #{:ground, :nonvar, :atomic, :atom, :number, :integer, :float, :any, :var, :anon_var :compound :list} (:type term))
+    (reduce #(fill-env-for-term-with-spec2 %1 term %2) env (:arglist spec))
+    (add-doms-to-node env term (WRONG-TYPE term spec))))
+
+(defn fill-env-for-term-with-spec-user-defined [env term spec]
+  (let [transformed-definition (resolve-definition-with-parameters spec env)]
+    (-> env
+        (add-doms-to-node term spec)
+        (fill-env-for-term-with-spec2 term transformed-definition))))
 
 (defn fill-env-for-term-with-spec2 [env term spec]
   (case (:spec spec)
@@ -223,10 +258,10 @@
     :list (fill-env-for-term-with-spec-list env term spec)
     :tuple (fill-env-for-term-with-spec-tuple env term spec)
     :compound (fill-env-for-term-with-spec-compound env term spec)
-    :specvar env
-    :one-of env
-    :and env
-    :user-defined env
+    :specvar (fill-env-for-term-with-spec-specvar env term spec)
+    :one-of (fill-env-for-term-with-spec-one-of env term spec)
+    :and (fill-env-for-term-with-spec-and env term spec)
+    :user-defined (fill-env-for-term-with-spec-user-defined env term spec)
     (do
       (log/error "I don't know what to do with" spec)
       env))
