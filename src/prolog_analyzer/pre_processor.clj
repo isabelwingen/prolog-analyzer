@@ -1,5 +1,8 @@
 (ns prolog-analyzer.pre-processor
-  (:require [prolog-analyzer.utils :as utils]))
+  (:require [prolog-analyzer.utils :as utils]
+            [prolog-analyzer.records :as r]
+            [clojure.tools.logging :as log]
+            ))
 
 ;; Set correct module when the module is set on "self"
 (defn- get-correct-goal-module [source-module goal-name data goal-module]
@@ -29,7 +32,7 @@
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
       (if (nil? (:pre-specs (utils/get-specs-of-pred pred-id data)))
-        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (list (repeat arity {:spec :any}))))
+        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (list (repeat arity (r/make-spec:any)))))
         (recur (rest pred-ids) result))
       result)))
 
@@ -46,9 +49,26 @@
       (recur (rest clause-ids) (update-in result (apply vector :preds clause-id) (partial mark-self-calling-clause clause-id)))
       result)))
 
+(defn- transform-arglist [args]
+  (apply vector (map r/map-to-term args)))
+
+(defn- transform-body [body]
+  (map #(update % :arglist transform-arglist) body))
+
+
+(defn transform-args-to-term-records [data]
+  (reduce (fn [data clause-id]
+            (-> data
+                (update-in (concat [:preds] clause-id [:arglist]) transform-arglist)
+                (update-in (concat [:preds] clause-id [:body]) transform-body))
+            )
+          data
+          (utils/get-clause-identities data)))
+
 (defn pre-process [data]
   (-> data
       set-correct-modules
       add-any-pre-specs
       mark-self-calling-clauses
+      transform-args-to-term-records
       ))

@@ -1,6 +1,7 @@
 (ns prolog-analyzer.parser
   (:require [prolog-analyzer.pre-processor :as pre-processor]
             [prolog-analyzer.utils :as utils]
+            [prolog-analyzer.records :as r]
             [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
@@ -56,54 +57,51 @@
        (apply-function-on-values g)
        ))
 
-  (defmulti transform-spec "Transforms the raw edn of specs to a better suited format."
+(defmulti transform-spec "Transforms the raw edn of specs to a better suited format."
   (juxt :type :functor))
 
 (defmethod transform-spec [:atom nil] [{term :term}]
-  (let [spec (case term
-               "any" :any
-               "ground" :ground
-               "var" :var
-               "nonvar" :nonvar
-               "number" :number
-               "float" :float
-               "integer" :integer
-               "atom" :atom
-               "atomic" :atomic
-               "int" :integer
-               nil)]
-    (if (nil? spec)
-      {:spec :user-defined :name term}
-      {:spec spec})))
+  (case term
+    "any" (r/make-spec:any)
+    "ground" (r/make-spec:ground)
+    "var" (r/make-spec:var)
+    "nonvar" (r/make-spec:nonvar)
+    "number" (r/make-spec:number)
+    "float" (r/make-spec:float)
+    "integer" (r/make-spec:integer)
+    "atom" (r/make-spec:atom)
+    "atomic" (r/make-spec:atomic)
+    "int" (r/make-spec:integer)
+    (r/make-spec:user-defined term)))
 
 (defmethod transform-spec [:compound "list"] [{[type] :arglist}]
-  {:spec :list :type (transform-spec type)})
+  (r/make-spec:list (transform-spec type)))
 
 (defmethod transform-spec [:compound "compound"] [{[{functor :functor arglist :arglist}] :arglist}]
-  {:spec :compound :functor functor :arglist (map transform-spec arglist)})
+  (r/make-spec:compound functor (map transform-spec arglist)))
 
 (defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
-    {:spec :one-of :arglist (map transform-spec arglist)}))
+    (r/make-spec:one-of (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
-    {:spec :and :arglist (map transform-spec arglist)}))
+    (r/make-spec:and (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "tuple"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
-    {:spec :tuple :arglist (map transform-spec arglist)}))
+    (r/make-spec:tuple (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
-  {:spec :exact :value (:term (first arglist))})
+  (r/make-spec:exact (:term (first arglist))))
 
 (defmethod transform-spec [:compound "specvar"] [{[spec] :arglist}]
-  {:spec :specvar :name (:name spec)})
+  (r/make-spec:specvar (:name spec)))
 
 (defmethod transform-spec :default [spec]
-  {:spec :user-defined :name (:functor spec) :arglist (map transform-spec (:arglist spec))})
+  (r/make-spec:user-defined (:functor spec) (map transform-spec (:arglist spec))))
 
-(defn- spec-to-map [{[outer & args] :arglist}]
+(defn- specs-to-map [{[outer & args] :arglist}]
   (let [module (get-in outer [:arglist 0 :term])
         functor (get-in outer [:arglist 1 :arglist 0 :term])
         arity (get-in outer [:arglist 1 :arglist 1 :value])]
@@ -113,7 +111,7 @@
 
 (defn- order-specs [specs]
   (->> specs
-       (map spec-to-map)
+       (map specs-to-map)
        (apply merge-with into)
        (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
        ))
@@ -127,7 +125,7 @@
       (->> (map :arglist defines)
            (into {})
            (reduce-kv (fn [m k v] (assoc m (transform-spec k) (transform-spec v))) {}))
-      (println "error defining specs")))) ;; TODO: better error handling 
+      (log/error "Error defining specs"))))
 
 (defn- clean-up-spec-definitions [central-map]
   (let [specs (:define_spec central-map)]

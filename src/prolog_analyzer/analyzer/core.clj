@@ -3,6 +3,7 @@
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets process-prolog-files]] ;; used only during development
    [prolog-analyzer.analyzer.domain :as dom]
    [prolog-analyzer.analyzer.validator :as validator]
+   [prolog-analyzer.records :as r]
    [prolog-analyzer.utils :as utils]
    [prolog-analyzer.analyzer.pretty-printer :as my-pp]
    [ubergraph.core :as uber]
@@ -36,17 +37,17 @@
 (defmethod add-relationships-aux :list [[env {head :head tail :tail :as term}]]
   (if (utils/empty-list? tail)
     (-> env
-        (dom/fill-env-for-term-with-spec head {:spec :any})
+        (dom/fill-env-for-term-with-spec head (r/make-spec:any))
         (uber/add-edges [head term {:relation :is-head}]))
     (-> env
-        (dom/fill-env-for-term-with-spec head {:spec :any})
-        (dom/fill-env-for-term-with-spec tail {:spec :list :type {:spec :any}})
+        (dom/fill-env-for-term-with-spec head (r/make-spec:any))
+        (dom/fill-env-for-term-with-spec tail (r/make-spec:list (r/make-spec:any)))
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
 (defmethod add-relationships-aux :compound [[env {functor :functor arglist :arglist :as term}]]
   (apply
    uber/add-edges
-   (dom/multiple-fills env arglist (repeat (count arglist) {:spec :any}))
+   (dom/multiple-fills env arglist (repeat (count arglist) (r/make-spec:any)))
    (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) arglist)))
 
 
@@ -80,7 +81,7 @@
       (add-index-to-input-arguments arglist)))
 
 (defn add-specvars-to-env [env]
-  (apply uber/add-nodes-with-attrs env (map #(vector % {:dom (list {:spec :any})}) (utils/get-all-specvars-in-doms env))))
+  (apply uber/add-nodes-with-attrs env (map #(vector % {:dom (list (r/make-spec:any))}) (utils/get-all-specvars-in-doms env))))
 
 
 (defn analyzing [{arglist :arglist body :body :as clause} pre-spec]

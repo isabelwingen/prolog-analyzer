@@ -1,6 +1,7 @@
 (ns prolog-analyzer.utils
   "Contains usefull utility functions used across different namespaces."
   (:require [prolog-analyzer.analyzer.built-in-specs :as built-ins]
+            [prolog-analyzer.records :as r]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [ubergraph.protocols]
@@ -63,23 +64,23 @@
   "Transforms a bunch of `terms` to a proper prolog list."
   [& terms]
   (if (empty? terms)
-    {:term "[]" :type :atomic}
-    {:type :list :head (first terms) :tail (apply to-head-tail-list (rest terms))}))
+    (r/make-term:atomic "[]")
+    (r/make-term:list (first terms) (apply to-head-tail-list (rest terms)))))
 
 (defn to-tuple-spec
   "Transforms a bunch of `specs` to a tuple spec."
   [& specs]
   (if (empty? specs)
-    {:spec :error :reason "Cannot build a tuple with zero arguments"}
-    {:spec :tuple :arglist specs}))
+    (r/make-spec:error "Cannot build a tuple with zero arguments")
+    (r/make-spec:tuple specs)))
 
 (defn to-or-spec
   "Transforms a bunch of `specs` to a one-of spec."
   [& specs]
   (case (count specs)
-    0 {:spec :error :reason "Cannot build empty one-of"}
+    0 (r/make-spec:error "Cannot build empty one-of")
     1 (first specs)
-    {:spec :one-of :arglist specs}))
+    (r/make-spec:one-of specs)))
 
 (defn get-elements-of-list [{head :head tail :tail}]
   (if (empty-list? tail)

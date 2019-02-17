@@ -1,5 +1,6 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils]
+            [prolog-analyzer.records :as r]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [loom.graph]
@@ -47,13 +48,13 @@
 (defn WRONG-TYPE
   ([]
    (log/error "Wrong type associated")
-   {:spec :error :reason "Wrong type associated"})
+   (r/make-spec:error "Wrong type associated"))
   ([term spec]
    (log/error "term" term "cannot be of type " spec)
-   {:spec :error :reason (str "Term " term " cannot be of spec " spec)}))
+   (r/make-spec:error (str "Term " term " cannot be of spec " spec))))
 
 (defn ALREADY-NONVAR []
-  {:spec :error :reason (str "Term cannot be var, because its already nonvar")})
+  (r/make-spec:error (str "Term cannot be var, because its already nonvar")))
 
 (defn fill-env-for-term-with-spec-integer [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
@@ -75,8 +76,8 @@
   (log/debug "Fill env for term" term "and spec" spec)
   (add-doms-to-node env term (case (:type term)
                                (:number, :var :anon_var) spec
-                               :integer {:spec :integer}
-                               :float {:spec :float}
+                               :integer (r/make-spec:integer)
+                               :float (r/make-spec:float)
                                :atomic (if (number? (read-string (:term term))) spec (WRONG-TYPE term spec))
                                (WRONG-TYPE term spec))))
 
@@ -91,10 +92,10 @@
   (log/debug "Fill env for term" term "and spec" spec)
   (add-doms-to-node env term (case (:type term)
                                (:atomic, :var :anon_var) spec
-                               :atom {:spec :atom}
-                               :number {:spec :number}
-                               :integer {:spec :integer}
-                               :float {:spec :float}
+                               :atom (r/make-spec:atom)
+                               :number (r/make-spec:number)
+                               :integer (r/make-spec:integer)
+                               :float (r/make-spec:float)
                                (WRONG-TYPE term spec))))
 
 (defn fill-env-for-term-with-spec-exact [env term {value :value :as spec}]
@@ -147,56 +148,56 @@
 (defn fill-env-for-term-with-spec-any [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
   (case (:type term)
-    (:var :anon_var) (add-doms-to-node env term {:spec :var})
-    :any (add-doms-to-node env term {:spec :any})
-    :ground (add-doms-to-node env term {:spec :ground})
-    :nonvar (add-doms-to-node env term {:spec :nonvar})
-    :atom (add-doms-to-node env term {:spec :atom})
-    :atomic (add-doms-to-node env term {:spec :atomic})
-    :integer (add-doms-to-node env term {:spec :integer})
-    :float (add-doms-to-node env term {:spec :float})
-    :number (add-doms-to-node env term {:spec :number})
-    :list (fill-env-for-term-with-spec env term {:spec :list :type {:spec :any}})
-    :compound (fill-env-for-term-with-spec env term {:spec :compound :functor (:functor term) :arglist (repeat (count (:arglist term)) {:spec :any})})
+    (:var :anon_var) (add-doms-to-node env term (r/make-spec:var))
+    :any (add-doms-to-node env term (r/make-spec:any))
+    :ground (add-doms-to-node env term (r/make-spec:ground))
+    :nonvar (add-doms-to-node env term (r/make-spec:nonvar))
+    :atom (add-doms-to-node env term (r/make-spec:atom))
+    :atomic (add-doms-to-node env term (r/make-spec:atomic))
+    :integer (add-doms-to-node env term (r/make-spec:integer))
+    :float (add-doms-to-node env term (r/make-spec:float))
+    :number (add-doms-to-node env term (r/make-spec:number))
+    :list (fill-env-for-term-with-spec env term (r/make-spec:list (r/make-spec:any)))
+    :compound (fill-env-for-term-with-spec env term (r/make-spec:compound (:functor term) (repeat (count (:arglist term)) (r/make-spec:any))))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
 (defn fill-env-for-term-with-spec-ground [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
   (case (:type term)
-    (:var :anon_var) (add-doms-to-node env term {:spec :ground})
-    :any (add-doms-to-node env term {:spec :ground})
-    :ground (add-doms-to-node env term {:spec :ground})
-    :nonvar (add-doms-to-node env term {:spec :ground})
-    :atom (add-doms-to-node env term {:spec :atom})
-    :atomic (add-doms-to-node env term {:spec :atomic})
-    :integer (add-doms-to-node env term {:spec :integer})
-    :float (add-doms-to-node env term {:spec :float})
-    :number (add-doms-to-node env term {:spec :number})
-    :list (fill-env-for-term-with-spec env term {:spec :list :type {:spec :ground}})
-    :compound (fill-env-for-term-with-spec env term {:spec :compound :functor (:functor term) :arglist (repeat (count (:arglist term)) {:spec :ground})})
+    (:var :anon_var) (add-doms-to-node env term (r/make-spec:ground))
+    :any (add-doms-to-node env term (r/make-spec:ground))
+    :ground (add-doms-to-node env term (r/make-spec:ground))
+    :nonvar (add-doms-to-node env term (r/make-spec:ground))
+    :atom (add-doms-to-node env term (r/make-spec:atom))
+    :atomic (add-doms-to-node env term (r/make-spec:atomic))
+    :integer (add-doms-to-node env term (r/make-spec:integer))
+    :float (add-doms-to-node env term (r/make-spec:float))
+    :number (add-doms-to-node env term (r/make-spec:number))
+    :list (fill-env-for-term-with-spec env term (r/make-spec:list (r/make-spec:ground)))
+    :compound (fill-env-for-term-with-spec env term (r/make-spec:compound (:functor term) (repeat (count (:arglist term)) (r/make-spec:ground))))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
 (defn fill-env-for-term-with-spec-nonvar [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
   (case (:type term)
-    (:var :anon_var) (add-doms-to-node env term {:spec :nonvar})
-    :any (add-doms-to-node env term {:spec :nonvar})
-    :ground (add-doms-to-node env term {:spec :ground})
-    :nonvar (add-doms-to-node env term {:spec :nonvar})
-    :atom (add-doms-to-node env term {:spec :atom})
-    :atomic (add-doms-to-node env term {:spec :atomic})
-    :integer (add-doms-to-node env term {:spec :integer})
-    :float (add-doms-to-node env term {:spec :float})
-    :number (add-doms-to-node env term {:spec :number})
-    :list (fill-env-for-term-with-spec env term {:spec :list :type {:spec :any}})
-    :compound (fill-env-for-term-with-spec env term {:spec :compound :functor (:functor term) :arglist (repeat (count (:arglist term)) {:spec :any})})
+    (:var :anon_var) (add-doms-to-node env term (r/make-spec:nonvar))
+    :any (add-doms-to-node env term (r/make-spec:nonvar))
+    :ground (add-doms-to-node env term (r/make-spec:ground))
+    :nonvar (add-doms-to-node env term (r/make-spec:nonvar))
+    :atom (add-doms-to-node env term (r/make-spec:atom))
+    :atomic (add-doms-to-node env term (r/make-spec:atomic))
+    :integer (add-doms-to-node env term (r/make-spec:integer))
+    :float (add-doms-to-node env term (r/make-spec:float))
+    :number (add-doms-to-node env term (r/make-spec:number))
+    :list (fill-env-for-term-with-spec env term (r/make-spec:list (r/make-spec:any)))
+    :compound (fill-env-for-term-with-spec env term (r/make-spec:compound (:functor term) (repeat (count (:arglist term)) (r/make-spec:any))))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
 (defn fill-env-for-term-with-spec-var [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
   (if (empty? (utils/get-dom-of-term env term))
     (-> env
-        (fill-env-for-term-with-spec term {:spec :any})
+        (fill-env-for-term-with-spec term (r/make-spec:any))
         (mark-as-was-var term))
     (if (contains? #{:var :anon_var :any} (:type term))
       (if (every?
@@ -210,11 +211,11 @@
 (defn fill-env-for-term-with-spec-specvar [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
   (let [term-env (case (:type term)
-                   (:ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term spec {:spec (:type term)})
-                   (:var, :anon_var) (add-doms-to-node env term spec {:spec :var})
-                   :any (add-doms-to-node env term spec {:spec :any})
-                   :list (add-doms-to-node env term spec {:spec :list :type {:spec :any}})
-                   :compound (add-doms-to-node env term spec {:spec :compound :functor (:functor term) :arglist (repeat (count (:arglist term)) {:spec :any})})
+                   (:ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term spec (r/map->Spec {:spec (:type term)}))
+                   (:var, :anon_var) (add-doms-to-node env term spec (r/make-spec:var))
+                   :any (add-doms-to-node env term spec (r/make-spec:any))
+                   :list (add-doms-to-node env term spec (r/make-spec:list (r/make-spec:any)))
+                   :compound (add-doms-to-node env term spec (r/make-spec:compound (:functor term) (repeat (count (:arglist term)) (r/make-spec:any))))
                    (add-doms-to-node env term (WRONG-TYPE term spec)))]
     (apply add-doms-to-node term-env spec (remove #{spec} (utils/get-dom-of-term term-env term)))
     ))
@@ -274,9 +275,9 @@
                            (mapcat #(utils/get-dom-of-term % term))
                            (distinct)
                            (apply vector)
-                           (hash-map :spec :and :arglist))]
+                           r/make-spec:and)]
     (case (count (:arglist simplified-and))
-      0 {:spec :error :reason "No valid or component"}
+      0 (r/make-spec:error "No valid or component")
       1 (first (:arglist simplified-and))
       simplified-and)))
 
@@ -290,12 +291,12 @@
                            (map #(utils/get-dom-of-term % term))
                            (map distinct)
                            (map (partial apply vector))
-                           (map (partial hash-map :spec :and :arglist))
+                           (map r/make-spec:and)
                            (map #(simplify-and term % empty-env))
                            (distinct)
                            (apply vector)
-                           (hash-map :spec :one-of :arglist))]
+                           r/make-spec:one-of)]
     (case (count (:arglist simplified-or))
-      0 {:spec :error :reason "No valid or component"}
+      0 (r/make-spec:error "No valid and component")
       1 (first (:arglist simplified-or))
       simplified-or)))

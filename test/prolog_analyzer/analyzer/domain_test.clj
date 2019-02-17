@@ -1,7 +1,6 @@
 (ns prolog-analyzer.analyzer.domain-test
   (:require [prolog-analyzer.analyzer.domain :as sut]
             [prolog-analyzer.utils :as utils]
-            [prolog-analyzer.analyzer.pretty-printer :refer [to-string]]
             [clojure.test :refer [deftest is are]]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
