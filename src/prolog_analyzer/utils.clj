@@ -2,6 +2,7 @@
   "Contains usefull utility functions used across different namespaces."
   (:require [prolog-analyzer.analyzer.built-in-specs :as built-ins]
             [ubergraph.core :as uber]
+            [clojure.tools.logging :as log]
             [ubergraph.protocols]
             [loom.graph]
             [loom.attr]
@@ -135,4 +136,8 @@
   (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (get-terms env))))
 
 (defn get-dom-of-term [env term]
-  (uber/attr env term :dom))
+  (if (uber/has-node? env term)
+    (uber/attr env term :dom)
+    (do
+      (log/debug (str "Term " term " could not be found, returning empty dom"))
+      [])))

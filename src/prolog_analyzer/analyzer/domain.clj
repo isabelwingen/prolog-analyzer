@@ -38,6 +38,10 @@
                                  (update :dom distinct)))
     (uber/add-nodes-with-attrs env [node {:dom doms}])))
 
+(defn mark-as-was-var [env term]
+  (let [attrs (uber/attrs env term)]
+    (uber/set-attrs env term (assoc attrs :was-var true))))
+
 (declare fill-env-for-term-with-spec)
 
 (defn WRONG-TYPE
@@ -190,22 +194,18 @@
 
 (defn fill-env-for-term-with-spec-var [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
-  (case (:type term)
-    (:var, :anon_var, :any) (if (uber/has-node? env term)
-                              (if (every? #{:var :any :specvar} (map :spec (uber/attr env term :dom))) ;;TODO: should :user-defined be added to this list?
-                                (add-doms-to-node env term spec)
-                                (add-doms-to-node env term (ALREADY-NONVAR)))
-                              (add-doms-to-node env term spec ))
-    :ground (add-doms-to-node env term (ALREADY-NONVAR))
-    :nonvar (add-doms-to-node env term (ALREADY-NONVAR))
-    :atom (add-doms-to-node env term (ALREADY-NONVAR))
-    :atomic (add-doms-to-node env term (ALREADY-NONVAR))
-    :integer (add-doms-to-node env term (ALREADY-NONVAR))
-    :float (add-doms-to-node env term (ALREADY-NONVAR))
-    :number (add-doms-to-node env term (ALREADY-NONVAR))
-    :list (add-doms-to-node env term (ALREADY-NONVAR))
-    :compound (add-doms-to-node env term (ALREADY-NONVAR))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
+  (if (empty? (utils/get-dom-of-term env term))
+    (-> env
+        (fill-env-for-term-with-spec term {:spec :any})
+        (mark-as-was-var term))
+    (if (contains? #{:var :anon_var :any} (:type term))
+      (if (every?
+           #{:var :any :specvar}
+           (map :spec (utils/get-dom-of-term env term)))
+        (add-doms-to-node env term spec)
+        (add-doms-to-node env term (ALREADY-NONVAR)))
+      (add-doms-to-node env term (ALREADY-NONVAR)))))
+
 
 (defn fill-env-for-term-with-spec-specvar [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
