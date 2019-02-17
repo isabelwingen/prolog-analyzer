@@ -25,7 +25,7 @@
   (str functor "(" (clojure.string/join ", " (map to-string arglist)) ")"))
 (defmethod to-string :default [arg]
   (if (contains? arg :spec)
-    (str "Specvar " (:name arg))
+    (str arg)
     (str arg)))
 
  
@@ -52,7 +52,15 @@
                         (+ 4))]
     (doseq [node nodes]
       (print "\t")
-      (print-in-columns [max-length] (to-string node) (uber/attrs graph node)))))
+      (println (to-string node))
+      (let [attrs (uber/attrs graph node)
+            ks (keys attrs)]
+        (doseq [key ks]
+          (print-in-columns [(+ 2 max-length)] "" key)
+          (if (coll? (get attrs key))
+            (doseq [val (get attrs key)]
+              (print-in-columns [(+ 4 max-length)] "" (to-string val)))
+            (print-in-columns [(+ 4 max-length)] "" (get attrs key))))))))
 
 (defn print-edges [graph]
   (let [edges (uber/edges graph)
