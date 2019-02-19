@@ -1,5 +1,6 @@
 (ns prolog-analyzer.parser-test
   (:require [prolog-analyzer.parser :as sut]
+            [prolog-analyzer.records :as r]
             [clojure.pprint :refer [pprint]]
             [clojure.test :refer :all]
             [clojure.java.io :as io]))
@@ -268,37 +269,37 @@
 
 
 (deftest process-files:spec_def
-  (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-    (is (= {{:spec :user-defined :name "foo"} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
-            {:spec :user-defined :name "intOrVar"} {:spec :one-of :arglist [{:spec :integer} {:spec :var}]}
-            {:spec :user-defined :name "a"} {:spec :and :arglist [{:spec :integer} {:spec :atom}]}
-            {:spec :user-defined :name "b"} {:spec :tuple :arglist [{:spec :integer} {:spec :var}]}
-            {:spec :user-defined :name "c"} {:spec :exact :value "empty"}
-            {:spec :user-defined :name "tree" :arglist [{:spec :specvar :name "X"}]} {:spec :one-of
-                                                                                      :arglist [{:spec :compound
-                                                                                                 :functor "node"
-                                                                                                 :arglist [{:spec :user-defined :name "tree" :arglist [{:spec :specvar :name "X"}]}
-                                                                                                           {:spec :specvar :name "X"}
-                                                                                                           {:spec :user-defined :name "tree" :arglist [{:spec :specvar :name "X"}]}]}
-                                                                                                {:spec :exact :value "empty"}]}}
-           (:specs result)))
-    (is
-     (= {"spec_test" {"member_int"
-                      {2 [[{:spec :integer} {:spec :list :type {:spec :integer}}]
-                          [{:spec :var} {:spec :list :type {:spec :integer}}]]}
-                      "foo"
-                      {3 [[{:spec :user-defined :name "foo"} {:spec :user-defined :name "intOrVar"} {:spec :user-defined :name "intOrVar"}]]}}}
-        (:pre-specs result)))
-    (is
-     (= {"spec_test" {"member_int" {2 [[[{:spec :var} {:spec :list :type {:spec :integer}}] [{:spec :integer} {:spec :list :type {:spec :integer}}]]]}
-                      "foo" {3 [[[{:spec :user-defined :name "foo"} {:spec :user-defined :name "intOrVar"} {:spec :user-defined :name "intOrVar"}] [{:spec :user-defined :name "foo"} {:spec :integer} {:spec :integer}]]
-                                [[{:spec :nonvar} {:spec :integer} {:spec :integer}] [{:spec :user-defined :name "foo"} {:spec :integer} {:spec :integer}]]]}}}
-        (:post-specs result)))
-    (is
-     (= {"spec_test" {"member_int" {2 [[{:spec :any} {:spec :ground}]]}}}
-        (:inv-specs result)))
+    (let [result (sut/process-prolog-file "resources/spec-test.pl")]
+      (is (= {(r/make-spec:user-defined "foo") (r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:integer)])
+              (r/make-spec:user-defined "intOrVar") (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:var)])
+              (r/make-spec:user-defined "a") (r/make-spec:and [(r/make-spec:integer) (r/make-spec:atom)])
+              (r/make-spec:user-defined "b") (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:var)])
+              (r/make-spec:user-defined "c") (r/make-spec:exact "empty")
+              (r/make-spec:user-defined "tree" [(r/make-spec:specvar "X")]) (r/make-spec:one-of
+                                                                             [(r/make-spec:compound
+                                                                               "node"
+                                                                               [(r/make-spec:user-defined "tree" [(r/make-spec:specvar "X")])
+                                                                                (r/make-spec:specvar "X")
+                                                                                (r/make-spec:user-defined "tree" [(r/make-spec:specvar "X")])])
+                                                                              (r/make-spec:exact "empty")])}
+             (:specs result)))
+      (is
+       (= {"spec_test" {"member_int"
+                        {2 [[(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]
+                            [(r/make-spec:var) (r/make-spec:list (r/make-spec:integer))]]}
+                        "foo"
+                        {3 [[(r/make-spec:user-defined "foo") (r/make-spec:user-defined "intOrVar") (r/make-spec:user-defined "intOrVar")]]}}}
+          (:pre-specs result)))
+      (is
+       (= {"spec_test" {"member_int" {2 [[[(r/make-spec:var) (r/make-spec:list (r/make-spec:integer))] [(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]]]}
+                        "foo" {3 [[[(r/make-spec:user-defined "foo") (r/make-spec:user-defined "intOrVar") (r/make-spec:user-defined "intOrVar")] [(r/make-spec:user-defined "foo") (r/make-spec:integer) (r/make-spec:integer)]]
+                                  [[(r/make-spec:nonvar) (r/make-spec:integer) (r/make-spec:integer)] [(r/make-spec:user-defined "foo") (r/make-spec:integer) (r/make-spec:integer)]]]}}}
+          (:post-specs result)))
+      (is
+       (= {"spec_test" {"member_int" {2 [[(r/make-spec:any) (r/make-spec:ground)]]}}}
+          (:inv-specs result)))
+      )
     )
-  )
 
 
 

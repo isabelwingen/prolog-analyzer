@@ -1,6 +1,7 @@
 (ns prolog-analyzer.utils-test
   (:require [prolog-analyzer.utils :as sut]
             [prolog-analyzer.parser :as parser]
+            [prolog-analyzer.records :as r]
             [ubergraph.core :as uber]
             [loom.graph]
             [ubergraph.protocols]
@@ -14,11 +15,11 @@
 (def data (parser/process-prolog-file "resources/spec-test.pl"))
 
 (deftest get-specs-of-pred-test
-  (is (= {:pre-specs [[{:spec :integer} {:spec :list :type {:spec :integer}}]
-                      [{:spec :var}, {:spec :list :type {:spec :integer}}]]
-          :post-specs [[[{:spec :var} {:spec :list :type {:spec :integer}}]
-                        [{:spec :integer}, {:spec :list :type {:spec :integer}}]]]
-          :inv-specs [[{:spec :any} {:spec :ground}]]}
+  (is (= {:pre-specs [[(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]
+                      [(r/make-spec:var) (r/make-spec:list (r/make-spec:integer))]]
+          :post-specs [[[(r/make-spec:var)  (r/make-spec:list (r/make-spec:integer))]
+                        [(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]]]
+          :inv-specs [[(r/make-spec:any) (r/make-spec:ground)]]}
          (sut/get-specs-of-pred ["spec_test" "member_int" 2] data))))
 
 (deftest get-pred-identities-test
@@ -52,26 +53,27 @@
 
 (deftest to-head-tail-list
   (are [x y] (= x (apply sut/to-head-tail-list y))
-    {:type :atomic :term "[]"} []
+    (r/make-term:atomic "[]") []
 
-    {:type :list :head {:type :integer :value 1} :tail {:type :atomic :term "[]"}} [{:type :integer :value 1}]
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) [(r/make-term:integer 1)]
 
-    {:type :list
-     :head {:type :integer :value 1}
-     :tail {:type :list :head {:type :integer :value 2} :tail {:type :atomic :term "[]"}}} [{:type :integer :value 1} {:type :integer :value 2}]
+    (r/make-term:list
+     (r/make-term:integer 1)
+     (r/make-term:list (r/make-term:integer 2) (r/make-term:atomic "[]")))
+     [(r/make-term:integer 1) (r/make-term:integer 2)]
     ))
 
 (deftest to-tuple-spec-test
   (are [x y] (= x (apply sut/to-tuple-spec y))
-    {:spec :error :reason "Cannot build a tuple with zero arguments"} []
-    {:spec :tuple :arglist [{:spec :integer}]} [{:spec :integer}]
-    {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]} [{:spec :integer} {:spec :atom}]))
+    (r/make-spec:error "Cannot build a tuple with zero arguments") []
+    (r/make-spec:tuple [(r/make-spec:integer)]) [(r/make-spec:integer)]
+    (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)]) [(r/make-spec:integer) (r/make-spec:atom)]))
 
 (deftest to-or-spec-test
   (are [x y] (= x (apply sut/to-or-spec y))
-    {:spec :error :reason "Cannot build empty one-of"} []
-    {:spec :integer} [{:spec :integer}]
-    {:spec :one-of :arglist [{:spec :integer} {:spec :atom}]} [{:spec :integer} {:spec :atom}]))
+    (r/make-spec:error "Cannot build empty one-of") []
+    (r/make-spec:integer) [(r/make-spec:integer)]
+    (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:atom)]) [(r/make-spec:integer) (r/make-spec:atom)]))
 
 
 (deftest get-elements-of-list-test

@@ -170,3 +170,12 @@
 
 (defn make-spec:error [reason]
   (assoc (Spec. :error) :reason reason))
+
+(defn map-to-spec [m]
+  (case (:spec m)
+    (:var, :any, :ground, :nonvar, :atom, :atomic, :number, :integer, :float) (map->Spec m)
+    :list (map->Spec (update m :type map-to-spec))
+    :compound (map->Spec (update m :arglist #(map map-to-spec %)))
+    (do
+      (map->Spec m)
+      (log/error "No case for" m "in map-to-term"))))
