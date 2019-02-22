@@ -59,10 +59,14 @@
 
 
 (defn evaluate-goal [env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
-  (let [goal-specs (apply replace-specvars-with-uuid (:pre-specs (utils/get-specs-of-pred [module goal-name arity] @data)))
+  (let [goal-specs (some->> @data
+                            (utils/get-specs-of-pred [module goal-name arity])
+                            (:pre-specs)
+                            (apply replace-specvars-with-uuid))
+
         [term goal-specs-as-tuple] [(if (= arity 1) (first arglist) (apply r/to-head-tail-list arglist))
                                     (if (= arity 1) (map first goal-specs) (map (partial apply r/to-tuple-spec) goal-specs))]]
-    (if (> arity 0)
+    (if (and (> arity 0) goal-specs)
       (if (= 1 (count goal-specs))
         (dom/fill-env-for-term-with-spec env term (first goal-specs-as-tuple))
         (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec goal-specs-as-tuple)))

@@ -9,7 +9,7 @@
 :- declare_spec(a).
 :- declare_spec(b).
 :- declare_spec(c).
-:- declare_spec(tree(any(X))).
+:- declare_spec(tree(specvar(X))).
 
 :- define_spec(foo,compound(foo(int,int))).
 :- define_spec(intOrVar,one_of([int,var])).
@@ -17,7 +17,6 @@
 :- define_spec(a,and([int,atom])).
 :- define_spec(b,tuple([int,var])).
 :- define_spec(c,atom(empty)).
-
 
 :- define_spec(tree(specvar(X)),one_of([compound(node(tree(specvar(X)),specvar(X),tree(specvar(X)))),atom(empty)])).
 

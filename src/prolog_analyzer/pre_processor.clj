@@ -46,7 +46,9 @@
                   (assoc-in [:inv-specs :built-in goal-name arity] (:inv-specs specs))
                   )))
           data
-          (filter #(= :built-in (:module %)) (utils/get-goals data))))
+          (->> (utils/get-goals data)
+               (filter #(= :built-in (:module %)))
+               (filter #(> (:arity %) 0)))))
 
 ;;mark self-calling clauses
 (defn- mark-self-calling-clause [[_ pred-name arity _] {body :body :as clause}]

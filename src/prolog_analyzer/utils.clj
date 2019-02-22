@@ -12,13 +12,12 @@
 (defn get-specs-of-pred
   "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
   [[module pred-name arity :as pred-identity] data]
-  (if (= :built-in module)
-    (-> data
-        (select-keys [:pre-specs :post-specs :inv-specs])
-        (update :pre-specs #(get-in % pred-identity))
-        (update :post-specs #(get-in % pred-identity))
-        (update :inv-specs #(get-in % pred-identity))
-        )))
+  (-> data
+      (select-keys [:pre-specs :post-specs :inv-specs])
+      (update :pre-specs #(get-in % pred-identity))
+      (update :post-specs #(get-in % pred-identity))
+      (update :inv-specs #(get-in % pred-identity))
+      ))
 
 (defn get-pred-identities
   "Returns the predicate ids of all predicates loaded in `data`."
