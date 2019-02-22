@@ -258,7 +258,11 @@
 (defrecord CompoundSpec [spec functor arglist]
   spec
   (spec-type [spec] COMPOUND)
-  (suitable-spec [spec term] spec)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           VAR spec
+           COMPOUND (if (and (= functor (:functor term)) (= (count arglist) (count (:arglist term)))) spec nil)
+           nil))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 

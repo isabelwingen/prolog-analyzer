@@ -63,7 +63,7 @@
   (if-let [suitable-spec (r/suitable-spec spec term)]
     (if (= r/LIST (r/term-type term))
       (-> (if (r/empty-list? (:tail term)) env (fill-env-for-term-with-spec env (:tail term) spec))
-          (add-doms-to-node term spec)
+          (add-doms-to-node term suitable-spec)
           (fill-env-for-term-with-spec (:head term) t))
       (add-doms-to-node env term suitable-spec))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
@@ -74,19 +74,21 @@
     (if (= r/LIST (r/term-type term))
       (-> (if (r/empty-list? (:tail term)) env (fill-env-for-term-with-spec env (:tail term) (update spec :arglist rest)))
           (fill-env-for-term-with-spec (:head term) head-type)
-          (add-doms-to-node env term suitable-spec))
+          (add-doms-to-node term suitable-spec))
       (add-doms-to-node env term suitable-spec))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
+
 (defn fill-env-for-term-with-spec-compound [env term {spec-fun :functor spec-args :arglist :as spec}]
   (log/debug "Fill env for term" term "and spec" spec)
-  (case (:type term)
-    (:var :anon_var) (add-doms-to-node env term spec)
-    :compound (let [{term-fun :functor term-args :arglist} term
-                    pairs (map vector term-args spec-args)]
-                (if (and (= term-fun spec-fun) (= (count term-args) (count spec-args)))
-                  (reduce #(apply fill-env-for-term-with-spec %1 %2) (add-doms-to-node env term spec) pairs)
-                  (add-doms-to-node env term (WRONG-TYPE term spec))))
+  (if-let [suitable-spec (r/suitable-spec spec term)]
+    (if (= r/COMPOUND (r/term-type term))
+      (let [{term-fun :functor term-args :arglist} term
+            pairs (map vector term-args (:arglist spec))]
+        (reduce #(apply fill-env-for-term-with-spec %1 %2)
+                (add-doms-to-node env term suitable-spec)
+                pairs))
+      (add-doms-to-node env term suitable-spec))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
 (defn fill-env-for-term-with-spec-any [env term spec]
