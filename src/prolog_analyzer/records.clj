@@ -7,7 +7,7 @@
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
 
-(defprotocol analyzer-datastructure
+(defprotocol printable
   (to-string [x]))
 
 (defn get-elements-of-list [{head :head tail :tail}]
@@ -16,77 +16,60 @@
     (conj (get-elements-of-list tail) head)))
 
 
-(defrecord Term [type]
-  analyzer-datastructure
-  (to-string [x]
-    (case type
-      (:anon_var, :var) (str (:name x))
-      (:atom, :atomic) (str (:term x))
-      (:integer, :number, :float) (str (:value x))
-      :list (let [head (:head x)
-                  tail (:tail x)]
-              (cond
-                (= "[]" (:term tail)) (str "[" (to-string head) "]")
-                (= :var (:type tail)) (str "[" (to-string head) "|" (to-string tail) "]")
-                (= :anon_var (:type tail)) (str "[" (to-string head) "|" (to-string tail) "]")
-                (= :list (:type tail)) (str "[" (to-arglist (get-elements-of-list x)) "]")))
-      :compound (str (:functor x) "(" (to-arglist (:arglist x)) ")")
-      "PRINT ERROR TERM")))
+(defrecord AnyTerm [type term]
+  printable
+  (to-string [_] (str term)))
 
-(defn map-to-term [m]
-  (case (:type m)
-    (:anon_var, :var, :any, :ground, :nonvar, :atom, :atomic, :number, :integer, :float) (map->Term m)
-    :list (map->Term (-> m
-                         (update :head map-to-term)
-                         (update :tail map-to-term)))
-    :compound (map->Term (update m :arglist #(map map-to-term %)))
-    (do
-      (map->Term m)
-      (log/error "No case for" m "in map-to-term"))))
+(defrecord GroundTerm [type term]
+  printable
+  (to-string [_] (str term)))
 
+(defrecord NonvarTerm [type term]
+  printable
+  (to-string [_] (str term)))
 
-(defn make-term:var [name]
-  (assoc (Term. :var) :name name))
+(defrecord VarTerm [type name]
+  printable
+  (to-string [_] (str name)))
 
-(defn make-term:anon_var [name]
-  (assoc (Term. :anon_var) :name name))
+(defrecord AnonVarTerm [type name]
+  printable
+  (to-string [_] (str name)))
 
-(defn make-term:any [name]
-  (assoc (Term. :any) :name name))
+(defrecord AtomTerm [type term]
+  printable
+  (to-string [_] (str term)))
 
-(defn make-term:ground [name]
-  (assoc (Term. :ground) :name name))
+(defrecord AtomicTerm [type term]
+  printable
+  (to-string [_] (str term)))
 
-(defn make-term:nonvar [name]
-  (assoc (Term. :nonvar) :name name))
+(defrecord IntegerTerm [type value]
+  printable
+  (to-string [_] (str value)))
 
-(defn make-term:atom [term]
-  (assoc (Term. :atom) :term term))
+(defrecord FloatTerm [type value]
+  printable
+  (to-string [_] (str value)))
 
-(defn make-term:atomic [term]
-  (assoc (Term. :atomic) :term term))
+(defrecord NumberTerm [type value]
+  printable
+  (to-string [_] (str value)))
 
-(defn make-term:number [value]
-  (assoc (Term. :number) :value value))
+(defrecord ListTerm [type head tail]
+  printable
+  (to-string [x] (cond
+                   (= "[]" (:term tail)) (str "[" (to-string head) "]")
+                   (instance? VarTerm tail) (str "[" (to-string head) "|" (to-string tail) "]")
+                   (instance? AnonVarTerm tail) (str "[" (to-string head) "|" (to-string tail) "]")
+                   (instance? ListTerm tail) (str "[" (to-arglist (get-elements-of-list x)) "]"))))
 
-(defn make-term:integer [value]
-  (assoc (Term. :integer) :value value))
-
-(defn make-term:float [value]
-  (assoc (Term. :float) :value value))
-
-(defn make-term:list [head tail]
-  (-> (Term. :list)
-      (assoc :head head)
-      (assoc :tail tail)))
-
-(defn make-term:compound [functor arglist]
-  (-> (Term. :compound)
-      (assoc :functor functor)
-      (assoc :arglist arglist)))
+(defrecord CompoundTerm [type functor arglist]
+  printable
+  (to-string [_] (str functor "(" (to-arglist arglist) ")")))
 
 (defrecord Spec [spec]
-  analyzer-datastructure
+  printable
   (to-string [x]
     (case spec
       :any "Any"
@@ -110,6 +93,71 @@
                       (str (:name x)))
       :error (str "ERROR: " (:reason x))
       "PRINT ERROR SPEC")))
+
+
+(defn map-to-term [m]
+  (case (:type m)
+    :anon_var (map->AnonVarTerm m)
+    :var (map->VarTerm m)
+    :any (map->AnyTerm m)
+    :ground (map->GroundTerm m)
+    :nonvar (map->NonvarTerm m)
+    :atom (map->AtomTerm m)
+    :atomic (map->AtomicTerm m)
+    :number (map->NumberTerm m)
+    :integer (map->IntegerTerm m)
+    :float (map->FloatTerm m)
+    :list (map->ListTerm (-> m
+                         (update :head map-to-term)
+                         (update :tail map-to-term)))
+    :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
+    (log/error "No case for" m "in map-to-term")))
+
+(defn map-to-spec [m]
+  (case (:spec m)
+    (:var, :any, :ground, :nonvar, :atom, :atomic, :number, :integer, :float) (map->Spec m)
+    :list (map->Spec (update m :type map-to-spec))
+    :compound (map->Spec (update m :arglist #(map map-to-spec %)))
+    (do
+      (map->Spec m)
+      (log/error "No case for" m "in map-to-term"))))
+
+
+(defn make-term:var [name]
+  (VarTerm. :var name))
+
+(defn make-term:anon_var [name]
+  (AnonVarTerm. :anon_var name))
+
+(defn make-term:any [name]
+  (AnyTerm. :any name))
+
+(defn make-term:ground [name]
+  (GroundTerm. :ground name))
+
+(defn make-term:nonvar [name]
+  (NonvarTerm. :nonvar name))
+
+(defn make-term:atom [term]
+  (AtomTerm. :atom term))
+
+(defn make-term:atomic [term]
+  (AtomicTerm. :atomic term))
+
+(defn make-term:number [value]
+  (NumberTerm. :number value))
+
+(defn make-term:integer [value]
+  (IntegerTerm. :integer value))
+
+(defn make-term:float [value]
+  (FloatTerm. :float value))
+
+(defn make-term:list [head tail]
+  (ListTerm. :list head tail))
+
+(defn make-term:compound [functor arglist]
+  (CompoundTerm. :compound functor arglist))
 
 
 (defn make-spec:var []
@@ -171,11 +219,4 @@
 (defn make-spec:error [reason]
   (assoc (Spec. :error) :reason reason))
 
-(defn map-to-spec [m]
-  (case (:spec m)
-    (:var, :any, :ground, :nonvar, :atom, :atomic, :number, :integer, :float) (map->Spec m)
-    :list (map->Spec (update m :type map-to-spec))
-    :compound (map->Spec (update m :arglist #(map map-to-spec %)))
-    (do
-      (map->Spec m)
-      (log/error "No case for" m "in map-to-term"))))
+

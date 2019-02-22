@@ -20,6 +20,7 @@
 (defn get-next-uuid []
   (inc @last-uuid))
 
+
 (defn replace-specvars-with-uuid
   ([pre-spec]
    (let [specvars (->> pre-spec
@@ -33,8 +34,8 @@
      (vector (map #(reduce-kv utils/replace-specvar-name-with-value % uuid-map) pre-spec))))
   ([pre-spec & pre-specs] (reduce #(concat %1 (replace-specvars-with-uuid %2)) [] (cons pre-spec pre-specs))))
 
-(defmulti add-relationships-aux (comp :type second))
-(defmethod add-relationships-aux :list [[env {head :head tail :tail :as term}]]
+(defmulti add-relationships-aux (comp type second))
+(defmethod add-relationships-aux prolog_analyzer.records.ListTerm [[env {head :head tail :tail :as term}]]
   (if (utils/empty-list? tail)
     (-> env
         (dom/fill-env-for-term-with-spec head (r/make-spec:any))
@@ -44,7 +45,7 @@
         (dom/fill-env-for-term-with-spec tail (r/make-spec:list (r/make-spec:any)))
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
-(defmethod add-relationships-aux :compound [[env {functor :functor arglist :arglist :as term}]]
+(defmethod add-relationships-aux prolog_analyzer.records.CompoundTerm [[env {functor :functor arglist :arglist :as term}]]
   (apply
    uber/add-edges
    (dom/multiple-fills env arglist (repeat (count arglist) (r/make-spec:any)))
