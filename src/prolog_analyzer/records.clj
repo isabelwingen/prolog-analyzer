@@ -3,6 +3,7 @@
             [clojure.string]))
 
 (declare to-string)
+(declare get-elements-of-list)
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
@@ -10,51 +11,53 @@
 (defprotocol printable
   (to-string [x]))
 
-(defn get-elements-of-list [{head :head tail :tail}]
-  (if (= "[]" (:term tail))
-    (list head)
-    (conj (get-elements-of-list tail) head)))
+(defprotocol spec
+  (spec-type [spec])
+  (suitable-spec [spec term]))
+
+(defprotocol term
+  (term-type [term]))
 
 
 (defrecord AnyTerm [type term]
   printable
-  (to-string [_] (str term)))
+  (to-string [x] (str term)))
 
 (defrecord GroundTerm [type term]
   printable
-  (to-string [_] (str term)))
+  (to-string [x] (str term)))
 
 (defrecord NonvarTerm [type term]
   printable
-  (to-string [_] (str term)))
+  (to-string [x] (str term)))
 
 (defrecord VarTerm [type name]
   printable
-  (to-string [_] (str name)))
+  (to-string [x] (str name)))
 
 (defrecord AnonVarTerm [type name]
   printable
-  (to-string [_] (str name)))
+  (to-string [x] (str name)))
 
 (defrecord AtomTerm [type term]
   printable
-  (to-string [_] (str term)))
+  (to-string [x] (str term)))
 
 (defrecord AtomicTerm [type term]
   printable
-  (to-string [_] (str term)))
+  (to-string [x] (str term)))
 
 (defrecord IntegerTerm [type value]
   printable
-  (to-string [_] (str value)))
+  (to-string [x] (str value)))
 
 (defrecord FloatTerm [type value]
   printable
-  (to-string [_] (str value)))
+  (to-string [x] (str value)))
 
 (defrecord NumberTerm [type value]
   printable
-  (to-string [_] (str value)))
+  (to-string [x] (str value)))
 
 (defrecord ListTerm [type head tail]
   printable
@@ -66,72 +69,72 @@
 
 (defrecord CompoundTerm [type functor arglist]
   printable
-  (to-string [_] (str functor "(" (to-arglist arglist) ")")))
+  (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 
 (defrecord AnySpec [spec]
   printable
-  (to-string [_] "Any"))
+  (to-string [x] "Any"))
 
 (defrecord VarSpec [spec]
   printable
-  (to-string [_] "Var"))
+  (to-string [x] "Var"))
 
 (defrecord AtomSpec [spec]
   printable
-  (to-string [_] "Atom"))
+  (to-string [x] "Atom"))
 
 (defrecord AtomicSpec [spec]
   printable
-  (to-string [_] "Atomic"))
+  (to-string [x] "Atomic"))
 
 (defrecord GroundSpec [spec]
   printable
-  (to-string [_] "Ground"))
+  (to-string [x] "Ground"))
 
 (defrecord NonvarSpec [spec]
   printable
-  (to-string [_] "Nonvar"))
+  (to-string [x] "Nonvar"))
 
 (defrecord NumberSpec [spec]
   printable
-  (to-string [_] "Number"))
+  (to-string [x] "Number"))
 
 (defrecord IntegerSpec [spec]
   printable
-  (to-string [_] "Integer"))
+  (to-string [x] "Integer"))
 
 (defrecord FloatSpec [spec]
   printable
-  (to-string [_] "Float"))
+  (to-string [x] "Float"))
 
 (defrecord ListSpec [spec type]
   printable
-  (to-string [_] (str "List(" (to-string type) ")")))
+  (to-string [x] (str "List(" (to-string type) ")")))
 
 (defrecord TupleSpec [spec arglist]
   printable
-  (to-string [_] (str "Tuple(" (to-arglist arglist) ")")))
+  (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
 (defrecord ExactSpec [spec value]
   printable
-  (to-string [_] (str "Exact(" value ")")))
+  (to-string [x] (str "Exact(" value ")")))
 
 (defrecord SpecvarSpec [spec name]
   printable
-  (to-string [_] (str "Specvar(" name ")")))
+  (to-string [x] (str "Specvar(" name ")")))
 
 (defrecord CompoundSpec [spec functor arglist]
   printable
-  (to-string [_] (str functor "(" (to-arglist arglist) ")")))
+  (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 (defrecord AndSpec [spec arglist]
   printable
-  (to-string [_] (str "And(" (to-arglist arglist) ")")))
+  (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
 (defrecord OneOfSpec [spec arglist]
   printable
-  (to-string [_] (str "OneOf(" (to-arglist arglist) ")")))
+  (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
 (defrecord UserDefinedSpec [spec name]
   printable
@@ -141,7 +144,7 @@
 
 (defrecord ErrorSpec [spec reason]
   printable
-  (to-string [_] (str "ERROR: " reason)))
+  (to-string [x] (str "ERROR: " reason)))
 
 
 
@@ -280,3 +283,34 @@
   (ErrorSpec. :error reason))
 
 
+(defn empty-list?
+  "Checks if the input is the empty (prolog) list."
+  [{term :term type :type}]
+  (and (= type :atomic) (= term "[]")))
+
+(defn to-head-tail-list
+  "Transforms a bunch of `terms` to a proper prolog list."
+  [& terms]
+  (if (empty? terms)
+    (make-term:atomic "[]")
+    (make-term:list (first terms) (apply to-head-tail-list (rest terms)))))
+
+(defn to-tuple-spec
+  "Transforms a bunch of `specs` to a tuple spec."
+  [& specs]
+  (if (empty? specs)
+    (make-spec:error "Cannot build a tuple with zero arguments")
+    (make-spec:tuple specs)))
+
+(defn to-or-spec
+  "Transforms a bunch of `specs` to a one-of spec."
+  [& specs]
+  (case (count specs)
+    0 (make-spec:error "Cannot build empty one-of")
+    1 (first specs)
+    (make-spec:one-of specs)))
+
+(defn get-elements-of-list [{head :head tail :tail}]
+  (if (= "[]" (:term tail))
+    (list head)
+    (conj (get-elements-of-list tail) head)))

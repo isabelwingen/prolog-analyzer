@@ -2,7 +2,6 @@
   (:require
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets process-prolog-files]] ;; used only during development
    [prolog-analyzer.analyzer.domain :as dom]
-   [prolog-analyzer.analyzer.validator :as validator]
    [prolog-analyzer.records :as r]
    [prolog-analyzer.utils :as utils]
    [prolog-analyzer.analyzer.pretty-printer :as my-pp]
@@ -36,7 +35,7 @@
 
 (defmulti add-relationships-aux (comp type second))
 (defmethod add-relationships-aux prolog_analyzer.records.ListTerm [[env {head :head tail :tail :as term}]]
-  (if (utils/empty-list? tail)
+  (if (r/empty-list? tail)
     (-> env
         (dom/fill-env-for-term-with-spec head (r/make-spec:any))
         (uber/add-edges [head term {:relation :is-head}]))
@@ -61,12 +60,12 @@
 
 (defn evaluate-goal [env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
   (let [goal-specs (apply replace-specvars-with-uuid (:pre-specs (utils/get-specs-of-pred [module goal-name arity] @data)))
-        [term goal-specs-as-tuple] [(if (= arity 1) (first arglist) (apply utils/to-head-tail-list arglist))
-                                    (if (= arity 1) (map first goal-specs) (map (partial apply utils/to-tuple-spec) goal-specs))]]
+        [term goal-specs-as-tuple] [(if (= arity 1) (first arglist) (apply r/to-head-tail-list arglist))
+                                    (if (= arity 1) (map first goal-specs) (map (partial apply r/to-tuple-spec) goal-specs))]]
     (if (> arity 0)
       (if (= 1 (count goal-specs))
         (dom/fill-env-for-term-with-spec env term (first goal-specs-as-tuple))
-        (dom/fill-env-for-term-with-spec env term (apply utils/to-or-spec goal-specs-as-tuple)))
+        (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec goal-specs-as-tuple)))
       env)))
 
 (defn evaluate-body [env body]

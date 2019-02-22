@@ -42,50 +42,6 @@
   (is (= 2 (count (sut/get-clauses-of-pred ["spec_test" "member_int" 2] data))))
   (is (= 1 (count (sut/get-clauses-of-pred ["spec_test" "foo" 3] data)))))
 
-(deftest empty-list?-test
-  (is (true? (sut/empty-list? {:type :atomic :term "[]"})))
-  (is (false? (sut/empty-list? {:type :atomic :term "."})))
-  (is (false? (sut/empty-list? {:type :atom :term "[]"})))
-  (is (false? (sut/empty-list? {:type :list :head {:spec :var :name "X"} :tail {:type :atomic :term "[]"}})))
-  (is (false? (sut/empty-list? {:term "[|]" :type :atomic})))
-  (is (false? (sut/empty-list? {:term "[]" :type :atom})))
-  (is (false? (sut/empty-list? {:type :list :arglist []}))))
-
-(deftest to-head-tail-list
-  (are [x y] (= x (apply sut/to-head-tail-list y))
-    (r/make-term:atomic "[]") []
-
-    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) [(r/make-term:integer 1)]
-
-    (r/make-term:list
-     (r/make-term:integer 1)
-     (r/make-term:list (r/make-term:integer 2) (r/make-term:atomic "[]")))
-     [(r/make-term:integer 1) (r/make-term:integer 2)]
-    ))
-
-(deftest to-tuple-spec-test
-  (are [x y] (= x (apply sut/to-tuple-spec y))
-    (r/make-spec:error "Cannot build a tuple with zero arguments") []
-    (r/make-spec:tuple [(r/make-spec:integer)]) [(r/make-spec:integer)]
-    (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)]) [(r/make-spec:integer) (r/make-spec:atom)]))
-
-(deftest to-or-spec-test
-  (are [x y] (= x (apply sut/to-or-spec y))
-    (r/make-spec:error "Cannot build empty one-of") []
-    (r/make-spec:integer) [(r/make-spec:integer)]
-    (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:atom)]) [(r/make-spec:integer) (r/make-spec:atom)]))
-
-
-(deftest get-elements-of-list-test
-  (is (= (list {:type :integer :value 1} {:type :integer :value 2} {:type :integer :value 3})
-         (sut/get-elements-of-list {:type :list
-                                    :head {:type :integer :value 1}
-                                    :tail {:type :list
-                                           :head {:type :integer :value 2}
-                                           :tail {:type :list
-                                                  :head {:type :integer :value 3}
-                                                  :tail {:term "[]" :type :atomic}}}}))))
-
 (deftest replace-specvar-name-with-value-test
   (are [original expected] (= expected (sut/replace-specvar-name-with-value original "Old" "New"))
     {:spec :specvar :name "Old"} {:spec :specvar :name "New"}

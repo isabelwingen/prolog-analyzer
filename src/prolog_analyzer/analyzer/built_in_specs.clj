@@ -43,3 +43,4 @@
   (if (contains? built-in-specs pred-name)
     (get-in built-in-specs [pred-name arity])
     (default-specs arity)))
+

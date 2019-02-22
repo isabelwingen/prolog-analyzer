@@ -1,8 +1,6 @@
 (ns prolog-analyzer.utils
   "Contains usefull utility functions used across different namespaces."
-  (:require [prolog-analyzer.analyzer.built-in-specs :as built-ins]
-            [prolog-analyzer.records :as r]
-            [ubergraph.core :as uber]
+  (:require [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [ubergraph.protocols]
             [loom.graph]
@@ -15,7 +13,6 @@
   "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
   [[module pred-name arity :as pred-identity] data]
   (if (= :built-in module)
-    (built-ins/get-specs-of-built-in-pred pred-name arity)
     (-> data
         (select-keys [:pre-specs :post-specs :inv-specs])
         (update :pre-specs #(get-in % pred-identity))
@@ -54,38 +51,6 @@
   "Gets the code of all clauses belonging to the predicate with `pred-identity` loaded in `data`."
   [pred-identity data]
   (vals (get-in (:preds data) pred-identity)))
-
-(defn empty-list?
-  "Checks if the input is the empty (prolog) list."
-  [{term :term type :type}]
-  (and (= type :atomic) (= term "[]")))
-
-(defn to-head-tail-list
-  "Transforms a bunch of `terms` to a proper prolog list."
-  [& terms]
-  (if (empty? terms)
-    (r/make-term:atomic "[]")
-    (r/make-term:list (first terms) (apply to-head-tail-list (rest terms)))))
-
-(defn to-tuple-spec
-  "Transforms a bunch of `specs` to a tuple spec."
-  [& specs]
-  (if (empty? specs)
-    (r/make-spec:error "Cannot build a tuple with zero arguments")
-    (r/make-spec:tuple specs)))
-
-(defn to-or-spec
-  "Transforms a bunch of `specs` to a one-of spec."
-  [& specs]
-  (case (count specs)
-    0 (r/make-spec:error "Cannot build empty one-of")
-    1 (first specs)
-    (r/make-spec:one-of specs)))
-
-(defn get-elements-of-list [{head :head tail :tail}]
-  (if (empty-list? tail)
-    (list head)
-    (conj (get-elements-of-list tail) head)))
 
 (defn replace-specvar-name-with-value [spec specvar-name replace-value]
   (case (:spec spec)
@@ -142,3 +107,8 @@
     (do
       (log/debug (str "Term " term " could not be found, returning empty dom"))
       [])))
+
+(defn get-goals [data]
+  (->> (get-clause-identities data)
+       (map #(get-in (:preds data) %))
+       (mapcat :body)))

@@ -110,7 +110,7 @@
   (case (:type term)
     (:var :anon_var) (add-doms-to-node env term spec)
     :list (let [{tail :tail head :head} term
-                tail-env (if (utils/empty-list? tail) env (fill-env-for-term-with-spec env tail spec))]
+                tail-env (if (r/empty-list? tail) env (fill-env-for-term-with-spec env tail spec))]
             (-> tail-env
                 (add-doms-to-node term spec)
                 (fill-env-for-term-with-spec head t)))
@@ -123,7 +123,7 @@
   (case (:type term)
     (:var :anon_var) (add-doms-to-node env term spec)
     :list (let [{tail :tail head :head} term
-                tail-env (case [(utils/empty-list? tail) (empty? rest-types)]
+                tail-env (case [(r/empty-list? tail) (empty? rest-types)]
                            [true true] env
                            ([true false], [false, true]) (add-doms-to-node env tail (WRONG-TYPE term spec))
                            [false false] (fill-env-for-term-with-spec env tail (update spec :arglist rest)))]
