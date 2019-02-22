@@ -211,7 +211,7 @@
 (defn fill-env-for-term-with-spec-specvar [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
   (let [term-env (case (:type term)
-                   (:ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term spec (r/map->Spec {:spec (:type term)}))
+                   (:ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term spec (r/map-to-spec {:spec (:type term)}))
                    (:var, :anon_var) (add-doms-to-node env term spec (r/make-spec:var))
                    :any (add-doms-to-node env term spec (r/make-spec:any))
                    :list (add-doms-to-node env term spec (r/make-spec:list (r/make-spec:any)))

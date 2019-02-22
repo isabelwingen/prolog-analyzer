@@ -68,31 +68,82 @@
   printable
   (to-string [_] (str functor "(" (to-arglist arglist) ")")))
 
-(defrecord Spec [spec]
+
+(defrecord AnySpec [spec]
   printable
-  (to-string [x]
-    (case spec
-      :any "Any"
-      :var "Var"
-      :atom "Atom"
-      :atomic "Atomic"
-      :ground "Ground"
-      :nonvar "Nonvar"
-      :number "Number"
-      :integer "Integer"
-      :float "Float"
-      :list (str "List(" (to-string (:type x)) ")")
-      :tuple (str "Tuple(" (to-arglist (:arglist x)) ")")
-      :exact (str "Exact(" (:value x) ")")
-      :specvar (str "Specvar(" (:name x) ")")
-      :compound (str (:functor x) "(" (to-arglist (:arglist x)) ")")
-      :and (str "And(" (to-arglist (:arglist x)) ")")
-      :one-of (str "OneOf(" (to-arglist (:arglist x)) ")")
-      :user-defined (if (contains? x :arglist)
-                      (str (:name x) "(" (to-arglist (:arglist x)) ")")
-                      (str (:name x)))
-      :error (str "ERROR: " (:reason x))
-      "PRINT ERROR SPEC")))
+  (to-string [_] "Any"))
+
+(defrecord VarSpec [spec]
+  printable
+  (to-string [_] "Var"))
+
+(defrecord AtomSpec [spec]
+  printable
+  (to-string [_] "Atom"))
+
+(defrecord AtomicSpec [spec]
+  printable
+  (to-string [_] "Atomic"))
+
+(defrecord GroundSpec [spec]
+  printable
+  (to-string [_] "Ground"))
+
+(defrecord NonvarSpec [spec]
+  printable
+  (to-string [_] "Nonvar"))
+
+(defrecord NumberSpec [spec]
+  printable
+  (to-string [_] "Number"))
+
+(defrecord IntegerSpec [spec]
+  printable
+  (to-string [_] "Integer"))
+
+(defrecord FloatSpec [spec]
+  printable
+  (to-string [_] "Float"))
+
+(defrecord ListSpec [spec type]
+  printable
+  (to-string [_] (str "List(" (to-string type) ")")))
+
+(defrecord TupleSpec [spec arglist]
+  printable
+  (to-string [_] (str "Tuple(" (to-arglist arglist) ")")))
+
+(defrecord ExactSpec [spec value]
+  printable
+  (to-string [_] (str "Exact(" value ")")))
+
+(defrecord SpecvarSpec [spec name]
+  printable
+  (to-string [_] (str "Specvar(" name ")")))
+
+(defrecord CompoundSpec [spec functor arglist]
+  printable
+  (to-string [_] (str functor "(" (to-arglist arglist) ")")))
+
+(defrecord AndSpec [spec arglist]
+  printable
+  (to-string [_] (str "And(" (to-arglist arglist) ")")))
+
+(defrecord OneOfSpec [spec arglist]
+  printable
+  (to-string [_] (str "OneOf(" (to-arglist arglist) ")")))
+
+(defrecord UserDefinedSpec [spec name]
+  printable
+  (to-string [x] (if (contains? x :arglist)
+                   (str name "(" (to-arglist (:arglist x)) ")")
+                   (str name))))
+
+(defrecord ErrorSpec [spec reason]
+  printable
+  (to-string [_] (str "ERROR: " reason)))
+
+
 
 
 (defn map-to-term [m]
@@ -115,12 +166,24 @@
 
 (defn map-to-spec [m]
   (case (:spec m)
-    (:var, :any, :ground, :nonvar, :atom, :atomic, :number, :integer, :float) (map->Spec m)
-    :list (map->Spec (update m :type map-to-spec))
-    :compound (map->Spec (update m :arglist #(map map-to-spec %)))
-    (do
-      (map->Spec m)
-      (log/error "No case for" m "in map-to-term"))))
+    :var (map->VarSpec m)
+    :any (map->AnySpec m)
+    :ground (map->GroundSpec m)
+    :nonvar (map->NonvarSpec m)
+    :atom (map->AtomSpec m)
+    :exact (map->ExactSpec m)
+    :atomic (map->AtomicSpec m)
+    :number (map->NumberSpec m)
+    :integer (map->IntegerSpec m)
+    :float (map->FloatSpec m)
+    :list (map->ListSpec (update m :type map-to-spec))
+    :tuple (map->TupleSpec (update m :arglist (partial map map-to-spec)))
+    :compound (map->CompoundSpec (update m :arglist (partial map map-to-spec)))
+    :and (map->AndSpec (update m :arglist (partial map map-to-spec)))
+    :one-of (map->OneOfSpec (update m :arglist (partial map map-to-spec)))
+    :user-defined (map->UserDefinedSpec (update m :arglist (partial map map-to-spec)))
+    :error-spec (map->ErrorSpec m)
+    (log/error "No case for" m "in map-to-term")))
 
 
 (defn make-term:var [name]
@@ -161,62 +224,59 @@
 
 
 (defn make-spec:var []
-  (Spec. :var))
+  (VarSpec. :var))
 
 (defn make-spec:atom []
-  (Spec. :atom))
+  (AtomSpec. :atom))
 
 (defn make-spec:atomic []
-  (Spec. :atomic))
+  (AtomicSpec. :atomic))
 
 (defn make-spec:integer []
-  (Spec. :integer))
+  (IntegerSpec. :integer))
 
 (defn make-spec:float []
-  (Spec. :float))
+  (FloatSpec. :float))
 
 (defn make-spec:number []
-  (Spec. :number))
+  (NumberSpec. :number))
 
 (defn make-spec:ground []
-  (Spec. :ground))
+  (GroundSpec. :ground))
 
 (defn make-spec:nonvar []
-  (Spec. :nonvar))
+  (NonvarSpec. :nonvar))
 
 (defn make-spec:any []
-  (Spec. :any))
+  (AnySpec. :any))
 
 (defn make-spec:list [type]
-  (assoc (Spec. :list) :type type))
+  (ListSpec. :list type))
 
 (defn make-spec:tuple [arglist]
-  (assoc (Spec. :tuple) :arglist arglist))
+  (TupleSpec. :tuple arglist))
 
 (defn make-spec:exact [value]
-  (assoc (Spec. :exact) :value value))
+  (ExactSpec. :exact value))
 
 (defn make-spec:specvar [name]
-  (assoc (Spec. :specvar) :name name))
+  (SpecvarSpec. :specvar name))
 
 (defn make-spec:compound [functor arglist]
-  (-> (Spec. :compound)
-      (assoc :functor functor)
-      (assoc :arglist arglist)))
+  (CompoundSpec. :compound functor arglist))
 
 (defn make-spec:one-of [arglist]
-  (assoc (Spec. :one-of) :arglist arglist))
+  (OneOfSpec. :one-of  arglist))
 
 (defn make-spec:and [arglist]
-  (assoc (Spec. :and) :arglist arglist))
+  (AndSpec. :and arglist))
 
 (defn make-spec:user-defined
-  ([name] (assoc (Spec. :user-defined) :name name))
-  ([name arglist] (-> (Spec. :user-defined)
-                      (assoc :name name)
+  ([name] (UserDefinedSpec. :user-defined name))
+  ([name arglist] (-> (UserDefinedSpec. :user-defined name)
                       (assoc :arglist arglist))))
 
 (defn make-spec:error [reason]
-  (assoc (Spec. :error) :reason reason))
+  (ErrorSpec. :error reason))
 
 
