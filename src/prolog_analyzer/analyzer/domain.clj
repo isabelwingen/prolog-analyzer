@@ -30,8 +30,6 @@
 
 (declare remove-invalid-or-parts)
 
-(defmulti fill-env-for-term-with-spec* (juxt (comp :type first) (comp :spec second)))
-
 (defn add-doms-to-node [env node & doms]
   (if (uber/has-node? env node)
     (uber/set-attrs env node (-> (uber/attrs env node)
@@ -109,7 +107,7 @@
 
 (defn fill-env-for-term-with-spec-ground [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
-  (case (:type term)
+  (case+ (r/term-type term)
     (:var :anon_var) (add-doms-to-node env term (r/make-spec:ground))
     :any (add-doms-to-node env term (r/make-spec:ground))
     :ground (add-doms-to-node env term (r/make-spec:ground))
@@ -125,7 +123,7 @@
 
 (defn fill-env-for-term-with-spec-nonvar [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
-  (case (:type term)
+  (case+ (r/term-type term)
     (:var :anon_var) (add-doms-to-node env term (r/make-spec:nonvar))
     :any (add-doms-to-node env term (r/make-spec:nonvar))
     :ground (add-doms-to-node env term (r/make-spec:ground))
@@ -145,7 +143,7 @@
     (-> env
         (fill-env-for-term-with-spec term (r/make-spec:any))
         (mark-as-was-var term))
-    (if (contains? #{:var :anon_var :any} (:type term))
+    (if (contains? #{:var :anon_var :any} (r/term-type term))
       (if (every?
            #{:var :any :specvar}
            (map :spec (utils/get-dom-of-term env term)))
@@ -156,8 +154,8 @@
 
 (defn fill-env-for-term-with-spec-specvar [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
-  (let [term-env (case (:type term)
-                   (:ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term spec (r/map-to-spec {:spec (:type term)}))
+  (let [term-env (case+ (r/term-type term)
+                   (:ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term spec (r/map-to-spec {:spec (r/term-type term)}))
                    (:var, :anon_var) (add-doms-to-node env term spec (r/make-spec:var))
                    :any (add-doms-to-node env term spec (r/make-spec:any))
                    :list (add-doms-to-node env term spec (r/make-spec:list (r/make-spec:any)))
@@ -169,13 +167,13 @@
 (defn fill-env-for-term-with-spec-one-of [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
   (let [modified-or (remove-invalid-or-parts term spec env)]
-    (if (= :one-of (:spec modified-or))
+    (if (= r/OR (r/spec-type modified-or))
       (add-doms-to-node env term modified-or)
       (fill-env-for-term-with-spec env term modified-or))))
 
 (defn fill-env-for-term-with-spec-and [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
-  (if (contains? #{:ground, :nonvar, :atomic, :atom, :number, :integer, :float, :any, :var, :anon_var :compound :list} (:type term))
+  (if (contains? #{:ground, :nonvar, :atomic, :atom, :number, :integer, :float, :any, :var, :anon_var :compound :list} (r/term-type term))
     (reduce #(fill-env-for-term-with-spec %1 term %2) env (:arglist spec))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
@@ -199,17 +197,17 @@
 
 (defn fill-env-for-term-with-spec [env term spec]
   (case+ (r/spec-type spec)
-    :any (fill-env-for-term-with-spec-any env term spec)
-    :ground (fill-env-for-term-with-spec-ground env term spec)
-    :nonvar (fill-env-for-term-with-spec-nonvar env term spec)
-    :var (fill-env-for-term-with-spec-var env term spec)
+    r/ANY (fill-env-for-term-with-spec-any env term spec)
+    r/GROUND (fill-env-for-term-with-spec-ground env term spec)
+    r/NONVAR (fill-env-for-term-with-spec-nonvar env term spec)
+    r/VAR (fill-env-for-term-with-spec-var env term spec)
     r/LIST (fill-env-for-term-with-spec-list env term spec)
-    :tuple (fill-env-for-term-with-spec-tuple env term spec)
-    :compound (fill-env-for-term-with-spec-compound env term spec)
-    :specvar (fill-env-for-term-with-spec-specvar env term spec)
-    :one-of (fill-env-for-term-with-spec-one-of env term spec)
-    :and (fill-env-for-term-with-spec-and env term spec)
-    :user-defined (fill-env-for-term-with-spec-user-defined env term spec)
+    r/TUPLE (fill-env-for-term-with-spec-tuple env term spec)
+    r/COMPOUND (fill-env-for-term-with-spec-compound env term spec)
+    r/SPECVAR (fill-env-for-term-with-spec-specvar env term spec)
+    r/OR (fill-env-for-term-with-spec-one-of env term spec)
+    r/AND (fill-env-for-term-with-spec-and env term spec)
+    r/USERDEFINED (fill-env-for-term-with-spec-user-defined env term spec)
     (r/ATOMIC, r/ATOM, r/NUMBER, r/FLOAT, r/INTEGER, r/EXACT) (fill-env-for-term-with-spec-simple env term spec)))
 
 (defn- simplify-and [term {speclist :arglist :as or-spec} env]
