@@ -1,12 +1,30 @@
 (ns prolog-analyzer.records
-  (:require [clojure.tools.logging :as log]
+  (:require [prolog-analyzer.utils :refer [case+]]
+            [clojure.tools.logging :as log]
             [clojure.string]))
+
+(def INTEGER :integer)
+(def FLOAT :float)
+(def NUMBER :number)
+(def ATOM :atom)
+(def ATOMIC :atomic)
+(def GROUND :ground)
+(def ANY :any)
+(def NONVAR :nonvar)
+(def VAR :var)
+(def LIST :list)
+(def COMPOUND :compound)
+(def TUPLE :tuple)
+(def AND :and)
+(def OR :one-of)
+(def USERDEFINED :user-defined)
+(def SPECVAR :specvar)
+(def EXACT :exact)
+(def ERROR :error)
 
 (declare to-string)
 (declare get-elements-of-list)
-
-(defn to-arglist [list]
-  (clojure.string/join ", " (map to-string list)))
+(declare to-arglist)
 
 (defprotocol printable
   (to-string [x]))
@@ -20,46 +38,68 @@
 
 
 (defrecord AnyTerm [type term]
+  term
+  (term-type [term] ANY)
   printable
   (to-string [x] (str term)))
 
 (defrecord GroundTerm [type term]
+  term
+  (term-type [term] GROUND)
   printable
   (to-string [x] (str term)))
 
 (defrecord NonvarTerm [type term]
+  term
+  (term-type [term] NONVAR)
   printable
   (to-string [x] (str term)))
 
 (defrecord VarTerm [type name]
+  term
+  (term-type [term] VAR)
   printable
   (to-string [x] (str name)))
 
 (defrecord AnonVarTerm [type name]
+  term
+  (term-type [term] VAR)
   printable
   (to-string [x] (str name)))
 
 (defrecord AtomTerm [type term]
+  term
+  (term-type [term] ATOM)
   printable
   (to-string [x] (str term)))
 
 (defrecord AtomicTerm [type term]
+  term
+  (term-type [term] ATOMIC)
   printable
   (to-string [x] (str term)))
 
 (defrecord IntegerTerm [type value]
+  term
+  (term-type [term] INTEGER)
   printable
   (to-string [x] (str value)))
 
 (defrecord FloatTerm [type value]
+  term
+  (term-type [term] FLOAT)
   printable
   (to-string [x] (str value)))
 
 (defrecord NumberTerm [type value]
+  term
+  (term-type [term] NUMBER)
   printable
   (to-string [x] (str value)))
 
 (defrecord ListTerm [type head tail]
+  term
+  (term-type [term] LIST)
   printable
   (to-string [x] (cond
                    (= "[]" (:term tail)) (str "[" (to-string head) "]")
@@ -68,81 +108,160 @@
                    (instance? ListTerm tail) (str "[" (to-arglist (get-elements-of-list x)) "]"))))
 
 (defrecord CompoundTerm [type functor arglist]
+  term
+  (term-type [term] COMPOUND)
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 
 (defrecord AnySpec [spec]
+  spec
+  (spec-type [spec] ANY)
   printable
   (to-string [x] "Any"))
 
 (defrecord VarSpec [spec]
+  spec
+  (spec-type [spec] VAR)
   printable
   (to-string [x] "Var"))
 
 (defrecord AtomSpec [spec]
+  spec
+  (spec-type [spec] ATOM)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           (ATOM, VAR) spec
+           ATOMIC (if (and (not= "[]" (:term term)) ((complement number?) (read-string (:term term)))) spec nil)
+           nil))
   printable
   (to-string [x] "Atom"))
 
-(defrecord AtomicSpec [spec]
-  printable
-  (to-string [x] "Atomic"))
-
-(defrecord GroundSpec [spec]
-  printable
-  (to-string [x] "Ground"))
-
-(defrecord NonvarSpec [spec]
-  printable
-  (to-string [x] "Nonvar"))
-
-(defrecord NumberSpec [spec]
-  printable
-  (to-string [x] "Number"))
-
 (defrecord IntegerSpec [spec]
+  spec
+  (spec-type [spec] INTEGER)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           (INTEGER, VAR) spec
+           NUMBER (if (int? (:value term)) spec nil)
+           ATOMIC (if (int? (read-string (:term term))) spec nil)
+           nil))
   printable
   (to-string [x] "Integer"))
 
 (defrecord FloatSpec [spec]
+  spec
+  (spec-type [spec] FLOAT)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           (FLOAT, VAR) spec
+           NUMBER (if (float? (:value term)) spec nil)
+           ATOMIC (if (float? (read-string (:term term))) spec nil)
+           nil))
   printable
   (to-string [x] "Float"))
 
+(defrecord NumberSpec [spec]
+  spec
+  (spec-type [spec] NUMBER)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           (NUMBER, VAR) spec
+           INTEGER (IntegerSpec. :integer)
+           FLOAT (FloatSpec. :float)
+           ATOMIC (if (number? (read-string (:term term))) spec nil)
+           nil))
+  printable
+  (to-string [x] "Number"))
+
+
+
+(defrecord AtomicSpec [spec]
+  spec
+  (spec-type [spec] ATOMIC)
+  (suitable-spec [spec term]
+    (println (term-type term))
+    (case+ (term-type term)
+           (ATOMIC, VAR) spec
+           ATOM (AtomSpec. :atom)
+           NUMBER (NumberSpec. :number)
+           INTEGER (IntegerSpec. :integer)
+           FLOAT (FloatSpec. :float)
+           nil))
+  printable
+  (to-string [x] "Atomic"))
+
+(defrecord GroundSpec [spec]
+  spec
+  (spec-type [spec] GROUND)
+  printable
+  (to-string [x] "Ground"))
+
+(defrecord NonvarSpec [spec]
+  spec
+  (spec-type [spec] NONVAR)
+  printable
+  (to-string [x] "Nonvar"))
+
 (defrecord ListSpec [spec type]
+  spec
+  (spec-type [spec] LIST)
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
 
 (defrecord TupleSpec [spec arglist]
+  spec
+  (spec-type [spec] TUPLE)
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
 (defrecord ExactSpec [spec value]
+  spec
+  (spec-type [spec] EXACT)
+  (suitable-spec [spec term]
+    (println (term-type term))
+    (case+ (term-type term)
+      VAR spec
+      (ATOMIC, ATOM) (do (println "yo") (if (= value (:term term)) spec nil))
+      nil))
   printable
   (to-string [x] (str "Exact(" value ")")))
 
 (defrecord SpecvarSpec [spec name]
+  spec
+  (spec-type [spec] SPECVAR)
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
 (defrecord CompoundSpec [spec functor arglist]
+  spec
+  (spec-type [spec] COMPOUND)
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 (defrecord AndSpec [spec arglist]
+  spec
+  (spec-type [spec] AND)
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
 (defrecord OneOfSpec [spec arglist]
+  spec
+  (spec-type [spec] OR)
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
 (defrecord UserDefinedSpec [spec name]
+  spec
+  (spec-type [spec] USERDEFINED)
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
                    (str name))))
 
 (defrecord ErrorSpec [spec reason]
+  spec
+  (spec-type [spec] ERROR)
   printable
   (to-string [x] (str "ERROR: " reason)))
 
@@ -314,3 +433,7 @@
   (if (= "[]" (:term tail))
     (list head)
     (conj (get-elements-of-list tail) head)))
+
+(defn to-arglist [list]
+  (clojure.string/join ", " (map to-string list)))
+

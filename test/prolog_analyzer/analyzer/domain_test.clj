@@ -149,6 +149,11 @@
   (is (utils/valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:var) (r/make-spec:var) (r/make-spec:any)) (r/make-term:anon_var "X") (r/make-spec:var))))
   (is ((complement utils/valid-env?) (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:ground)) (r/make-term:anon_var "X") (r/make-spec:var)))))
 
+(for [term [(r/make-term:atomic "cake")
+            (r/make-term:atomic "1603")
+            (r/make-term:var "X")
+            (r/make-term:anon_var "_0410")]]
+  (utils/get-dom-of-term (sut/add-doms-to-node test-env term (r/make-spec:atomic)) term))
 
 (deftest fill-env-for-term-with-spec-test-atomic
   (are [term]
@@ -162,11 +167,14 @@
   (is (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:integer 2) (r/make-spec:atomic)) (r/make-term:integer 2))))
   (is (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:float 2.0) (r/make-spec:atomic)) (r/make-term:float 2.0))))
   (are [term]
-      (= [(sut/WRONG-TYPE term (r/make-spec:atomic))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atomic)) term))
+      (= [(sut/WRONG-TYPE term (r/make-spec:atom))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
     (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]"))
     (r/make-term:compound "foo" [(r/make-term:atom "foo")])
     )
   )
+
+
+ 
 
 
 (deftest fill-env-for-term-with-spec-test-atom
@@ -205,7 +213,6 @@
    (r/make-term:float 2.0)
    )
   )
-
 
 (deftest fill-env-for-term-with-spec-test-number
   (are [term]
