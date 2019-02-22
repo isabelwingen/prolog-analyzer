@@ -61,7 +61,7 @@
 
 (deftest fill-env-for-term-with-spec-test-any
   (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/map-to-term in) (r/make-spec:any)) (r/map-to-term in)))
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:any)) in))
     (r/make-term:any "anyanyany") (r/make-spec:any)
     (r/make-term:ground "anyanyany") (r/make-spec:ground)
     (r/make-term:nonvar "anyanyany") (r/make-spec:nonvar)
@@ -148,12 +148,6 @@
   (is (utils/valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:any)) (r/make-term:anon_var "X") (r/make-spec:var))))
   (is (utils/valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:var) (r/make-spec:var) (r/make-spec:any)) (r/make-term:anon_var "X") (r/make-spec:var))))
   (is ((complement utils/valid-env?) (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:ground)) (r/make-term:anon_var "X") (r/make-spec:var)))))
-
-(for [term [(r/make-term:atomic "cake")
-            (r/make-term:atomic "1603")
-            (r/make-term:var "X")
-            (r/make-term:anon_var "_0410")]]
-  (utils/get-dom-of-term (sut/add-doms-to-node test-env term (r/make-spec:atomic)) term))
 
 (deftest fill-env-for-term-with-spec-test-atomic
   (are [term]
@@ -283,7 +277,7 @@
     (r/make-term:anon_var "_0410"))
   (are [term]
       (false? (utils/valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:list (r/make-spec:integer)))))
-    {:type :list :head (r/make-term:float 2.5) :tail (r/make-term:atomic "[]")} ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
+    (r/make-term:list (r/make-term:float 2.5) (r/make-term:atomic "[]")) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
     (r/make-term:compound "foo" [(r/make-term:atom "foo")])
     (r/make-term:atom "nocake")
     (r/make-term:atomic "cake")
@@ -291,6 +285,9 @@
     (r/make-term:integer 2)
     (r/make-term:number 2)
     (r/make-term:float 2.0)))
+
+(let [term (r/make-term:compound "foo" [(r/make-term:atom "foo")])]
+  (sut/fill-env-for-term-with-spec test-env term (r/make-spec:list (r/make-spec:integer))))
 
 (deftest fill-env-for-term-with-spec-test-tuple
   (are [term]
@@ -303,7 +300,7 @@
   (are [term]
       (false? (utils/valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)]))))
     (r/make-term:atomic "[]")
-    (r/make-spec:list (r/make-term:float 2.5)) (r/make-term:atomic "[]") ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
+    (r/make-term:list (r/make-term:float 2.5) (r/make-term:atomic "[]")) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
     (r/make-term:compound "foo" [(r/make-term:atom "foo")])
     (r/make-term:atom "nocake")
     (r/make-term:atomic "cake")
@@ -311,6 +308,7 @@
     (r/make-term:integer 2)
     (r/make-term:number 2)
     (r/make-term:float 2.0)))
+
 
 (deftest fill-env-for-term-with-spec-test-compound
   (are [term]

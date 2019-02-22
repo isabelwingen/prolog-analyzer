@@ -56,34 +56,27 @@
 (defn ALREADY-NONVAR []
   (r/make-spec:error (str "Term cannot be var, because its already nonvar")))
 
+
+
 (defn fill-env-for-term-with-spec-list [env term {t :type :as spec}]
   (log/debug "Fill env for term" term "and spec" spec)
-  (case (:type term)
-    (:var :anon_var) (add-doms-to-node env term spec)
-    :list (let [{tail :tail head :head} term
-                tail-env (if (r/empty-list? tail) env (fill-env-for-term-with-spec env tail spec))]
-            (-> tail-env
-                (add-doms-to-node term spec)
-                (fill-env-for-term-with-spec head t)))
-    :atomic (if (= "[]" (:term term)) (add-doms-to-node env term spec) (add-doms-to-node env term (WRONG-TYPE term spec)))
-    (add-doms-to-node env term (WRONG-TYPE term spec)))
-  )
+  (if-let [suitable-spec (r/suitable-spec spec term)]
+    (if (= r/LIST (r/term-type term))
+      (-> (if (r/empty-list? (:tail term)) env (fill-env-for-term-with-spec env (:tail term) spec))
+          (add-doms-to-node term spec)
+          (fill-env-for-term-with-spec (:head term) t))
+      (add-doms-to-node env term suitable-spec))
+    (add-doms-to-node env term (WRONG-TYPE term spec))))
 
 (defn fill-env-for-term-with-spec-tuple [env term {[head-type & rest-types :as arglist] :arglist :as spec}]
   (log/debug "Fill env for term" term "and spec" spec)
-  (case (:type term)
-    (:var :anon_var) (add-doms-to-node env term spec)
-    :list (let [{tail :tail head :head} term
-                tail-env (case [(r/empty-list? tail) (empty? rest-types)]
-                           [true true] env
-                           ([true false], [false, true]) (add-doms-to-node env tail (WRONG-TYPE term spec))
-                           [false false] (fill-env-for-term-with-spec env tail (update spec :arglist rest)))]
-            (-> tail-env
-                (fill-env-for-term-with-spec head head-type)
-                (add-doms-to-node term spec)))
-    :atomic (if (and (= "[]" (:term term)) (empty? arglist)) (add-doms-to-node env term spec) (add-doms-to-node env term (WRONG-TYPE term spec)))
-    (add-doms-to-node env term (WRONG-TYPE term spec)))
-  )
+  (if-let [suitable-spec (r/suitable-spec spec term)]
+    (if (= r/LIST (r/term-type term))
+      (-> (if (r/empty-list? (:tail term)) env (fill-env-for-term-with-spec env (:tail term) (update spec :arglist rest)))
+          (fill-env-for-term-with-spec (:head term) head-type)
+          (add-doms-to-node env term suitable-spec))
+      (add-doms-to-node env term suitable-spec))
+    (add-doms-to-node env term (WRONG-TYPE term spec))))
 
 (defn fill-env-for-term-with-spec-compound [env term {spec-fun :functor spec-args :arglist :as spec}]
   (log/debug "Fill env for term" term "and spec" spec)
@@ -208,7 +201,7 @@
     :ground (fill-env-for-term-with-spec-ground env term spec)
     :nonvar (fill-env-for-term-with-spec-nonvar env term spec)
     :var (fill-env-for-term-with-spec-var env term spec)
-    :list (fill-env-for-term-with-spec-list env term spec)
+    r/LIST (fill-env-for-term-with-spec-list env term spec)
     :tuple (fill-env-for-term-with-spec-tuple env term spec)
     :compound (fill-env-for-term-with-spec-compound env term spec)
     :specvar (fill-env-for-term-with-spec-specvar env term spec)

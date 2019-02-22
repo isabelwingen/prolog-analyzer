@@ -22,9 +22,10 @@
 (def EXACT :exact)
 (def ERROR :error)
 
-(declare to-string)
 (declare get-elements-of-list)
 (declare to-arglist)
+(declare empty-list?)
+
 
 (defprotocol printable
   (to-string [x]))
@@ -117,12 +118,14 @@
 (defrecord AnySpec [spec]
   spec
   (spec-type [spec] ANY)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] "Any"))
 
 (defrecord VarSpec [spec]
   spec
   (spec-type [spec] VAR)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] "Var"))
 
@@ -194,24 +197,42 @@
 (defrecord GroundSpec [spec]
   spec
   (spec-type [spec] GROUND)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] "Ground"))
 
 (defrecord NonvarSpec [spec]
   spec
   (spec-type [spec] NONVAR)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] "Nonvar"))
 
 (defrecord ListSpec [spec type]
   spec
   (spec-type [spec] LIST)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           VAR spec
+           LIST (if (suitable-spec type (:head term)) spec nil)
+           ATOMIC (if (= "[]" (:term term)) spec nil)
+           nil))
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
+
 
 (defrecord TupleSpec [spec arglist]
   spec
   (spec-type [spec] TUPLE)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           VAR spec
+           ATOMIC (if (and (empty-list? term) (empty? arglist)) spec nil)
+           LIST (if (and (suitable-spec (first arglist) (:head term))
+                         (suitable-spec (TupleSpec. :tuple (rest arglist)) (:tail term)))
+                  spec
+                  nil)
+           nil))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
@@ -219,41 +240,46 @@
   spec
   (spec-type [spec] EXACT)
   (suitable-spec [spec term]
-    (println (term-type term))
     (case+ (term-type term)
-      VAR spec
-      (ATOMIC, ATOM) (do (println "yo") (if (= value (:term term)) spec nil))
-      nil))
+           VAR spec
+           (ATOMIC, ATOM) (do (println "yo") (if (= value (:term term)) spec nil))
+           nil))
   printable
   (to-string [x] (str "Exact(" value ")")))
+
 
 (defrecord SpecvarSpec [spec name]
   spec
   (spec-type [spec] SPECVAR)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
 (defrecord CompoundSpec [spec functor arglist]
   spec
   (spec-type [spec] COMPOUND)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 (defrecord AndSpec [spec arglist]
   spec
   (spec-type [spec] AND)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
 (defrecord OneOfSpec [spec arglist]
   spec
   (spec-type [spec] OR)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
 (defrecord UserDefinedSpec [spec name]
   spec
   (spec-type [spec] USERDEFINED)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
@@ -262,6 +288,7 @@
 (defrecord ErrorSpec [spec reason]
   spec
   (spec-type [spec] ERROR)
+  (suitable-spec [spec term] spec)
   printable
   (to-string [x] (str "ERROR: " reason)))
 
