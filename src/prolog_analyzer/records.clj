@@ -35,84 +35,9 @@
   (suitable-spec [spec term]))
 
 (defprotocol term
-  (term-type [term]))
+  (term-type [term])
+  (initial-spec [term]))
 
-
-(defrecord AnyTerm [type term]
-  term
-  (term-type [term] ANY)
-  printable
-  (to-string [x] (str term)))
-
-(defrecord GroundTerm [type term]
-  term
-  (term-type [term] GROUND)
-  printable
-  (to-string [x] (str term)))
-
-(defrecord NonvarTerm [type term]
-  term
-  (term-type [term] NONVAR)
-  printable
-  (to-string [x] (str term)))
-
-(defrecord VarTerm [type name]
-  term
-  (term-type [term] VAR)
-  printable
-  (to-string [x] (str name)))
-
-(defrecord AnonVarTerm [type name]
-  term
-  (term-type [term] VAR)
-  printable
-  (to-string [x] (str name)))
-
-(defrecord AtomTerm [type term]
-  term
-  (term-type [term] ATOM)
-  printable
-  (to-string [x] (str term)))
-
-(defrecord AtomicTerm [type term]
-  term
-  (term-type [term] ATOMIC)
-  printable
-  (to-string [x] (str term)))
-
-(defrecord IntegerTerm [type value]
-  term
-  (term-type [term] INTEGER)
-  printable
-  (to-string [x] (str value)))
-
-(defrecord FloatTerm [type value]
-  term
-  (term-type [term] FLOAT)
-  printable
-  (to-string [x] (str value)))
-
-(defrecord NumberTerm [type value]
-  term
-  (term-type [term] NUMBER)
-  printable
-  (to-string [x] (str value)))
-
-(defrecord ListTerm [type head tail]
-  term
-  (term-type [term] LIST)
-  printable
-  (to-string [x] (cond
-                   (= "[]" (:term tail)) (str "[" (to-string head) "]")
-                   (instance? VarTerm tail) (str "[" (to-string head) "|" (to-string tail) "]")
-                   (instance? AnonVarTerm tail) (str "[" (to-string head) "|" (to-string tail) "]")
-                   (instance? ListTerm tail) (str "[" (to-arglist (get-elements-of-list x)) "]"))))
-
-(defrecord CompoundTerm [type functor arglist]
-  term
-  (term-type [term] COMPOUND)
-  printable
-  (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 
 (defrecord VarSpec [spec]
@@ -184,13 +109,6 @@
   printable
   (to-string [x] "Atomic"))
 
-(defrecord NonvarSpec [spec]
-  spec
-  (spec-type [spec] NONVAR)
-  (suitable-spec [spec term] spec)
-  printable
-  (to-string [x] "Nonvar"))
-
 (defrecord ListSpec [spec type]
   spec
   (spec-type [spec] LIST)
@@ -230,13 +148,6 @@
   (to-string [x] (str "Exact(" value ")")))
 
 
-(defrecord SpecvarSpec [spec name]
-  spec
-  (spec-type [spec] SPECVAR)
-  (suitable-spec [spec term] spec)
-  printable
-  (to-string [x] (str "Specvar(" name ")")))
-
 (defrecord CompoundSpec [spec functor arglist]
   spec
   (spec-type [spec] COMPOUND)
@@ -269,7 +180,10 @@
 (defrecord AndSpec [spec arglist]
   spec
   (spec-type [spec] AND)
-  (suitable-spec [spec term] spec)
+  (suitable-spec [spec term]
+    (if (every? (complement nil?) (map #(suitable-spec % term) arglist))
+      spec
+      nil))
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
@@ -296,6 +210,8 @@
   printable
   (to-string [x] (str "ERROR: " reason)))
 
+(declare ->NonvarSpec)
+
 (defrecord AnySpec [spec]
   spec
   (spec-type [spec] ANY)
@@ -308,13 +224,137 @@
            ATOMIC (AtomicSpec. :atomic)
            ANY (AnySpec. :any)
            GROUND (GroundSpec. :ground)
-           NONVAR (NonvarSpec. :nonvar)
+           NONVAR (->NonvarSpec :nonvar)
            VAR (VarSpec. :var)
            LIST (ListSpec. :list (AnySpec. :any))
            COMPOUND (CompoundSpec. :compound (:functor term) (repeat (count (:arglist term)) (AnySpec. :any)))
            nil))
   printable
   (to-string [x] "Any"))
+
+(defrecord NonvarSpec [spec]
+  spec
+  (spec-type [spec] NONVAR)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           INTEGER (IntegerSpec. :integer)
+           FLOAT (FloatSpec. :float)
+           NUMBER (NumberSpec. :number)
+           ATOM (AtomSpec. :atom)
+           ATOMIC (AtomicSpec. :atomic)
+           ANY (NonvarSpec. :nonvar)
+           GROUND (GroundSpec. :ground)
+           NONVAR (NonvarSpec. :nonvar)
+           VAR (NonvarSpec. :nonvar)
+           LIST (ListSpec. :list (->AnySpec :any))
+           COMPOUND (CompoundSpec. :compound (:functor term) (repeat (count (:arglist term)) (->AnySpec :any)))
+           nil))
+  printable
+  (to-string [x] "Nonvar"))
+
+(defrecord SpecvarSpec [spec name]
+  spec
+  (spec-type [spec] SPECVAR)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           (GROUND, NONVAR, ATOM, ATOMIC, INTEGER, FLOAT, NUMBER) (initial-spec term)
+           VAR (->VarSpec :var)
+           ANY (->AnySpec :any)
+           LIST (->ListSpec :list (->AnySpec :any))
+           COMPOUND (->CompoundSpec :compound (:functor term) (repeat (count (:arglist term)) (->AnySpec :any)))
+           nil
+           ))
+  printable
+  (to-string [x] (str "Specvar(" name ")")))
+
+
+(defrecord AnyTerm [type term]
+  term
+  (term-type [term] ANY)
+  (initial-spec [term] (->AnySpec :any))
+  printable
+  (to-string [x] (str term)))
+
+(defrecord GroundTerm [type term]
+  term
+  (term-type [term] GROUND)
+  (initial-spec [term] (->GroundSpec :ground))
+  printable
+  (to-string [x] (str term)))
+
+(defrecord NonvarTerm [type term]
+  term
+  (term-type [term] NONVAR)
+  (initial-spec [term] (->NonvarSpec :nonvar))
+  printable
+  (to-string [x] (str term)))
+
+(defrecord VarTerm [type name]
+  term
+  (term-type [term] VAR)
+  (initial-spec [term] (->VarSpec :var))
+  printable
+  (to-string [x] (str name)))
+
+(defrecord AnonVarTerm [type name]
+  term
+  (term-type [term] VAR)
+  (initial-spec [term] (->VarSpec :var))
+  printable
+  (to-string [x] (str name)))
+
+(defrecord AtomTerm [type term]
+  term
+  (term-type [term] ATOM)
+  (initial-spec [term] (->AtomSpec :atom))
+  printable
+  (to-string [x] (str term)))
+
+(defrecord AtomicTerm [type term]
+  term
+  (term-type [term] ATOMIC)
+  (initial-spec [term] (->AtomicSpec :atomic))
+  printable
+  (to-string [x] (str term)))
+
+(defrecord IntegerTerm [type value]
+  term
+  (term-type [term] INTEGER)
+  (initial-spec [term] (->IntegerSpec :integer))
+  printable
+  (to-string [x] (str value)))
+
+(defrecord FloatTerm [type value]
+  term
+  (term-type [term] FLOAT)
+  (initial-spec [term] (->FloatSpec :float))
+  printable
+  (to-string [x] (str value)))
+
+(defrecord NumberTerm [type value]
+  term
+  (term-type [term] NUMBER)
+  (initial-spec [term] (->NumberSpec :number))
+  printable
+  (to-string [x] (str value)))
+
+(defrecord ListTerm [type head tail]
+  term
+  (term-type [term] LIST)
+  (initial-spec [term] (->ListSpec :list (->AnySpec :any)))
+  printable
+  (to-string [x]
+    (case+ (term-type tail)
+           ATOMIC (str "[" (to-string head) "]")
+           VAR (str "[" (to-string head) "|" (to-string tail) "]")
+           LIST (str "[" (to-arglist (get-elements-of-list x)) "]"))))
+
+(defrecord CompoundTerm [type functor arglist]
+  term
+  (term-type [term] COMPOUND)
+  printable
+  (to-string [x] (str functor "(" (to-arglist arglist) ")")))
+
 
 (defn map-to-term [m]
   (case (:type m)
