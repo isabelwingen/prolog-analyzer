@@ -1,7 +1,7 @@
 (ns prolog-analyzer.analyzer.domain-test
   (:require [prolog-analyzer.analyzer.domain :as sut]
             [prolog-analyzer.utils :as utils]
-            [prolog-analyzer.analyzer.pretty-printer :refer [to-string]]
+            [prolog-analyzer.records :as r]
             [clojure.test :refer [deftest is are]]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
@@ -9,136 +9,17 @@
             [clojure.test.check.properties :as prop]
             [ubergraph.core :as uber]
             [loom.graph]
+            [loom.attr]
             [ubergraph.protocols]
             [clojure.spec.test.alpha :as stest]
             ))
 
-(s/def :simple/arglist (s/and (s/coll-of ::simple-dom) #(< (count %) 4)))
-(s/def ::simple-or-spec (s/keys :req-un [:or/spec :simple/arglist]))
-(s/def ::simple-and-spec (s/keys :req-un [:and/spec :simple/arglist]))
-(s/def ::simple-dom (s/or :normal ::sut/normal-spec
-                          :or ::simple-or-spec
-                          :and ::simple-and-spec))
+(defn valid-env?
+  "Checks, if a env is valid and contains no errors."
+  [env]
+  (every? #(not= (r/spec-type %) :error) (mapcat #(uber/attr env % :dom) (utils/get-terms env))))
 
 
-(binding [s/*recursion-limit* 2] (gen/generate (s/gen ::simple-dom)))
-
-(deftest to-knf-test
-  (are [input expected] (= expected (sut/to-knf input))
-    {:spec :a} {:spec :a}
-    {:spec :or :arglist [{:spec :a}]} {:spec :a}
-    {:spec :and :arglist [{:spec :a}]} {:spec :a}
-    {:spec :and :arglist [{:spec :a} {:spec :a}]} {:spec :a}
-    {:spec :or :arglist [{:spec :a} {:spec :b} {:spec :a}]} {:spec :or :arglist [{:spec :a} {:spec :b}]}
-
-    ;; (a or b) or (b or c) == a or b or c
-    {:spec :or :arglist [{:spec :or :arglist [{:spec :a} {:spec :b}]}
-                         {:spec :or :arglist [{:spec :b} {:spec :c}]}]}
-    {:spec :or :arglist [{:spec :a} {:spec :b} {:spec :c}]}
-
-    ;; (a or b) and (b or c)
-    {:spec :and :arglist [{:spec :or :arglist [{:spec :a} {:spec :b}]}
-                         {:spec :or :arglist [{:spec :b} {:spec :c}]}]}
-    {:spec :or :arglist [{:spec :and :arglist [{:spec :a} {:spec :b}]}
-                         {:spec :and :arglist [{:spec :a} {:spec :c}]}
-                         {:spec :b}
-                         {:spec :and :arglist [{:spec :b} {:spec :c}]}
-                         ]}
-
-    {:spec :and :arglist [{:spec :a} {:spec :b} {:spec :a}]} {:spec :or :arglist [{:spec :and :arglist [{:spec :a} {:spec :b}]}]}
-    ))
-
-(deftest knf-test
-  (are [x] (sut/knf? (sut/to-knf x))
-    {:spec :a}
-    {:spec :or :arglist [{:spec :a} {:spec :b}]}
-    {:spec :or :arglist [{:spec :and :arglist [{:spec :a} {:spec :b}]} {:spec :c}]}
-    ))
-
-
-(s/fdef to-knf-wrapper
-        :args (s/cat :dom ::simple-dom)
-        :ret ::sut/dom
-        :fn (s/and #(sut/knf? (:ret %))))
-
-(defn to-knf-wrapper [dom]
-  (sut/to-knf dom))
-
-(deftest is-subdom-test
-  (are [a b] (true? (sut/is-subdom? a b))
-    {:spec :integer} {:spec :number}
-    {:spec :number} {:spec :any}
-    {:spec :float} {:spec :ground}
-    {:spec :list :type {:spec :integer}} {:spec :list :type {:spec :atomic}}
-    {:spec :tuple :arglist [{:spec :exact :value "hallo"} {:spec :integer}]} {:spec :tuple :arglist [{:spec :atom} {:spec :number}]}
-    {:spec :compound :functor "foo" :arglist [{:spec :atom}]} {:spec :compound :functor "foo" :arglist [{:spec :nonvar}]}
-    {:spec :number} {:spec :number}
-    {:spec :exact :value "empty"} {:spec :exact :value "empty"}
-    {:spec :exact :value "empty"} {:spec :atomic}
-    {:spec :any :name "X"} {:spec :any})
-  (are [a b] (false? (sut/is-subdom? a b))
-    {:spec :any} {:spec :any :name "X"}
-    {:spec :any :name "X"} {:spec :any :name "Y"}
-    {:spec :atom} {:spec :exact :value "p"}
-    {:spec :exact :value "a"} {:spec :exact :value "b"}
-    {:spec :list :type {:spec :number}} {:spec :list :type {:spec :integer}}
-    {:spec :tuple :arglist [{:spec :integer}]} {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}
-    {:spec :compound :functor "foo" :arglist [{:spec :integer}]} {:spec :compound :functor "foo2" :arglist [{:spec :integer}]}))
-
-
-
-(deftest intersect-test
-  (are [a b result] (= result (sut/intersect a b))
-                                        ; simple types
-    {:spec :integer} {:spec :number} {:spec :integer}
-    {:spec :integer} {:spec :ground} {:spec :integer}
-    {:spec :integer} {:spec :var :name "X"} {:spec :integer :was-var true}
-    {:spec :number} {:spec :float} {:spec :float}
-
-                                        ; list and tuple
-    {:spec :list :type {:spec :integer}} {:spec :list :type {:spec :atomic}} {:spec :list :type {:spec :integer}}
-    {:spec :list :type {:spec :number}} {:spec :tuple :arglist [{:spec :integer} {:spec :number} {:spec :atomic}]} {:spec :tuple :arglist [{:spec :integer} {:spec :number} {:spec :number}]}
-    {:spec :tuple :arglist [{:spec :integer}]} {:spec :tuple :arglist [{:spec :ground}]} {:spec :tuple :arglist [{:spec :integer}]}
-
-                                        ; compound
-    {:spec :compound :functor "foo" :arglist [{:spec :integer}]} {:spec :compound :functor "foo" :arglist [{:spec :nonvar}]} {:spec :compound :functor "foo" :arglist [{:spec :integer}]}
-
-                                        ; compounds, list, and tuples with ground
-    {:spec :list :type {:spec :any}} {:spec :ground} {:spec :list :type {:spec :ground}}
-    {:spec :list :type {:spec :var}} {:spec :ground} {:spec :list :type {:spec :ground :was-var true}}
-    {:spec :tuple :arglist [{:spec :nonvar} {:spec :var :name "X"}]} {:spec :ground} {:spec :tuple :arglist [{:spec :ground} {:spec :ground :was-var true}]}
-    {:spec :compound :functor "+" :arglist [{:spec :var :name "B"} {:spec :any}]} {:spec :ground} {:spec :compound :functor "+" :arglist [{:spec :ground :was-var true} {:spec :ground}]}))
-
-                                        ; cases, where the intersect is empty:
-(deftest intersect-test-empty-result
-  (are [a b] (= :error (:spec (sut/intersect a b)))
-    {:spec :float} {:spec :atom}
-                                        ; list - atom
-    {:spec :list :type {:spec :any}} {:spec :atom}
-                                        ; list - atomic
-    {:spec :list :type {:spec :any}} {:spec :atomic}
-                                        ; list - incompatible tuple
-    {:spec :list :type {:spec :float}} {:spec :tuple :arglist [{:spec :atom} {:spec :atom}]}
-                                        ; list - incompatible list
-    {:spec :list :type {:spec :float}} {:spec :list :type {:spec :atom}}
-
-                                        ; tuple - tuple: wrong arg length
-    {:spec :tuple :arglist [{:spec :integer}]} {:spec :tuple :arglist [{:spec :integer} {:spec :integer}]}
-                                        ; tuple - tuple: wrong arg type
-    {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]} {:spec :tuple :arglist [{:spec :integer} {:spec :integer}]}
-
-                                        ; compound - compound: other functor
-    {:spec :compound :functor "a" :arglist []} {:spec :compound :functor "b" :arglist []}
-                                        ; compound - compound: other arg length
-    {:spec :compound :functor "a" :arglist [{:spec :integer}]} {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :integer}]}
-                                        ; compound - compound: wrong arg type
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :integer}]}
-                                        ; compound - integer
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :integer}
-                                        ; compound - list
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :list :type {:spec :integer}}
-                                        ; compound - tuple
-    {:spec :compound :functor "a" :arglist [{:spec :integer} {:spec :atom}]} {:spec :type :arglist [{:spec :integer}]}))
 
 (deftest add-doms-to-node-test
   (is (= [:a :b :c]
@@ -151,145 +32,391 @@
              (sut/add-doms-to-node :x :a :b)
              (uber/attr :x :dom)))))
 
-(defn- filled-env [term]
-  (-> (uber/digraph) (uber/add-nodes-with-attrs [term {:dom [:initial-spec] :other-key :some-value}])))
 
-(comment 
-  (deftest add-spec-for-term-non-trivial
-    (are [term spec dom-map] (= (utils/dom-map-to-env dom-map)(sut/add-spec-for-term (uber/digraph) term spec))
-                                        ;(are [arg spec env] (= env (reduce-kv #(assoc %1 (to-string %2) %3) {} (sut/get-initial-dom-from-spec arg spec)))
+(def test-env (-> (uber/digraph) (uber/add-nodes-with-attrs
+                                  [:ENVIRONMENT
+                                   {:user-defined-specs
+                                    {(r/make-spec:user-defined
+                                      "tree"
+                                      [(r/make-spec:specvar "X")])
+                                     (r/make-spec:one-of
+                                      [(r/make-spec:compound
+                                        "node"
+                                        [(r/make-spec:user-defined
+                                          "tree"
+                                          [(r/make-spec:specvar "X")])
+                                         (r/make-spec:specvar "X")
+                                         (r/make-spec:user-defined
+                                          "tree"
+                                          [(r/make-spec:specvar "X")])])
+                                       (r/make-spec:exact "empty")])
 
-                                        ; empty-list
-      {:type :atomic :term "[]"},   {:spec :list :type {:spec :number}},   {"[]" [{:spec :list :type {:spec :number}}]}
-      {:type :atomic :term "[]"},   {:spec :tuple :arglist []},            {"[]" [{:spec :tuple :arglist []}]}
-      {:type :atomic :term "[]"},   {:spec :ground},                       {"[]" [{:spec :list :type {:spec :ground}}]}
-      {:type :atomic :term "[]"},   {:spec :nonvar},                       {"[]" [{:spec :list :type {:spec :any}}]}
-      {:type :atomic :term "[]"},   {:spec :any},                          {"[]" [{:spec :list :type {:spec :any}}]}
-
-                                        ; list - list
-      {:type :list :head {:type :integer :value 2} :tail {:type :list :head {:type :integer :value 3} :tail {:type :atomic :term "[]"}}}, {:spec :list :type {:spec :number}},
-      {2,       [{:spec :integer}]
-       "[3]",   [{:spec :list :type {:spec :number}}]
-       3,       [{:spec :integer}]
-       "[2, 3]", [{:spec :list :type {:spec :number}}]
-       }
-
-      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}} {:spec :list :type {:spec :integer}}
-      {"X" [{:spec :integer}]
-       "T" [{:spec :list :type {:spec :integer}}]
-       "[X|T]" [{:spec :list :type {:spec :integer}}]}
-
-                                        ; list - tuple
-      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :atom :term "hallo"} :tail {:type :atomic :term "[]"}}}, {:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}
-      {"[X, hallo]"    [{:spec :tuple :arglist [{:spec :integer} {:spec :atom}]}]
-       "X"             [{:spec :integer}]
-       "[hallo]"       [{:spec :tuple :arglist [{:spec :atom}]}]
-       "hallo"         [{:spec :atom}]}
-
-                                        ; list - ground
-      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :ground}
-      {"[X|T]",  [{:spec :list :type {:spec :ground}}]
-       "X",      [{:spec :ground}]
-       "T",      [{:spec :list :type {:spec :ground}}]}
-
-      {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :ground}
-      {"[2|T]",  [{:spec :list :type {:spec :ground}}]
-       2,        [{:spec :integer}]
-       "T",      [{:spec :list :type {:spec :ground}}]}
-
-                                        ; list - nonvar
-      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :nonvar}
-      {"[X|T]",  [{:spec :list :type {:spec :nonvar}}]
-       "X",      [{:spec :any}]
-       "T",      [{:spec :list :type {:spec :nonvar}}]}
-
-      {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :nonvar}
-      {"[2|T]",  [{:spec :list :type {:spec :nonvar}}]
-       2,        [{:spec :integer}]
-       "T",      [{:spec :list :type {:spec :nonvar}}]}
-
-                                        ; list - any
-      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}}, {:spec :any}
-      {"[X|T]",  [{:spec :list :type {:spec :any}}]
-       "X",      [{:spec :any}]
-       "T",      [{:spec :list :type {:spec :any}}]}
-
-      {:type :list :head {:type :integer :value 2} :tail {:type :var :name "T"}}, {:spec :any}
-      {"[2|T]",  [{:spec :list :type {:spec :any}}]
-       2,        [{:spec :integer}]
-       "T",      [{:spec :list :type {:spec :any}}]}
+                                     (r/make-spec:user-defined "atomOrInt")
+                                     (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:atom)])}
+                                    (r/make-spec:user-defined "blob")
+                                    (r/make-spec:exact "blob")}])))
 
 
-                                        ; compound - compound
-      {:type :compound :functor "foo" :arglist [{:type :var :name "A"} {:type :var :name "B"}]}, {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :list :type {:spec :integer}}]}
-      {"foo(A, B)" [{:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :list :type {:spec :integer}}]}]
-       "A" [{:spec :integer}]
-       "B" [{:spec :list :type {:spec :integer}}]}
-                                        ; compound - ground
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :ground}
-      {2 [{:spec :integer}]
-       "X" [{:spec :ground}]
-       "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :ground} {:spec :ground}]}]} ;;TODO: would it be better, if additional information of the components are displayed in the compound directly? e.g. 2 is an integer, but the spec in the compound is ground
-                                        ; compound - nonvar
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :nonvar}
-      {2 [{:spec :integer}]
-       "X" [{:spec :any}]
-       "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :any} {:spec :any}]}]}
-                                        ; compound - any
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :var :name "X"}]}, {:spec :any}
-      {2 [{:spec :integer}]
-       "X" [{:spec :any}]
-       "foo(2, X)" [{:spec :compound :functor "foo" :arglist [{:spec :any} {:spec :any}]}]}
-                                        ; var - list
-      {:type :var :name "X"} {:spec :list :type {:spec :atom}} {"X" [{:spec :list :type {:spec :atom}}]}
-                                        ; var - number
-      {:type :var :name "X"} {:spec :number} {"X" [{:spec :number}]}
-                                        ; var - atomic
-      {:type :var :name "X"} {:spec :atomic} {"X" [{:spec :atomic}]}
-                                        ; integer - number
-      {:type :integer :value 2} {:spec :number} {2 [{:spec :integer}]}
-      )))
+(def spec-simple (r/make-spec:user-defined "atomOrInt"))
+(def spec-tree-int (r/make-spec:user-defined "tree" [(r/make-spec:integer)]))
+(def spec-tree-x (r/make-spec:user-defined"tree" [(r/make-spec:specvar 0)]))
+
+(def unfolded-tree-int
+  (r/make-spec:one-of
+   [(r/make-spec:compound "node" [spec-tree-int (r/make-spec:integer) spec-tree-int])
+    (r/make-spec:exact "empty")]))
+
+(deftest fill-env-for-term-with-spec-test-any
+  (are [in out]
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:any)) in))
+    (r/make-term:any "anyanyany") (r/make-spec:any)
+    (r/make-term:ground "anyanyany") (r/make-spec:ground)
+    (r/make-term:nonvar "anyanyany") (r/make-spec:nonvar)
+    (r/make-term:atom "cake") (r/make-spec:atom)
+    (r/make-term:atomic "cake") (r/make-spec:atomic)
+    (r/make-term:integer 42) (r/make-spec:integer)
+    (r/make-term:number 23) (r/make-spec:number)
+    (r/make-term:float 3.1415) (r/make-spec:float)
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) (r/make-spec:list (r/make-spec:any))
+    (r/make-term:compound "wrap" [(r/make-term:atom "salad") (r/make-term:atom "tomatoes")]) (r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)])
+    (r/make-term:var "X") (r/make-spec:var)
+    (r/make-term:anon_var "_1603") (r/make-spec:var)))
+
+(deftest fill-env-for-term-with-spec-test-ground
+  (are [in out]
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:ground)) in))
+    (r/make-term:any "anyanyany") (r/make-spec:ground)
+    (r/make-term:ground "anyanyany") (r/make-spec:ground)
+    (r/make-term:nonvar "anyanyany") (r/make-spec:ground)
+    (r/make-term:atom "bunker") (r/make-spec:atom)
+    (r/make-term:atomic "cake") (r/make-spec:atomic)
+    (r/make-term:integer 42) (r/make-spec:integer)
+    (r/make-term:number 23) (r/make-spec:number)
+    (r/make-term:float 3.1415) (r/make-spec:float)
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) (r/make-spec:list (r/make-spec:ground))
+    (r/make-term:compound "wrap" [(r/make-term:atom "salad") (r/make-term:atom "tomatoes")]) (r/make-spec:compound "wrap" [(r/make-spec:ground) (r/make-spec:ground)])
+    (r/make-term:var "X") (r/make-spec:ground)
+    (r/make-term:anon_var "_1603") (r/make-spec:ground)
+    ))
 
 
-(comment 
-  (deftest get-initial-dom-not-valid
-    (are [term spec] (sut/dom-invalid? (sut/get-initial-dom-from-spec term spec))
-                                        ; list - number
-      {:type :list :head {:type :var :name "X"} :tail {:type :var :name "T"}} {:spec :number}
-                                        ; compound - list
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :list :type :integer}
-                                        ; compound - different functors
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :compound :functor "bar" :arglist [{:spec :integer}]}
-                                        ; compound - different arglength
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2}]} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :integer}]}
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :compound :functor "foo" :arglist [{:spec :integer}]}
-                                        ; compound - different arg types
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :compound :functor "foo" :arglist [{:spec :integer} {:spec :atom}]}
-                                        ; compound - atom
-      {:type :compound :functor "foo" :arglist [{:type :integer :value 2} {:type :integer :value 3}]} {:spec :atom}
-                                        ; list - tuple: different arglength
-      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "Y"} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :integer}]}
-      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "Y"} :tail {:type :list :head {:type :var :name "Z"} :tail {:type :atomic :term "[]"}}}} {:spec :tuple :arglist [{:spec :integer} {:spec :integer} {:spec :integer} {:spec :integer}]}
-                                        ; list - tuple: wrong argtypes
-      {:type :list :head {:type :interger :value 2} :tail {:type :list :head {:type :number :value 3} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :float} {:spec :atom}]}
-                                        ; integer - atom
-      {:type :integer :value 2} {:spec :atom}
-                                        ; integer - list
-      {:type :integer :value 2} {:spec :list :type {:spec :integer}}
-      )))
+(deftest fill-env-for-term-with-spec-test-nonvar
+  (are [in out]
+      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:nonvar)) in))
+    (r/make-term:any "anyanyany") (r/make-spec:nonvar)
+    (r/make-term:ground "anyanyany") (r/make-spec:ground)
+    (r/make-term:nonvar "anyanyany") (r/make-spec:nonvar)
+    (r/make-term:atom "cake") (r/make-spec:atom)
+    (r/make-term:atomic "cake") (r/make-spec:atomic)
+    (r/make-term:integer 42) (r/make-spec:integer)
+    (r/make-term:number 23) (r/make-spec:number)
+    (r/make-term:float 3.1415) (r/make-spec:float)
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) (r/make-spec:list (r/make-spec:any))
+    (r/make-term:compound "wrap" [(r/make-term:atom "salad") (r/make-term:atom "tomatoes")]) (r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)])
+    (r/make-term:var "X") (r/make-spec:nonvar)
+    (r/make-term:anon_var "_1603") (r/make-spec:nonvar)
+    ))
 
-(comment 
-  (deftest get-initial-dom-multiple-occurence
-    (are [term spec env] (= env (reduce-kv #(assoc %1 (to-string %2) %3) {} (sut/get-initial-dom-from-spec term spec)))
-      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "X"} :tail {:type :atomic :term "[]"}}} {:spec :tuple :arglist [{:spec :number} {:spec :integer}]}
-      {"X" [{:spec :integer} {:spec :number}]
-       "[X]" [{:spec :tuple :arglist [{:spec :integer}]}]
-       "[X, X]" [{:spec :tuple :arglist [{:spec :number} {:spec :integer}]}]}
 
-      {:type :list :head {:type :var :name "X"} :tail {:type :list :head {:type :var :name "X"} :tail {:type :atomic :term "[]"}}} {:spec :list :type {:spec :integer}}
-      {"X" [{:spec :integer} {:spec :integer}]
-       "[X, X]" [{:spec :list :type {:spec :integer}}]
-       "[X]" [{:spec :list :type {:spec :integer}}]}
+(deftest fill-env-for-term-with-spec-test-var
+  ;; WITH NON-EMPTY-DOM
+  (are [in expected]
+      (= expected (utils/get-dom-of-term (-> test-env
+                                             (sut/fill-env-for-term-with-spec in (r/make-spec:any))
+                                             (sut/fill-env-for-term-with-spec  in (r/make-spec:var))) in))
+    (r/make-term:ground "anyanyany") [(r/make-spec:ground) (sut/ALREADY-NONVAR)]
+    (r/make-term:nonvar "nonononvar") [(r/make-spec:nonvar) (sut/ALREADY-NONVAR)]
+    (r/make-term:atom "batman") [(r/make-spec:atom) (sut/ALREADY-NONVAR)]
+    (r/make-term:atomic "cake") [(r/make-spec:atomic) (sut/ALREADY-NONVAR)]
+    (r/make-term:integer 42) [(r/make-spec:integer) (sut/ALREADY-NONVAR)]
+    (r/make-term:number 23) [(r/make-spec:number) (sut/ALREADY-NONVAR)]
+    (r/make-term:float 3.1415) [(r/make-spec:float) (sut/ALREADY-NONVAR)]
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) [(r/make-spec:list (r/make-spec:any)) (sut/ALREADY-NONVAR)]
+    (r/make-term:compound "wrap" [(r/make-term:atom "salad") (r/make-term:atom "tomatoes")]) [(r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)]) (sut/ALREADY-NONVAR)])
+  
+  ;; WITH EMPTY DOM
+  (are [in expected]
+      (= expected (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:var)) in))
+    (r/make-term:ground "anyanyany") [(r/make-spec:ground)]
+    (r/make-term:nonvar "nonononvar") [(r/make-spec:nonvar)]
+    (r/make-term:atom "batman") [(r/make-spec:atom)]
+    (r/make-term:atomic "cake") [(r/make-spec:atomic)]
+    (r/make-term:integer 42) [(r/make-spec:integer)]
+    (r/make-term:number 23) [(r/make-spec:number)]
+    (r/make-term:float 3.1415) [(r/make-spec:float)]
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) [(r/make-spec:list (r/make-spec:any))]
+    (r/make-term:compound "wrap" [(r/make-term:atom "salad") (r/make-term:atom "tomatoes")]) [(r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)])])
 
-      )))
+  (is (valid-env? (sut/fill-env-for-term-with-spec test-env (r/make-term:var "X") (r/make-spec:var))))
+  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:var "X") (r/make-spec:any)) (r/make-term:var "X") (r/make-spec:var))))
+  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:var "X") (r/make-spec:var) (r/make-spec:var) (r/make-spec:any)) (r/make-term:var "X") (r/make-spec:var))))
+  (is ((complement valid-env?) (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:var "X") (r/make-spec:ground)) (r/make-term:var "X") (r/make-spec:var))))
+  (is (valid-env? (sut/fill-env-for-term-with-spec test-env (r/make-term:anon_var "X") (r/make-spec:var))))
+  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:any)) (r/make-term:anon_var "X") (r/make-spec:var))))
+  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:var) (r/make-spec:var) (r/make-spec:any)) (r/make-term:anon_var "X") (r/make-spec:var))))
+  (is ((complement valid-env?) (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:anon_var "X") (r/make-spec:ground)) (r/make-term:anon_var "X") (r/make-spec:var)))))
 
+(deftest fill-env-for-term-with-spec-test-atomic
+  (are [term]
+      (= [(r/make-spec:atomic)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atomic)) term))
+    (r/make-term:atomic "cake")
+    (r/make-term:atomic "1603")
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_0410"))
+  (is (= [(r/make-spec:atom)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:atom "cake") (r/make-spec:atomic)) (r/make-term:atom "cake"))))
+  (is (= [(r/make-spec:number)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:number 2) (r/make-spec:atomic)) (r/make-term:number 2))))
+  (is (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:integer 2) (r/make-spec:atomic)) (r/make-term:integer 2))))
+  (is (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:float 2.0) (r/make-spec:atomic)) (r/make-term:float 2.0))))
+  (are [term]
+      (= [(sut/WRONG-TYPE term (r/make-spec:atom))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]"))
+    (r/make-term:compound "foo" [(r/make-term:atom "foo")])
+    )
+  )
+
+ 
+(deftest fill-env-for-term-with-spec-test-atom
+  (are [term]
+      (= [(r/make-spec:atom)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
+    (r/make-term:atom "cake")
+    (r/make-term:atomic "cake")
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_0410")
+    )
+  (are [term]
+      (= [(sut/WRONG-TYPE term (r/make-spec:atom))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
+    (r/make-term:atomic "[]")
+    (r/make-term:atomic "1603")
+    (r/make-term:list (r/make-term:integer 2) (r/make-term:atomic "[]"))
+    (r/make-term:compound "foo" [(r/make-term:atom "foo")])
+    )
+  )
+
+(deftest fill-env-for-term-with-spec-test-exact
+  (are [term]
+      (= [(r/make-spec:exact "cake")] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:exact "cake")) term))
+    (r/make-term:atomic "cake")
+    (r/make-term:atom "cake")
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_0410")
+    )
+  (are [term]
+        (= [(sut/WRONG-TYPE term (r/make-spec:exact "cake"))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:exact "cake")) term))
+   (r/make-term:list (r/make-term:integer 2) (r/make-term:atomic "[]"))
+   (r/make-term:compound "foo" [(r/make-term:atom "foo")])
+   (r/make-term:atom "nocake")
+   (r/make-term:atomic 1)
+   (r/make-term:integer 2)
+   (r/make-term:number 2)
+   (r/make-term:float 2.0)
+   )
+  )
+
+(deftest fill-env-for-term-with-spec-test-number
+  (are [term]
+      (= [(r/make-spec:number)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:number)) term))
+    (r/make-term:atomic "3.14")
+    (r/make-term:atomic "100")
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_234"))
+  (is (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:integer 2) (r/make-spec:number)) (r/make-term:integer 2))))
+  (is (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:float 2.5) (r/make-spec:number)) (r/make-term:float 2.5))))
+  (are [term]
+      (= [(sut/WRONG-TYPE term (r/make-spec:number))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:number)) term))
+    (r/make-term:atomic "no")
+    (r/make-term:atom "no")
+    (r/make-term:list (r/make-term:number 2) (r/make-term:atomic "[]"))
+    (r/make-term:compound "node" [(r/make-term:atom "hello")])
+    )
+  )
+
+
+(deftest fill-env-for-term-with-spec-test-integer
+  (are [term]
+      (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:integer)) term))
+    (r/make-term:integer 42)
+    (r/make-term:number 42)
+    (r/make-term:atomic "42")
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_234"))
+
+  (are [term]
+      (= [(sut/WRONG-TYPE term (r/make-spec:integer))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:integer)) term))
+    (r/make-term:number 3.14)
+    (r/make-term:float 3.14)
+    (r/make-term:atomic "3.14")
+    (r/make-term:atomic "no")
+    (r/make-term:atom "no")
+    (r/make-term:list (r/make-term:integer 0) (r/make-term:atomic "[]"))
+    (r/make-term:compound "node" [(r/make-term:atom "hello")]))
+  )
+
+(deftest fill-env-for-term-with-spec-test-float
+  (are [term]
+      (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:float)) term))
+    (r/make-term:float 3.14)
+    (r/make-term:number 1.0)
+    (r/make-term:atomic "3.14")
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_234"))
+
+  (are [term]
+      (= [(sut/WRONG-TYPE term (r/make-spec:float))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:float)) term))
+    (r/make-term:number 42)
+    (r/make-term:integer 123)
+    (r/make-term:atomic "1")
+    (r/make-term:atomic "no")
+    (r/make-term:atom "no")
+    (r/make-term:list (r/make-term:float 0.0) (r/make-term:atomic "[]"))
+    (r/make-term:compound "node" [(r/make-term:atom "hello")])
+    )
+  )
+
+(deftest fill-env-for-term-with-spec-test-list
+  (are [term]
+      (= [(r/make-spec:list (r/make-spec:integer))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:list (r/make-spec:integer))) term))
+    (r/make-term:atomic "[]") ;; TODO: do we want `atomic` as an additional type?
+    (r/make-term:list (r/make-term:integer 2) (r/make-term:list (r/make-term:integer 3) (r/make-term:atomic "[]")))
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_0410"))
+  (are [term]
+      (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:list (r/make-spec:integer)))))
+    (r/make-term:list (r/make-term:float 2.5) (r/make-term:atomic "[]")) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
+    (r/make-term:compound "foo" [(r/make-term:atom "foo")])
+    (r/make-term:atom "nocake")
+    (r/make-term:atomic "cake")
+    (r/make-term:atomic 1)
+    (r/make-term:integer 2)
+    (r/make-term:number 2)
+    (r/make-term:float 2.0)))
+
+(deftest fill-env-for-term-with-spec-test-tuple
+  (are [term]
+      (= [(r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])) term))
+    (r/make-term:list (r/make-term:integer 2) (r/make-term:list (r/make-term:atomic "cake") (r/make-term:atomic "[]")))
+    (r/make-term:list  (r/make-term:number 2) (r/make-term:list (r/make-term:atom "cake") (r/make-term:atomic "[]")))
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_0410")
+    )
+  (are [term]
+      (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)]))))
+    (r/make-term:atomic "[]")
+    (r/make-term:list (r/make-term:float 2.5) (r/make-term:atomic "[]")) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
+    (r/make-term:compound "foo" [(r/make-term:atom "foo")])
+    (r/make-term:atom "nocake")
+    (r/make-term:atomic "cake")
+    (r/make-term:atomic 1)
+    (r/make-term:integer 2)
+    (r/make-term:number 2)
+    (r/make-term:float 2.0)))
+
+
+
+(deftest fill-env-for-term-with-spec-test-compound
+  (are [term]
+      (= [(r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)])) term))
+    (r/make-term:compound "foo" [(r/make-term:integer 2) (r/make-term:atomic "cake")])
+    (r/make-term:compound "foo" [(r/make-term:number 2) (r/make-term:atom "cake")])
+    (r/make-term:var "X")
+    (r/make-term:anon_var "_0410")
+    )
+  (are [term]
+      (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)]))))
+    (r/make-term:atomic "[]")
+    (r/make-term:list  (r/make-term:float 2.5) (r/make-term:atomic "[]")) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
+    (r/make-term:compound "foo" [(r/make-term:atom "foo")])
+    (r/make-term:compound "not-foo" [(r/make-term:integer 2) (r/make-term:atomic "cake")])
+    (r/make-term:compound "foo" [(r/make-term:float 2.5) (r/make-term:atomic "cake")])
+    (r/make-term:atom "nocake")
+    (r/make-term:atomic "cake")
+    (r/make-term:atomic 1)
+    (r/make-term:integer 2)
+    (r/make-term:number 2)
+    (r/make-term:float 2.0)))
+
+(deftest fill-env-for-term-with-spec-test-specvar
+  (let [term (r/make-term:integer 42)
+        specvar (r/make-spec:specvar 0)
+        expected-env (-> test-env
+                         (sut/add-doms-to-node term specvar (r/make-spec:integer))
+                         (sut/add-doms-to-node specvar (r/make-spec:integer)))]
+    (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
+  (let [term (r/make-term:atom "nevegonnagiveyouup")
+        specvar (r/make-spec:specvar 0)
+        expected-env (-> test-env
+                      (sut/add-doms-to-node term specvar (r/make-spec:atom))
+                      (sut/add-doms-to-node specvar (r/make-spec:atom)))]
+    (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
+  (let [term (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]"))
+        specvar (r/make-spec:specvar 0)
+        spec-to-be-filled (r/make-spec:list specvar)
+        expected-env (-> test-env
+                         (sut/add-doms-to-node term spec-to-be-filled)
+                         (sut/add-doms-to-node (r/make-term:integer 1) specvar (r/make-spec:integer))
+                         (sut/add-doms-to-node specvar (r/make-spec:integer))
+                         )
+        actual-env (sut/fill-env-for-term-with-spec test-env term spec-to-be-filled)]
+    (is (= expected-env actual-env))))
+
+(deftest fill-env-for-term-with-spec-test-one-of
+  (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
+    (r/make-term:atom "hallohallo")
+    (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:atomic)])
+    (sut/add-doms-to-node test-env (r/make-term:atom "hallohallo") (r/make-spec:atom))
+
+    (r/make-term:atom "hallohallo")
+    (r/make-spec:one-of [(r/make-spec:atom) (r/make-spec:atomic)])
+    (sut/add-doms-to-node test-env (r/make-term:atom "hallohallo") (r/make-spec:atom))
+
+    (r/make-term:integer 3)
+    (r/make-spec:one-of [(r/make-spec:number) (r/make-spec:integer) (r/make-spec:atom)])
+    (sut/add-doms-to-node test-env (r/make-term:integer 3) (r/make-spec:integer))
+
+    (r/make-term:integer 3)
+    (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:specvar 0)])
+    (sut/add-doms-to-node test-env (r/make-term:integer 3) (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:and [(r/make-spec:specvar 0) (r/make-spec:integer)])]))
+
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]"))
+    (r/make-spec:one-of [(r/make-spec:list (r/make-spec:number)) (r/make-spec:tuple [(r/make-spec:atomic)])])
+    (sut/add-doms-to-node test-env
+                          (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]"))
+                          (r/make-spec:one-of [(r/make-spec:list (r/make-spec:number)) (r/make-spec:tuple [(r/make-spec:atomic)])]))
+    ))
+
+(deftest fill-env-for-term-with-spec-test-and
+  (are [term spec expected-env]
+      (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
+    (r/make-term:atom "hallohallo")
+    (r/make-spec:and [(r/make-spec:atom) (r/make-spec:atomic)])
+    (sut/add-doms-to-node test-env (r/make-term:atom "hallohallo") (r/make-spec:atom))
+
+    (r/make-term:atom "hallohallo")
+    (r/make-spec:and [(r/make-spec:any) (r/make-spec:atomic)])
+    (sut/add-doms-to-node test-env (r/make-term:atom "hallohallo") (r/make-spec:atom))
+
+    (r/make-term:integer 3)
+    (r/make-spec:and [(r/make-spec:ground) (r/make-spec:specvar 0)])
+    (-> test-env
+        (sut/add-doms-to-node (r/make-spec:specvar 0) (r/make-spec:integer))
+        (sut/add-doms-to-node (r/make-term:integer 3) (r/make-spec:integer) (r/make-spec:specvar 0)))))
+
+(deftest fill-env-for-term-with-spec-test-user-defined
+  (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
+    (r/make-term:atom "empty")
+    (r/make-spec:user-defined
+     "tree" [(r/make-spec:integer)])
+    (sut/add-doms-to-node
+     test-env
+     (r/make-term:atom "empty")
+     (r/make-spec:user-defined "tree" [(r/make-spec:integer)]) (r/make-spec:exact "empty"))
+
+    (r/make-term:atom "empty")
+    (r/make-spec:user-defined "tree" [(r/make-spec:specvar 0)])
+    (-> test-env
+        (sut/add-doms-to-node
+         (r/make-term:atom "empty")
+         (r/make-spec:user-defined "tree" [(r/make-spec:specvar 0)])
+         (r/make-spec:exact "empty")))))
+
+
+    
