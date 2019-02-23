@@ -91,8 +91,8 @@
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
   (if-let [suitable-spec (r/suitable-spec spec term)]
     (case+ (r/term-type term)
-           (:var, :any, :ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term suitable-spec)
-           (:list, :compound) (fill-env-for-term-with-spec env term suitable-spec)
+           (r/VAR, r/ANY, r/GROUND, r/NONVAR, r/ATOM, r/ATOMIC, r/INTEGER, r/FLOAT, r/NUMBER) (add-doms-to-node env term suitable-spec)
+           (r/LIST, r/COMPOUND) (fill-env-for-term-with-spec env term suitable-spec)
            (add-doms-to-node env term (WRONG-TYPE term spec)))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
@@ -100,8 +100,8 @@
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
   (if-let [suitable-spec (r/suitable-spec spec term)]
     (case+ (r/term-type term)
-           (:var, :any, :ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term suitable-spec)
-           (:compound, :list) (fill-env-for-term-with-spec env term suitable-spec)
+           (r/VAR, r/ANY, r/GROUND, r/NONVAR, r/ATOM, r/ATOMIC, r/INTEGER, r/FLOAT, r/NUMBER) (add-doms-to-node env term suitable-spec)
+           (r/COMPOUND, r/LIST) (fill-env-for-term-with-spec env term suitable-spec)
            (add-doms-to-node env term (WRONG-TYPE term spec)))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
@@ -109,8 +109,8 @@
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
   (if-let [suitable-spec (r/suitable-spec spec term)]
     (case+ (r/term-type term)
-           (:var, :any, :ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term suitable-spec)
-           (:list, :compound) (fill-env-for-term-with-spec env term suitable-spec)
+           (r/VAR, r/ANY, r/GROUND, r/NONVAR, r/ATOM, r/ATOMIC, r/INTEGER, r/FLOAT, r/NUMBER) (add-doms-to-node env term suitable-spec)
+           (r/LIST, r/COMPOUND) (fill-env-for-term-with-spec env term suitable-spec)
            (add-doms-to-node env term (WRONG-TYPE term spec)))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
@@ -120,9 +120,9 @@
     (-> env
         (fill-env-for-term-with-spec term (r/make-spec:any))
         (mark-as-was-var term))
-    (if (contains? #{:var :anon_var :any} (r/term-type term))
+    (if (contains? #{r/VAR r/ANY} (r/term-type term))
       (if (every?
-           #{:var :any :specvar}
+           #{r/VAR, r/ANY, r/SPECVAR}
            (map r/spec-type (utils/get-dom-of-term env term)))
         (add-doms-to-node env term spec)
         (add-doms-to-node env term (ALREADY-NONVAR)))
