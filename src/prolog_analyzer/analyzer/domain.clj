@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r]
+            [prolog-analyzer.records :as r :refer [suitable-spec]]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [loom.graph]
@@ -48,8 +48,8 @@
    (log/error "Wrong type associated")
    (r/make-spec:error "Wrong type associated"))
   ([term spec]
-   (log/error "term" term "cannot be of type " spec)
-   (r/make-spec:error (str "Term " term " cannot be of spec " spec))))
+   (log/error "term" (r/to-string term) "cannot be of type " (r/to-string spec))
+   (r/make-spec:error (str "Term " (r/to-string term) " cannot be of spec " (r/to-string spec)))))
 
 (defn ALREADY-NONVAR []
   (r/make-spec:error (str "Term cannot be var, because its already nonvar")))
@@ -131,20 +131,23 @@
 
 (defn fill-env-for-term-with-spec-specvar [env term spec]
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (let [term-env (add-doms-to-node env term spec (r/suitable-spec spec term))]
+  (let [suitable-spec (r/suitable-spec spec term)
+        term-env (if (= r/AND (r/spec-type suitable-spec))
+                   (apply add-doms-to-node env term (:arglist suitable-spec))
+                   (add-doms-to-node env term suitable-spec))]
     (apply add-doms-to-node term-env spec (remove #{spec} (utils/get-dom-of-term term-env term)))
     ))
 
 (defn fill-env-for-term-with-spec-one-of [env term spec]
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (let [modified-or (remove-invalid-or-parts term spec env)]
+  (let [modified-or (remove-invalid-or-parts term spec)]
     (if (= r/OR (r/spec-type modified-or))
       (add-doms-to-node env term modified-or)
       (fill-env-for-term-with-spec env term modified-or))))
 
 (defn fill-env-for-term-with-spec-and [env term spec]
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if (contains? #{:ground, :nonvar, :atomic, :atom, :number, :integer, :float, :any, :var, :anon_var :compound :list} (r/term-type term))
+  (if-let [suitable-spec (r/suitable-spec spec term)]
     (reduce #(fill-env-for-term-with-spec %1 term %2) env (:arglist spec))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
@@ -178,36 +181,31 @@
     r/USERDEFINED (fill-env-for-term-with-spec-user-defined env term spec)
     (r/ATOMIC, r/ATOM, r/NUMBER, r/FLOAT, r/INTEGER, r/EXACT) (fill-env-for-term-with-spec-simple env term spec)))
 
-(defn- simplify-and [term {speclist :arglist :as or-spec} env]
-  (let [env-attrs (uber/attrs env :ENVIRONMENT)
-        empty-env (-> (uber/digraph) (uber/add-nodes-with-attrs [:ENVIRONMENT env-attrs]))
-        simplified-and (->> speclist
-                           (map (partial fill-env-for-term-with-spec empty-env term))
-                           (filter utils/valid-env?)
-                           (mapcat #(utils/get-dom-of-term % term))
-                           (distinct)
-                           (apply vector)
-                           r/make-spec:and)]
+(defn- simplify-and [term {speclist :arglist :as or-spec}]
+  (let [simplified-and (->> speclist
+                            (map #(r/suitable-spec % term))
+                            (remove nil?)
+                            (distinct)
+                            (apply vector)
+                            r/make-spec:and)]
     (case (count (:arglist simplified-and))
-      0 (r/make-spec:error "No valid or component")
+      0 (r/make-spec:error "No valid and component")
       1 (first (:arglist simplified-and))
       simplified-and)))
 
-(defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec} env]
-  (let [env-attrs (uber/attrs env :ENVIRONMENT)
-        empty-env (-> (uber/digraph) (uber/add-nodes-with-attrs [:ENVIRONMENT env-attrs]))
-        simplified-or (->> speclist
-                           (map (partial fill-env-for-term-with-spec empty-env term))
-                           (filter utils/valid-env?)
-                           (map #(utils/get-dom-of-term % term))
-                           (map distinct)
-                           (map (partial apply vector))
-                           (map r/make-spec:and)
-                           (map #(simplify-and term % empty-env))
+
+(defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec}]
+  (let [simplified-or (->> speclist 
+                       ;    (map (fn [spec]
+                        ;          (if (= r/SPECVAR (r/spec-type spec))
+                         ;           (r/->AndSpec :and [spec (r/suitable-spec spec term)])
+                                        ;          (r/suitable-spec spec term))))
+                           (map #(r/suitable-spec % term))
+                           (remove nil?)
                            (distinct)
                            (apply vector)
                            r/make-spec:one-of)]
     (case (count (:arglist simplified-or))
-      0 (r/make-spec:error "No valid and component")
+      0 (r/make-spec:error "No valid or component")
       1 (first (:arglist simplified-or))
       simplified-or)))

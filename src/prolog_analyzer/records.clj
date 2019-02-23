@@ -25,6 +25,7 @@
 (declare get-elements-of-list)
 (declare to-arglist)
 (declare empty-list?)
+(declare suitable-spec)
 
 
 (defprotocol printable
@@ -259,14 +260,15 @@
   spec
   (spec-type [spec] SPECVAR)
   (suitable-spec [spec term]
-    (case+ (term-type term)
-           (GROUND, NONVAR, ATOM, ATOMIC, INTEGER, FLOAT, NUMBER) (initial-spec term)
-           VAR (->VarSpec :var)
-           ANY (->AnySpec :any)
-           LIST (->ListSpec :list (->AnySpec :any))
-           COMPOUND (->CompoundSpec :compound (:functor term) (repeat (count (:arglist term)) (->AnySpec :any)))
-           nil
-           ))
+    (let [p (case+ (term-type term)
+                   (GROUND, NONVAR, ATOM, ATOMIC, INTEGER, FLOAT, NUMBER) (initial-spec term)
+                   VAR (->VarSpec :var)
+                   ANY (->AnySpec :any)
+                   LIST (->ListSpec :list (->AnySpec :any))
+                   COMPOUND (->CompoundSpec :compound (:functor term) (repeat (count (:arglist term)) (->AnySpec :any)))
+                   nil
+                   )]
+      (->AndSpec :and [spec p])))
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
