@@ -89,19 +89,12 @@
 
 (defn fill-env-for-term-with-spec-any [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)
-  (case+ (r/term-type term)
-    :var (add-doms-to-node env term (r/make-spec:var))
-    :any (add-doms-to-node env term (r/make-spec:any))
-    :ground (add-doms-to-node env term (r/make-spec:ground))
-    :nonvar (add-doms-to-node env term (r/make-spec:nonvar))
-    :atom (add-doms-to-node env term (r/make-spec:atom))
-    :atomic (add-doms-to-node env term (r/make-spec:atomic))
-    :integer (add-doms-to-node env term (r/make-spec:integer))
-    :float (add-doms-to-node env term (r/make-spec:float))
-    :number (add-doms-to-node env term (r/make-spec:number))
-    :list (fill-env-for-term-with-spec env term (r/make-spec:list (r/make-spec:any)))
-    :compound (fill-env-for-term-with-spec env term (r/make-spec:compound (:functor term) (repeat (count (:arglist term)) (r/make-spec:any))))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
+  (let [suitable-spec (r/suitable-spec spec term)]
+    (case+ (r/term-type term)
+           (:var, :any, :ground, :nonvar, :atom, :atomic, :integer, :float, :number) (add-doms-to-node env term suitable-spec)
+           :list (fill-env-for-term-with-spec env term (r/make-spec:list (r/make-spec:any)))
+           :compound (fill-env-for-term-with-spec env term (r/make-spec:compound (:functor term) (repeat (count (:arglist term)) (r/make-spec:any))))
+           (add-doms-to-node env term (WRONG-TYPE term spec)))))
 
 (defn fill-env-for-term-with-spec-ground [env term spec]
   (log/debug "Fill env for term" term "and spec" spec)

@@ -115,13 +115,6 @@
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 
-(defrecord AnySpec [spec]
-  spec
-  (spec-type [spec] ANY)
-  (suitable-spec [spec term] spec)
-  printable
-  (to-string [x] "Any"))
-
 (defrecord VarSpec [spec]
   spec
   (spec-type [spec] VAR)
@@ -209,7 +202,6 @@
            nil))
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
-
 
 (defrecord TupleSpec [spec arglist]
   spec
@@ -304,8 +296,25 @@
   printable
   (to-string [x] (str "ERROR: " reason)))
 
-
-
+(defrecord AnySpec [spec]
+  spec
+  (spec-type [spec] ANY)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           INTEGER (IntegerSpec. :integer)
+           FLOAT (FloatSpec. :float)
+           NUMBER (NumberSpec. :number)
+           ATOM (AtomSpec. :atom)
+           ATOMIC (AtomicSpec. :atomic)
+           ANY (AnySpec. :any)
+           GROUND (GroundSpec. :ground)
+           NONVAR (NonvarSpec. :nonvar)
+           VAR (VarSpec. :var)
+           LIST (ListSpec. :list (AnySpec. :any))
+           COMPOUND (CompoundSpec. :compound (:functor term) (repeat (count (:arglist term)) (AnySpec. :any)))
+           nil))
+  printable
+  (to-string [x] "Any"))
 
 (defn map-to-term [m]
   (case (:type m)
