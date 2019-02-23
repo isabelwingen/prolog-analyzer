@@ -1,8 +1,6 @@
 (ns prolog-analyzer.utils
   "Contains usefull utility functions used across different namespaces."
-  (:require [prolog-analyzer.analyzer.built-in-specs :as built-ins]
-            [prolog-analyzer.records :as r]
-            [ubergraph.core :as uber]
+  (:require [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [ubergraph.protocols]
             [loom.graph]
@@ -14,14 +12,12 @@
 (defn get-specs-of-pred
   "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
   [[module pred-name arity :as pred-identity] data]
-  (if (= :built-in module)
-    (built-ins/get-specs-of-built-in-pred pred-name arity)
-    (-> data
-        (select-keys [:pre-specs :post-specs :inv-specs])
-        (update :pre-specs #(get-in % pred-identity))
-        (update :post-specs #(get-in % pred-identity))
-        (update :inv-specs #(get-in % pred-identity))
-        )))
+  (-> data
+      (select-keys [:pre-specs :post-specs :inv-specs])
+      (update :pre-specs #(get-in % pred-identity))
+      (update :post-specs #(get-in % pred-identity))
+      (update :inv-specs #(get-in % pred-identity))
+      ))
 
 (defn get-pred-identities
   "Returns the predicate ids of all predicates loaded in `data`."
@@ -55,86 +51,8 @@
   [pred-identity data]
   (vals (get-in (:preds data) pred-identity)))
 
-(defn empty-list?
-  "Checks if the input is the empty (prolog) list."
-  [{term :term type :type}]
-  (and (= type :atomic) (= term "[]")))
-
-(defn to-head-tail-list
-  "Transforms a bunch of `terms` to a proper prolog list."
-  [& terms]
-  (if (empty? terms)
-    (r/make-term:atomic "[]")
-    (r/make-term:list (first terms) (apply to-head-tail-list (rest terms)))))
-
-(defn to-tuple-spec
-  "Transforms a bunch of `specs` to a tuple spec."
-  [& specs]
-  (if (empty? specs)
-    (r/make-spec:error "Cannot build a tuple with zero arguments")
-    (r/make-spec:tuple specs)))
-
-(defn to-or-spec
-  "Transforms a bunch of `specs` to a one-of spec."
-  [& specs]
-  (case (count specs)
-    0 (r/make-spec:error "Cannot build empty one-of")
-    1 (first specs)
-    (r/make-spec:one-of specs)))
-
-(defn get-elements-of-list [{head :head tail :tail}]
-  (if (empty-list? tail)
-    (list head)
-    (conj (get-elements-of-list tail) head)))
-
-(defn replace-specvar-name-with-value [spec specvar-name replace-value]
-  (case (:spec spec)
-    :specvar
-    (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
-
-    (:user-defined, :one-of, :and, :compound, :tuple)
-    (update spec :arglist (fn [s] (seq (map #(replace-specvar-name-with-value % specvar-name replace-value) s))))
-
-    :list
-    (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
-
-    spec
-    ))
-
-(defn replace-specvars-with-spec [spec specvar-name replace-spec]
-  (case (:spec spec)
-    :specvar
-    (if (= specvar-name (:name spec)) replace-spec spec)
-
-    (:user-defined, :one-of, :and, :compound, :tuple)
-    (update spec :arglist (fn [s] (seq (map #(replace-specvars-with-spec % specvar-name replace-spec) s))))
-
-    :list
-    (update spec :type #(replace-specvars-with-spec % specvar-name replace-spec))
-
-    spec
-    ))
-
-(defn find-specvars [spec]
-  (case (:spec spec)
-    :specvar [spec]
-    (:user-defined, :one-of, :and, :compound, :tuple) (distinct (reduce concat (map find-specvars (:arglist spec))))
-    :list (find-specvars (:type spec))
-    []))
-
 (defn get-terms [env]
   (remove #{:ENVIRONMENT} (uber/nodes env)))
-
-(defn get-all-specvars-in-doms [env]
-  (->> (get-terms env)
-       (mapcat #(uber/attr env % :dom))
-       (mapcat find-specvars)
-       distinct))
-
-(defn valid-env?
-  "Checks, if a env is valid and contains no errors."
-  [env]
-  (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (get-terms env))))
 
 (defn get-dom-of-term [env term]
   (if (uber/has-node? env term)
@@ -142,3 +60,27 @@
     (do
       (log/debug (str "Term " term " could not be found, returning empty dom"))
       [])))
+
+(defn get-goals [data]
+  (->> (get-clause-identities data)
+       (map #(get-in (:preds data) %))
+       (mapcat :body)))
+
+(defmacro case+
+  "Same as case, but evaluates dispatch values, needed for referring to
+   class and def'ed constants as well as java.util.Enum instances.
+  https://cemerick.com/2010/08/03/enhancing-clojures-case-to-evaluate-dispatch-values/"
+  [value & clauses]
+  (let [clauses (partition 2 2 nil clauses)
+        default (when (-> clauses last count (== 1))
+                  (last clauses))
+        clauses (if default (drop-last clauses) clauses)
+        eval-dispatch (fn [d]
+                        (if (list? d)
+                          (map eval d)
+                          (eval d)))]
+    `(case ~value
+       ~@(concat (->> clauses
+                      (map #(-> % first eval-dispatch (list (second %))))
+                      (mapcat identity))
+                 default))))

@@ -1,6 +1,7 @@
 (ns prolog-analyzer.pre-processor
   (:require [prolog-analyzer.utils :as utils]
             [prolog-analyzer.records :as r]
+            [prolog-analyzer.analyzer.built-in-specs :as built-ins]
             [clojure.tools.logging :as log]
             ))
 
@@ -36,6 +37,19 @@
         (recur (rest pred-ids) result))
       result)))
 
+(defn- add-built-in-specs [data]
+  (reduce (fn [data {goal-name :goal arity :arity}]
+            (let [specs (built-ins/get-specs-of-built-in-pred goal-name arity)]
+              (-> data
+                  (assoc-in [:pre-specs :built-in goal-name arity] (:pre-specs specs))
+                  (assoc-in [:post-specs :built-in goal-name arity] (:post-specs specs))
+                  (assoc-in [:inv-specs :built-in goal-name arity] (:inv-specs specs))
+                  )))
+          data
+          (->> (utils/get-goals data)
+               (filter #(= :built-in (:module %)))
+               (filter #(> (:arity %) 0)))))
+
 ;;mark self-calling clauses
 (defn- mark-self-calling-clause [[_ pred-name arity _] {body :body :as clause}]
   (if (some #(and (= pred-name (:goal %)) (= arity (:arity %))) body)
@@ -69,6 +83,7 @@
   (-> data
       set-correct-modules
       add-any-pre-specs
+      add-built-in-specs
       mark-self-calling-clauses
       transform-args-to-term-records
       ))

@@ -13,5 +13,3 @@
       analyzer/complete-analysis
       my-pp/pretty-print-analysis-result
       ))
-
-(-main "resources/spec-test.pl")
