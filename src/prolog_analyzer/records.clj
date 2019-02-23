@@ -145,7 +145,7 @@
   (suitable-spec [spec term]
     (case+ (term-type term)
            VAR spec
-           (ATOMIC, ATOM) (do (println "yo") (if (= value (:term term)) spec nil))
+           (ATOMIC, ATOM) (if (= value (:term term)) spec nil)
            nil))
   printable
   (to-string [x] (str "Exact(" value ")")))
@@ -473,7 +473,7 @@
   (ExactSpec. value))
 
 (defn make-spec:specvar [name]
-  (SpecvarSpec. namespace))
+  (SpecvarSpec. name))
 
 (defn make-spec:compound [functor arglist]
   (CompoundSpec. functor arglist))
