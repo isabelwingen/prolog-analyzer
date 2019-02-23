@@ -184,7 +184,9 @@
   (spec-type [spec] AND)
   (suitable-spec [spec term]
     (if (every? (complement nil?) (map #(suitable-spec % term) arglist))
-      spec
+      (-> spec
+          (update :arglist distinct)
+          (update :arglist (partial apply vector)))
       nil))
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
@@ -192,7 +194,11 @@
 (defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
-  (suitable-spec [spec term] spec)
+  (suitable-spec [spec term]
+    (-> spec
+        (update :arglist (partial remove #(nil? (suitable-spec % term))))
+        (update :arglist distinct)
+        (update :arglist (partial apply vector))))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
