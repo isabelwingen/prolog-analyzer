@@ -25,7 +25,7 @@
                      first)
           definition (get-definition-of-alias env alias)
           replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))]
-      (reduce-kv utils/replace-specvars-with-spec definition replace-map))))
+      (reduce-kv r/replace-specvars-with-spec definition replace-map))))
 
 
 (declare remove-invalid-or-parts)
@@ -123,7 +123,7 @@
     (if (contains? #{:var :anon_var :any} (r/term-type term))
       (if (every?
            #{:var :any :specvar}
-           (map :spec (utils/get-dom-of-term env term)))
+           (map r/spec-type (utils/get-dom-of-term env term)))
         (add-doms-to-node env term spec)
         (add-doms-to-node env term (ALREADY-NONVAR)))
       (add-doms-to-node env term (ALREADY-NONVAR)))))
@@ -196,10 +196,6 @@
 
 (defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec}]
   (let [simplified-or (->> speclist 
-                       ;    (map (fn [spec]
-                        ;          (if (= r/SPECVAR (r/spec-type spec))
-                         ;           (r/->AndSpec :and [spec (r/suitable-spec spec term)])
-                                        ;          (r/suitable-spec spec term))))
                            (map #(r/suitable-spec % term))
                            (remove nil?)
                            (distinct)

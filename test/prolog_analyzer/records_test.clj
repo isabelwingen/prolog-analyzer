@@ -2,6 +2,7 @@
   (:require [prolog-analyzer.records :as sut]
             [ubergraph.core :as uber]
             [loom.graph]
+            [loom.attr]
             [ubergraph.protocols]
             [clojure.test.check :as tc]
             [clojure.test.check.generators :as gen]
@@ -40,14 +41,3 @@
     (sut/make-spec:error "Cannot build empty one-of") []
     (sut/make-spec:integer) [(sut/make-spec:integer)]
     (sut/make-spec:one-of [(sut/make-spec:integer) (sut/make-spec:atom)]) [(sut/make-spec:integer) (sut/make-spec:atom)]))
-
-(deftest get-elements-of-list-test
-  (is (= (list {:type :integer :value 1} {:type :integer :value 2} {:type :integer :value 3})
-         (sut/get-elements-of-list {:type :list
-                                    :head {:type :integer :value 1}
-                                    :tail {:type :list
-                                           :head {:type :integer :value 2}
-                                           :tail {:type :list
-                                                  :head {:type :integer :value 3}
-                                                  :tail {:term "[]" :type :atomic}}}}))))
-

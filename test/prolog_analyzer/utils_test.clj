@@ -42,48 +42,8 @@
   (is (= 2 (count (sut/get-clauses-of-pred ["spec_test" "member_int" 2] data))))
   (is (= 1 (count (sut/get-clauses-of-pred ["spec_test" "foo" 3] data)))))
 
-(deftest replace-specvar-name-with-value-test
-  (are [original expected] (= expected (sut/replace-specvar-name-with-value original "Old" "New"))
-    {:spec :specvar :name "Old"} {:spec :specvar :name "New"}
-    {:spec :specvar :name "Unaffected"} {:spec :specvar :name "Unaffected"}
-    {:spec :list :type {:spec :specvar :name "Old"}} {:spec :list :type {:spec :specvar :name "New"}}
-    {:spec :one-of :arglist [{:spec :specvar :name "Old"} {:spec :specvar :name "Unaffected"} {:spec :integer}]} {:spec :one-of :arglist [{:spec :specvar :name "New"} {:spec :specvar :name "Unaffected"} {:spec :integer}]}
-    {:spec :user-defined :name "foo" :arglist [{:spec :list :type {:spec :specvar :name "Old"}}]} {:spec :user-defined :name "foo" :arglist [{:spec :list :type {:spec :specvar :name "New"}}]}
-    ))
-
-(deftest replace-specvars-with-spec-test
-  (are [original expected] (= expected (sut/replace-specvars-with-spec original "Old" {:spec :atom}))
-    {:spec :specvar :name "Old"} {:spec :atom}
-    {:spec :specvar :name "Unaffected"} {:spec :specvar :name "Unaffected"}
-    {:spec :list :type {:spec :specvar :name "Old"}} {:spec :list :type {:spec :atom}}
-    {:spec :one-of :arglist [{:spec :specvar :name "Old"} {:spec :specvar :name "Unaffected"} {:spec :integer}]} {:spec :one-of :arglist [{:spec :atom} {:spec :specvar :name "Unaffected"} {:spec :integer}]}
-    {:spec :user-defined :name "foo" :arglist [{:spec :list :type {:spec :specvar :name "Old"}}]} {:spec :user-defined :name "foo" :arglist [{:spec :list :type {:spec :atom}}]}
-    ))
-
-(deftest find-specvars-test
-  (are [spec expected] (= expected (sut/find-specvars spec))
-    {:spec :specvar :name "X"} [{:spec :specvar :name "X"}]
-    {:spec :one-of :arglist [{:spec :specvar :name "X"} {:spec :specvar :name "Y"} {:spec :specvar :name "Y"}]} [{:spec :specvar :name "X"} {:spec :specvar :name "Y"}]
-    {:spec :user-defined :arglist [{:spec :specvar :name "X"} {:spec :specvar :name "Y"}]} [{:spec :specvar :name "X"} {:spec :specvar :name "Y"}]
-    {:spec :one-of :arglist [{:spec :list :type {:spec :specvar :name "X"}} {:spec :specvar :name "Y"} {:spec :specvar :name "Y"}]} [{:spec :specvar :name "X"} {:spec :specvar :name "Y"}]
-    {:spec :list :type {:spec :list :type {:spec :specvar :name "X"}}} [{:spec :specvar :name "X"}]
-    ))
-
 (deftest get-terms-test
   (is (= [:a :b :c] (sut/get-terms (uber/digraph :a :b :c :ENVIRONMENT)))))
-
-(deftest get-all-specvars-in-doms-test
-  (is (= [{:spec :specvar :name "X"} {:spec :specvar :name "Y"} {:spec :specvar :name "Z"} {:spec :specvar :name "A"}]
-         (sut/get-all-specvars-in-doms (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :specvar :name "X"} {:spec :list :type {:spec :specvar :name "Y"}}]}]
-                                                                                     [:b {:dom [{:spec :and :arglist [{:spec :specvar :name "Z"}]}]}]
-                                                                                     [:d {:dom [{:spec :and :arglist [{:spec :integer}]}]}]
-                                                                                     [:c {:dom [{:spec :tuple :arglist [{:spec :specvar :name "A"}]}]}]))))))
-
-(deftest valid-env?-test
-  (is (true? (sut/valid-env? (uber/digraph))))
-  (is (false? (sut/valid-env? (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :error}]}])))))
-  (is (false? (sut/valid-env? (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :error} {:spec :int}]}])))))
-  (is (true? (sut/valid-env? (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :int} {:spec :atom}]}]))))))
 
 (deftest get-dom-of-term-test
   (is (= [{:spec :integer} {:spec :any}] (sut/get-dom-of-term (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :integer} {:spec :any}]}]))

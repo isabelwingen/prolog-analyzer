@@ -1,6 +1,7 @@
 (ns prolog-analyzer.records
   (:require [prolog-analyzer.utils :refer [case+]]
             [clojure.tools.logging :as log]
+            [clojure.tools.namespace.repl :refer [refresh]]
             [clojure.string]))
 
 (def INTEGER :integer)
@@ -39,9 +40,7 @@
   (term-type [term])
   (initial-spec [term]))
 
-
-
-(defrecord VarSpec [spec]
+(defrecord VarSpec []
   spec
   (spec-type [spec] VAR)
   (suitable-spec [spec term]
@@ -51,7 +50,7 @@
   printable
   (to-string [x] "Var"))
 
-(defrecord AtomSpec [spec]
+(defrecord AtomSpec []
   spec
   (spec-type [spec] ATOM)
   (suitable-spec [spec term]
@@ -62,7 +61,7 @@
   printable
   (to-string [x] "Atom"))
 
-(defrecord IntegerSpec [spec]
+(defrecord IntegerSpec []
   spec
   (spec-type [spec] INTEGER)
   (suitable-spec [spec term]
@@ -74,7 +73,7 @@
   printable
   (to-string [x] "Integer"))
 
-(defrecord FloatSpec [spec]
+(defrecord FloatSpec []
   spec
   (spec-type [spec] FLOAT)
   (suitable-spec [spec term]
@@ -86,34 +85,34 @@
   printable
   (to-string [x] "Float"))
 
-(defrecord NumberSpec [spec]
+(defrecord NumberSpec []
   spec
   (spec-type [spec] NUMBER)
   (suitable-spec [spec term]
     (case+ (term-type term)
            (NUMBER, VAR) spec
-           INTEGER (IntegerSpec. :integer)
-           FLOAT (FloatSpec. :float)
+           INTEGER (->IntegerSpec)
+           FLOAT (->FloatSpec)
            ATOMIC (if (number? (read-string (:term term))) spec nil)
            nil))
   printable
   (to-string [x] "Number"))
 
-(defrecord AtomicSpec [spec]
+(defrecord AtomicSpec []
   spec
   (spec-type [spec] ATOMIC)
   (suitable-spec [spec term]
     (case+ (term-type term)
            (ATOMIC, VAR) spec
-           ATOM (AtomSpec. :atom)
-           NUMBER (NumberSpec. :number)
-           INTEGER (IntegerSpec. :integer)
-           FLOAT (FloatSpec. :float)
+           ATOM (->AtomSpec)
+           NUMBER (->NumberSpec)
+           INTEGER (->IntegerSpec)
+           FLOAT (->FloatSpec)
            nil))
   printable
   (to-string [x] "Atomic"))
 
-(defrecord ListSpec [spec type]
+(defrecord ListSpec [type]
   spec
   (spec-type [spec] LIST)
   (suitable-spec [spec term]
@@ -125,7 +124,7 @@
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
 
-(defrecord TupleSpec [spec arglist]
+(defrecord TupleSpec [arglist]
   spec
   (spec-type [spec] TUPLE)
   (suitable-spec [spec term]
@@ -133,14 +132,14 @@
            VAR spec
            ATOMIC (if (and (empty-list? term) (empty? arglist)) spec nil)
            LIST (if (and (suitable-spec (first arglist) (:head term))
-                         (suitable-spec (TupleSpec. :tuple (rest arglist)) (:tail term)))
+                         (suitable-spec (->TupleSpec (rest arglist)) (:tail term)))
                   spec
                   nil)
            nil))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
-(defrecord ExactSpec [spec value]
+(defrecord ExactSpec [value]
   spec
   (spec-type [spec] EXACT)
   (suitable-spec [spec term]
@@ -152,7 +151,7 @@
   (to-string [x] (str "Exact(" value ")")))
 
 
-(defrecord CompoundSpec [spec functor arglist]
+(defrecord CompoundSpec [functor arglist]
   spec
   (spec-type [spec] COMPOUND)
   (suitable-spec [spec term]
@@ -163,25 +162,24 @@
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
-(defrecord GroundSpec [spec]
+(defrecord GroundSpec []
   spec
   (spec-type [spec] GROUND)
   (suitable-spec [spec term]
     (case+ (term-type term)
            (GROUND, NONVAR, ANY, VAR) spec
-           ATOMIC (AtomicSpec. :atomic)
-           ATOM (AtomSpec. :atom)
-           NUMBER (NumberSpec. :number)
-           INTEGER (IntegerSpec. :integer)
-           FLOAT (FloatSpec. :float)
-           LIST (ListSpec. :list (GroundSpec. :ground))
-           COMPOUND (CompoundSpec. :compound (:functor term) (repeat (count (:arglist term)) (GroundSpec. :ground)))
+           ATOMIC (->AtomicSpec)
+           ATOM (->AtomSpec)
+           NUMBER (->NumberSpec)
+           INTEGER (->IntegerSpec)
+           FLOAT (->FloatSpec)
+           LIST (->ListSpec (->GroundSpec))
+           COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->GroundSpec)))
            nil))
   printable
   (to-string [x] "Ground"))
 
-
-(defrecord AndSpec [spec arglist]
+(defrecord AndSpec [arglist]
   spec
   (spec-type [spec] AND)
   (suitable-spec [spec term]
@@ -191,14 +189,14 @@
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
-(defrecord OneOfSpec [spec arglist]
+(defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
   (suitable-spec [spec term] spec)
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
-(defrecord UserDefinedSpec [spec name]
+(defrecord UserDefinedSpec [name]
   spec
   (spec-type [spec] USERDEFINED)
   (suitable-spec [spec term] spec)
@@ -207,7 +205,7 @@
                    (str name "(" (to-arglist (:arglist x)) ")")
                    (str name))))
 
-(defrecord ErrorSpec [spec reason]
+(defrecord ErrorSpec [reason]
   spec
   (spec-type [spec] ERROR)
   (suitable-spec [spec term] spec)
@@ -216,59 +214,59 @@
 
 (declare ->NonvarSpec)
 
-(defrecord AnySpec [spec]
+(defrecord AnySpec []
   spec
   (spec-type [spec] ANY)
   (suitable-spec [spec term]
     (case+ (term-type term)
-           INTEGER (IntegerSpec. :integer)
-           FLOAT (FloatSpec. :float)
-           NUMBER (NumberSpec. :number)
-           ATOM (AtomSpec. :atom)
-           ATOMIC (AtomicSpec. :atomic)
-           ANY (AnySpec. :any)
-           GROUND (GroundSpec. :ground)
-           NONVAR (->NonvarSpec :nonvar)
-           VAR (VarSpec. :var)
-           LIST (ListSpec. :list (AnySpec. :any))
-           COMPOUND (CompoundSpec. :compound (:functor term) (repeat (count (:arglist term)) (AnySpec. :any)))
+           INTEGER (->IntegerSpec)
+           FLOAT (->FloatSpec)
+           NUMBER (->NumberSpec)
+           ATOM (->AtomSpec)
+           ATOMIC (->AtomicSpec)
+           ANY (->AnySpec)
+           GROUND (->GroundSpec)
+           NONVAR (->NonvarSpec)
+           VAR (->VarSpec)
+           LIST (->ListSpec (->AnySpec))
+           COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
            nil))
   printable
   (to-string [x] "Any"))
 
-(defrecord NonvarSpec [spec]
+(defrecord NonvarSpec []
   spec
   (spec-type [spec] NONVAR)
   (suitable-spec [spec term]
     (case+ (term-type term)
-           INTEGER (IntegerSpec. :integer)
-           FLOAT (FloatSpec. :float)
-           NUMBER (NumberSpec. :number)
-           ATOM (AtomSpec. :atom)
-           ATOMIC (AtomicSpec. :atomic)
-           ANY (NonvarSpec. :nonvar)
-           GROUND (GroundSpec. :ground)
-           NONVAR (NonvarSpec. :nonvar)
-           VAR (NonvarSpec. :nonvar)
-           LIST (ListSpec. :list (->AnySpec :any))
-           COMPOUND (CompoundSpec. :compound (:functor term) (repeat (count (:arglist term)) (->AnySpec :any)))
+           INTEGER (->IntegerSpec)
+           FLOAT (->FloatSpec)
+           NUMBER (->NumberSpec)
+           ATOM (->AtomSpec)
+           ATOMIC (->AtomicSpec)
+           ANY (->NonvarSpec)
+           GROUND (->GroundSpec)
+           NONVAR (->NonvarSpec)
+           VAR (->NonvarSpec)
+           LIST (->ListSpec (->AnySpec))
+           COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
            nil))
   printable
   (to-string [x] "Nonvar"))
 
-(defrecord SpecvarSpec [spec name]
+(defrecord SpecvarSpec [name]
   spec
   (spec-type [spec] SPECVAR)
   (suitable-spec [spec term]
     (let [p (case+ (term-type term)
                    (GROUND, NONVAR, ATOM, ATOMIC, INTEGER, FLOAT, NUMBER) (initial-spec term)
-                   VAR (->VarSpec :var)
-                   ANY (->AnySpec :any)
-                   LIST (->ListSpec :list (->AnySpec :any))
-                   COMPOUND (->CompoundSpec :compound (:functor term) (repeat (count (:arglist term)) (->AnySpec :any)))
+                   VAR (->VarSpec)
+                   ANY (->AnySpec)
+                   LIST (->ListSpec (->AnySpec))
+                   COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
                    nil
                    )]
-      (->AndSpec :and [spec p])))
+      (->AndSpec [spec p])))
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
@@ -276,77 +274,77 @@
 (defrecord AnyTerm [type term]
   term
   (term-type [term] ANY)
-  (initial-spec [term] (->AnySpec :any))
+  (initial-spec [term] (->AnySpec))
   printable
   (to-string [x] (str term)))
 
 (defrecord GroundTerm [type term]
   term
   (term-type [term] GROUND)
-  (initial-spec [term] (->GroundSpec :ground))
+  (initial-spec [term] (->GroundSpec))
   printable
   (to-string [x] (str term)))
 
 (defrecord NonvarTerm [type term]
   term
   (term-type [term] NONVAR)
-  (initial-spec [term] (->NonvarSpec :nonvar))
+  (initial-spec [term] (->NonvarSpec))
   printable
   (to-string [x] (str term)))
 
 (defrecord VarTerm [type name]
   term
   (term-type [term] VAR)
-  (initial-spec [term] (->VarSpec :var))
+  (initial-spec [term] (->VarSpec))
   printable
   (to-string [x] (str name)))
 
 (defrecord AnonVarTerm [type name]
   term
   (term-type [term] VAR)
-  (initial-spec [term] (->VarSpec :var))
+  (initial-spec [term] (->VarSpec))
   printable
   (to-string [x] (str name)))
 
 (defrecord AtomTerm [type term]
   term
   (term-type [term] ATOM)
-  (initial-spec [term] (->AtomSpec :atom))
+  (initial-spec [term] (->AtomSpec))
   printable
   (to-string [x] (str term)))
 
 (defrecord AtomicTerm [type term]
   term
   (term-type [term] ATOMIC)
-  (initial-spec [term] (->AtomicSpec :atomic))
+  (initial-spec [term] (->AtomicSpec))
   printable
   (to-string [x] (str term)))
 
 (defrecord IntegerTerm [type value]
   term
   (term-type [term] INTEGER)
-  (initial-spec [term] (->IntegerSpec :integer))
+  (initial-spec [term] (->IntegerSpec))
   printable
   (to-string [x] (str value)))
 
 (defrecord FloatTerm [type value]
   term
   (term-type [term] FLOAT)
-  (initial-spec [term] (->FloatSpec :float))
+  (initial-spec [term] (->FloatSpec))
   printable
   (to-string [x] (str value)))
 
 (defrecord NumberTerm [type value]
   term
   (term-type [term] NUMBER)
-  (initial-spec [term] (->NumberSpec :number))
+  (initial-spec [term] (->NumberSpec))
   printable
   (to-string [x] (str value)))
 
 (defrecord ListTerm [type head tail]
   term
   (term-type [term] LIST)
-  (initial-spec [term] (->ListSpec :list (->AnySpec :any)))
+  (initial-spec [term] (->ListSpec (->AnySpec)))
   printable
   (to-string [x]
     (case+ (term-type tail)
@@ -357,7 +355,7 @@
 (defrecord CompoundTerm [type functor arglist]
   term
   (term-type [term] COMPOUND)
-  (initial-spec [term] (->CompoundSpec :compound functor (repeat (count arglist) (->AnySpec :any))))
+  (initial-spec [term] (->CompoundSpec functor (repeat (count arglist) (->AnySpec))))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
@@ -439,60 +437,60 @@
 
 
 (defn make-spec:var []
-  (VarSpec. :var))
+  (VarSpec.))
 
 (defn make-spec:atom []
-  (AtomSpec. :atom))
+  (AtomSpec.))
 
 (defn make-spec:atomic []
-  (AtomicSpec. :atomic))
+  (AtomicSpec.))
 
 (defn make-spec:integer []
-  (IntegerSpec. :integer))
+  (IntegerSpec.))
 
 (defn make-spec:float []
-  (FloatSpec. :float))
+  (FloatSpec.))
 
 (defn make-spec:number []
-  (NumberSpec. :number))
+  (NumberSpec.))
 
 (defn make-spec:ground []
-  (GroundSpec. :ground))
+  (GroundSpec.))
 
 (defn make-spec:nonvar []
-  (NonvarSpec. :nonvar))
+  (NonvarSpec.))
 
 (defn make-spec:any []
-  (AnySpec. :any))
+  (AnySpec.))
 
 (defn make-spec:list [type]
-  (ListSpec. :list type))
+  (ListSpec. type))
 
 (defn make-spec:tuple [arglist]
-  (TupleSpec. :tuple arglist))
+  (TupleSpec. arglist))
 
 (defn make-spec:exact [value]
-  (ExactSpec. :exact value))
+  (ExactSpec. value))
 
 (defn make-spec:specvar [name]
-  (SpecvarSpec. :specvar name))
+  (SpecvarSpec. namespace))
 
 (defn make-spec:compound [functor arglist]
-  (CompoundSpec. :compound functor arglist))
+  (CompoundSpec. functor arglist))
 
 (defn make-spec:one-of [arglist]
-  (OneOfSpec. :one-of  arglist))
+  (OneOfSpec. arglist))
 
 (defn make-spec:and [arglist]
-  (AndSpec. :and arglist))
+  (AndSpec. arglist))
 
 (defn make-spec:user-defined
-  ([name] (UserDefinedSpec. :user-defined name))
-  ([name arglist] (-> (UserDefinedSpec. :user-defined name)
+  ([name] (UserDefinedSpec. name))
+  ([name arglist] (-> (UserDefinedSpec. name)
                       (assoc :arglist arglist))))
 
 (defn make-spec:error [reason]
-  (ErrorSpec. :error reason))
+  (ErrorSpec. reason))
 
 
 (defn empty-list?
@@ -529,4 +527,39 @@
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
+
+(defn replace-specvar-name-with-value [spec specvar-name replace-value]
+  (case (spec-type spec)
+    SPECVAR
+    (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
+
+    (USERDEFINED, OR, AND, COMPOUND, TUPLE)
+    (update spec :arglist (fn [s] (seq (map #(replace-specvar-name-with-value % specvar-name replace-value) s))))
+
+    LIST
+    (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
+
+    spec
+    ))
+
+(defn replace-specvars-with-spec [spec specvar-name replace-spec]
+  (case (spec-type spec)
+    SPECVAR
+    (if (= specvar-name (:name spec)) replace-spec spec)
+
+    (USERDEFINED, OR, AND, COMPOUND, TUPLE)
+    (update spec :arglist (fn [s] (seq (map #(replace-specvars-with-spec % specvar-name replace-spec) s))))
+
+    LIST
+    (update spec :type #(replace-specvars-with-spec % specvar-name replace-spec))
+
+    spec
+    ))
+
+(defn find-specvars [spec]
+  (case (spec-type spec)
+    SPECVAR [spec]
+    (USERDEFINED, OR, AND, COMPOUND, TUPLE) (distinct (reduce concat (map find-specvars (:arglist spec))))
+    LIST (find-specvars (spec-type spec))
+    []))
 

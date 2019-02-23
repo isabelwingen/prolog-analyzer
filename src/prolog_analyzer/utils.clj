@@ -51,54 +51,8 @@
   [pred-identity data]
   (vals (get-in (:preds data) pred-identity)))
 
-(defn replace-specvar-name-with-value [spec specvar-name replace-value]
-  (case (:spec spec)
-    :specvar
-    (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
-
-    (:user-defined, :one-of, :and, :compound, :tuple)
-    (update spec :arglist (fn [s] (seq (map #(replace-specvar-name-with-value % specvar-name replace-value) s))))
-
-    :list
-    (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
-
-    spec
-    ))
-
-(defn replace-specvars-with-spec [spec specvar-name replace-spec]
-  (case (:spec spec)
-    :specvar
-    (if (= specvar-name (:name spec)) replace-spec spec)
-
-    (:user-defined, :one-of, :and, :compound, :tuple)
-    (update spec :arglist (fn [s] (seq (map #(replace-specvars-with-spec % specvar-name replace-spec) s))))
-
-    :list
-    (update spec :type #(replace-specvars-with-spec % specvar-name replace-spec))
-
-    spec
-    ))
-
-(defn find-specvars [spec]
-  (case (:spec spec)
-    :specvar [spec]
-    (:user-defined, :one-of, :and, :compound, :tuple) (distinct (reduce concat (map find-specvars (:arglist spec))))
-    :list (find-specvars (:type spec))
-    []))
-
 (defn get-terms [env]
   (remove #{:ENVIRONMENT} (uber/nodes env)))
-
-(defn get-all-specvars-in-doms [env]
-  (->> (get-terms env)
-       (mapcat #(uber/attr env % :dom))
-       (mapcat find-specvars)
-       distinct))
-
-(defn valid-env?
-  "Checks, if a env is valid and contains no errors."
-  [env]
-  (every? #(not= (:spec %) :error) (mapcat #(uber/attr env % :dom) (get-terms env))))
 
 (defn get-dom-of-term [env term]
   (if (uber/has-node? env term)

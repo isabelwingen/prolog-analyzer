@@ -24,14 +24,14 @@
 (defn replace-specvars-with-uuid
   ([pre-spec]
    (let [specvars (->> pre-spec
-                       (reduce #(concat %1 (utils/find-specvars %2)) [])
+                       (reduce #(concat %1 (r/find-specvars %2)) [])
                        distinct
                        (map :name))
          ids (take (count specvars) (drop (get-next-uuid) (range)))
          uuid-map (apply hash-map (interleave specvars ids))]
      (if ((complement empty?) ids)
        (reset! last-uuid (last ids)))
-     (vector (map #(reduce-kv utils/replace-specvar-name-with-value % uuid-map) pre-spec))))
+     (vector (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) pre-spec))))
   ([pre-spec & pre-specs] (reduce #(concat %1 (replace-specvars-with-uuid %2)) [] (cons pre-spec pre-specs))))
 
 (defmulti add-relationships-aux (comp type second))
@@ -85,15 +85,10 @@
       (dom/multiple-fills arglist pre-spec)
       (add-index-to-input-arguments arglist)))
 
-(defn add-specvars-to-env [env]
-  (apply uber/add-nodes-with-attrs env (map #(vector % {:dom (list (r/make-spec:any))}) (utils/get-all-specvars-in-doms env))))
-
-
 (defn analyzing [{arglist :arglist body :body :as clause} pre-spec]
   (-> (initial-env arglist pre-spec)
       (evaluate-body body)
       (add-relationships)
-      (add-specvars-to-env)
       ))
 
 (defn complete-analysis [input-data]
@@ -126,5 +121,3 @@
        complete-analysis
        my-pp/pretty-print-analysis-result
        ))
-
-(example)
