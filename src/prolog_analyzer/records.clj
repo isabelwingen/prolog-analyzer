@@ -177,13 +177,10 @@
   printable
   (to-string [x] "Number"))
 
-
-
 (defrecord AtomicSpec [spec]
   spec
   (spec-type [spec] ATOMIC)
   (suitable-spec [spec term]
-    (println (term-type term))
     (case+ (term-type term)
            (ATOMIC, VAR) spec
            ATOM (AtomSpec. :atom)
@@ -193,13 +190,6 @@
            nil))
   printable
   (to-string [x] "Atomic"))
-
-(defrecord GroundSpec [spec]
-  spec
-  (spec-type [spec] GROUND)
-  (suitable-spec [spec term] spec)
-  printable
-  (to-string [x] "Ground"))
 
 (defrecord NonvarSpec [spec]
   spec
@@ -265,6 +255,24 @@
            nil))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
+
+(defrecord GroundSpec [spec]
+  spec
+  (spec-type [spec] GROUND)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           (GROUND, NONVAR, ANY, VAR) spec
+           ATOMIC (AtomicSpec. :atomic)
+           ATOM (AtomSpec. :atom)
+           NUMBER (NumberSpec. :number)
+           INTEGER (IntegerSpec. :integer)
+           FLOAT (FloatSpec. :float)
+           LIST (ListSpec. :list (GroundSpec. :ground))
+           COMPOUND (CompoundSpec. :compound (:functor term) (repeat (count (:arglist term)) (GroundSpec. :ground)))
+           nil))
+  printable
+  (to-string [x] "Ground"))
+
 
 (defrecord AndSpec [spec arglist]
   spec
