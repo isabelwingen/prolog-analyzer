@@ -11,6 +11,7 @@
    [loom.attr]
    [clojure.set]
    [clojure.pprint :as pp]
+   [clojure.tools.namespace.repl :refer [refresh]]
    ))
 
 (def data (atom {}))
@@ -125,3 +126,5 @@
        complete-analysis
        my-pp/pretty-print-analysis-result
        ))
+
+(example)
