@@ -1,9 +1,108 @@
-:- module(term_expander,[enable_write_out/0]).
+:- module(prolog_analyzer,[enable_write_out/0,spec_pre/2,spec_post/3,spec_invariant/2,define_spec/2,declare_spec/1]).
+:- use_module(library(error)).
 
 :- multifile term_expansion/2.
 :- dynamic write_out/0.
 :- public enable_write_out/0.
 
+spec_pre(Pred,SpecPre) :-
+    ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
+    (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
+    maplist(valid_spec,SpecPre).
+
+spec_post(Pred,SpecPre,SpecPost) :-
+    ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
+    (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
+    (length(SpecPost,Arity) -> true ; domain_error('length of spec list',Arity)),
+    maplist(valid_spec,SpecPre),
+    maplist(valid_spec,SpecPost).
+
+spec_invariant(Pred,SpecInv) :-
+    ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
+    (length(SpecInv,Arity) -> true ; domain_error('length of spec list',Arity)),
+    maplist(valid_spec,SpecInv).
+
+valid_spec(X) :-
+    spec_and_nonvar(X),!.
+valid_spec(Spec) :-
+    domain_error('valid_spec',Spec).
+
+spec_and_nonvar(Spec) :-
+    nonvar(Spec),
+    spec(Spec).
+
+
+
+match_specs([],[]) :- !.
+match_specs([E|T],[E|S]) :-
+    !, match_specs(T,S).
+match_specs([_|T],[specvar(_)|S]) :-
+    !, match_specs(T,S).
+match_specs([specvar(_)|T],[_|S]) :-
+    !, match_specs(T,S).
+
+spec(var).
+spec(ground).
+spec(nonvar).
+spec(any).
+spec(specvar(X)) :- var(X),!.
+spec(specvar(X)) :- compound(X), \+ ground(X), spec(X).
+
+% Definition of spec predicates
+spec(atomic).
+spec(atom).
+spec(atom(X)) :- atom(X).
+spec(integer).
+spec(number).
+spec(float).
+
+spec(compound(X)) :- compound(X), compound_name_arguments(X,_,Args), maplist(spec_and_nonvar,Args).
+spec(list(X)) :- spec_and_nonvar(X).
+spec(tuple(X)) :- is_list(X),maplist(spec_and_nonvar,X).
+
+spec(and(L)) :- is_list(L), maplist(spec_and_nonvar,L).
+spec(one_of(L)) :- is_list(L), maplist(spec_and_nonvar,L).
+spec(Spec) :-
+    compound(Spec),!,
+    Spec =.. [Functor|Arglist],
+    maplist(spec_and_nonvar,Arglist),
+    spec_alias(NewSpec,_),
+    NewSpec =.. [Functor|NewArglist],!,
+    match_specs(Arglist,NewArglist).
+spec(Spec) :-
+    \+ compound(Spec),
+    spec_alias(Spec,_).
+
+
+:- dynamic spec_alias/2.
+spec_alias(int,integer).
+
+
+check_if_vars_are_wrapped(Spec) :-
+    ground(Spec),!.
+check_if_vars_are_wrapped(Spec) :-
+    compound(Spec),
+    Spec =.. [specvar,_],!.
+check_if_vars_are_wrapped(Spec) :-
+    compound(Spec),
+    Spec =.. [_|Arglist],
+    maplist(check_if_vars_are_wrapped,Arglist).
+
+declare_spec(SpecName) :-
+    \+ spec(SpecName),
+    check_if_vars_are_wrapped(SpecName),
+    assert(spec_alias(SpecName,empty)).
+
+define_spec(SpecName,SpecAlias) :-
+    % only allow ground or vars wrapped in any
+    check_if_vars_are_wrapped(SpecName),
+    valid_spec(SpecAlias),
+    assert(spec_alias(SpecName,SpecAlias)),
+    retract(spec_alias(SpecName,empty)), !.
+
+
+
+% Transform to edn
 enable_write_out :-
     prolog_load_context(file,File),
     get_clojure_file_name(File,ClojureFile),
@@ -64,7 +163,7 @@ create_indent(N,Res) :-
     string_concat(Acc," ",Res).
 
 rule_to_map(Head,Body,Module,Map) :-
-    split(Head,Name,Arity,Arglist),
+    split(Head,Name,Arity,Arglist,_),
     create_arglist(Arglist,13,ResArglist),
     create_body(25,Body,BodyRes),
     multi_string_concat(["{:name     \"",Name,"\""],Goal_Elem),
@@ -100,11 +199,12 @@ goal_to_map(FirstLineInd,OtherLineInd,or(Arglist),Map) :- !,
     create_map(List,Map).
 
 goal_to_map(FirstLineInd,OtherLineInd,Goal,Map) :-
-    split(Goal,Name,Arity,Arglist),
+    split(Goal,Name,Arity,Arglist,Module),
     multi_string_concat(["{:goal     \"",Name,"\""],Goal_Elem),
+    multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
     create_arglist(Arglist,OtherLineInd,ResArglist),
-    append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem],ResArglist,List),
+    append([FirstLineInd/Goal_Elem,OtherLineInd/Module_Elem,OtherLineInd/Arity_Elem],ResArglist,List),
     concat_to_last_elem(List,"}",List2),
     create_map(List2,Map).
 
@@ -151,6 +251,9 @@ create_map([Indent/H|T],Acc,Res) :-
     create_map(T,NewAcc,Res).
 
 arg_to_map(Arg,Map) :-
+    string(Arg),!,
+    arg_to_map(string,Arg,Map).
+arg_to_map(Arg,Map) :-
     atom(Arg),!,
     arg_to_map(atom,Arg,Map).
 arg_to_map(Arg,Map) :-
@@ -178,28 +281,17 @@ arg_to_map(Arg,Map) :-
 arg_to_map(Arg,Map) :-
     arg_to_map(any,Arg,Map).
 
+
 arg_to_map(compound,Term,Map) :-
     Term =.. ['[|]'|[Head,Tail]],
-    \+ ground(Tail),
     arg_to_map(Head,HeadString),
     arg_to_map(Tail,TailString),
 
-    multi_string_concat(["{:type :head-tail-list"],TypePart),
+    multi_string_concat(["{:type :list"],TypePart),
     multi_string_concat([":head ",HeadString],HeadPart),
     multi_string_concat([":tail ",TailString,"}"],TailPart),
 
     create_map([0/TypePart,1/HeadPart,1/TailPart],Map).
-
-arg_to_map(compound,Term,Map) :-
-    Term =.. ['[|]'|[Head,Tail]],
-    !,
-    create_arglist([Head|Tail],0,Arglist),
-
-    multi_string_concat(["{:type :list"],TypePart),
-
-    append([0/TypePart|Arglist],[0/"}"],List1),
-    create_map(List1,Map).
-
 
 arg_to_map(compound,Term,Map) :-
     !,
@@ -217,15 +309,16 @@ arg_to_map(var,Term,Map) :-
     !,
     (var_property(Term,name(Name)) -> true ; term_string(Term,Name)),
     (atom_codes(Name,[95|_]) -> Type = "anon_var" ; Type = "var"),
-    multi_string_concat(["{:term \"", Name, "\" :type :", Type, "}"],Map).
+    multi_string_concat(["{:name \"", Name, "\" :type :", Type, "}"],Map).
 
 
+arg_to_map(string,_,"{:type :string}") :- !.
 
 arg_to_map(Type,Term,Map) :-
     (Type = integer; Type = number; Type = float),
     !,
     term_string(Term,String),
-    string_concat("{:term ", String,R1),
+    string_concat("{:value ", String,R1),
     string_concat(R1, " :type :", R2),
     string_concat(R2, Type, R3),
     string_concat(R3, "}",Map).
@@ -238,7 +331,11 @@ arg_to_map(Type,Term,Map) :-
     string_concat(R3, "}",Map).
 
 
-split(Term,Name,Arity,Arglist) :-
+split(Module:Term,Name,Arity,Arglist,Module) :-
+    !,
+    split(Term,Name,Arity,Arglist,_).
+
+split(Term,Name,Arity,Arglist,self) :-
     functor(Term,Name1,Arity),
     (Name1 = (\+) -> Name = ":not" ; Name = Name1),
     Term =.. [_|Arglist].
@@ -252,13 +349,69 @@ expand(_,term_expander,_) :- !.
 expand(':-'(A,B),Module,Stream) :-
     !,
     body_list(B,Body),
-    Start = "{:type      :rule\n :content   ",
+    Start = "{:type      :pred\n :content   ",
     rule_to_map(A,Body,Module,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
 
+%special cases
+expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Stream) :-
+    !,
+    Start = "{:type :spec_pre\n:content ",
+    goal_to_map(0,13,spec_pre(InternalModule:Functor/Arity,Arglist),Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
 
+expand(':-'(spec_pre(Functor/Arity,Arglist)),Module,Stream) :-
+    !,
+    expand(':-'(spec_pre(Module:Functor/Arity,Arglist)),Module,Stream).
+
+expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,Stream) :-
+    !,
+    Start = "{:type :spec_post\n:content ",
+    goal_to_map(0,13,spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2),Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+
+expand(':-'(spec_post(Functor/Arity,Arglist1,Arglist2)),Module,Stream) :-
+    !,
+    expand(':-'(spec_post(Module:Functor/Arity,Arglist1,Arglist2)),Module,Stream).
+
+expand(':-'(spec_invariant(InternalModule:Functor/Arity,Arglist)),_Module,Stream) :-
+    !,
+    Start = "{:type :spec_inv\n:content ",
+    goal_to_map(0,13,spec_invariant(InternalModule:Functor/Arity,Arglist),Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+
+
+expand(':-'(spec_invariant(Functor/Arity,Arglist)),Module,Stream) :-
+    !,
+    expand(':-'(spec_invariant(Module:Functor/Arity,Arglist)),Module,Stream).
+
+expand(':-'(A),_Module,Stream) :-
+    A = declare_spec(_),
+    !,
+    Start = "{:type :declare_spec\n:content ",
+    goal_to_map(0,13,A,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+expand(':-'(A),_Module,Stream) :-
+    A  = define_spec(_,_),
+    !,
+    Start = "{:type :define_spec\n:content ",
+    goal_to_map(0,13,A,Map),
+    string_concat(Start,Map,Tmp1),
+    string_concat(Tmp1,"}",Tmp2),
+    write(Stream,Tmp2),nl(Stream).
+expand(':-'(enable_write_out),_,_) :- !.
+
+% normal direct call
 expand(':-'(A),_Module,Stream) :-
     !,
     Start = "{:type      :direct\n :content   ",
@@ -267,13 +420,10 @@ expand(':-'(A),_Module,Stream) :-
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
 
-expand((C),_Module, Stream) :-
+% fact
+expand((C),Module,Stream) :-
     !,
-    Start = "{:type      :fact\n :content   ",
-    goal_to_map(0,13,C,Map),
-    string_concat(Start,Map,Tmp1),
-    string_concat(Tmp1,"}",Tmp2),
-    write(Stream,Tmp2),nl(Stream).
+    expand(':-'(C,true),Module,Stream).
 
 body_list(Body,List) :-
     transform(Body,E),
@@ -322,8 +472,7 @@ merge_list(L,R,[L,R]).
 user:term_expansion(A,A) :-
     !,
     prolog_load_context(module,Module),
-    (write_out, valid_module(Module) ->
-         prolog_load_context(file,File),
+    (write_out, main_file(File) ->
          get_clojure_file_name(File,ClojureFile),
          open(ClojureFile,append,Stream),
          expand(A,Module,Stream),
@@ -331,9 +480,11 @@ user:term_expansion(A,A) :-
          close(Stream)
     ).
 
+
 get_clojure_file_name(File,ClojureFile) :-
     string_concat(File,".edn",ClojureFile).
 
-valid_module(Module) :-
-    Module \== term_expander,
-    Module \== user.
+main_file(File) :-
+    prolog_load_context(file,File),
+    prolog_load_context(source,File),
+    source_file_property(File,module(_)).

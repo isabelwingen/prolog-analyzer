@@ -12,4 +12,3 @@ pom.xml.asc
 .#*
 *.edn
 /.circleci/run-build-locally.sh
-/prolog/test.pl
