@@ -43,7 +43,10 @@
 (defrecord VarSpec [spec]
   spec
   (spec-type [spec] VAR)
-  (suitable-spec [spec term] spec)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           (VAR, ANY) spec
+           nil))
   printable
   (to-string [x] "Var"))
 
@@ -352,9 +355,9 @@
 (defrecord CompoundTerm [type functor arglist]
   term
   (term-type [term] COMPOUND)
+  (initial-spec [term] (->CompoundSpec :compound functor (repeat (count arglist) (->AnySpec :any))))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
-
 
 (defn map-to-term [m]
   (case (:type m)
