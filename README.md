@@ -1,6 +1,6 @@
 # prolog-analyzer
 
-An static analyzing tool written in Clojure and SWI Prolog. 
+A static analyzing tool written in Clojure and SWI Prolog. 
 The tool uses specs for predicates (similar to clojure.specs) to find errors statically.
 At the moment the feature range is limited and under developtment, but some simple errors can already be spotted.
 
