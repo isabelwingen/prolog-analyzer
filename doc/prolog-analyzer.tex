@@ -4,6 +4,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{hyperref}
 
 \title{A Statical Analysis Tool for Prolog written in Clojure}
 \author{Isabel Wingen\\ \\Lehrstuhl f\"ur\\Softwaretechnik und
@@ -157,12 +158,57 @@ conform to. These specs are collected from the initial prespec, from prespecs
 no valid domain could be calculated. }
 
 \section{Implementation}
-Write about the technical implementation: abstact interpretation, statical
-analysis, etc in a short, summarizing form
-\subsection{Goal}
-Describe the main goal in detail
-\subsection{Implementation}
+\subsection{Approach: Statical and Abstract}
+In a first version of prolog-analyzer, called plspec
+(https://github.com/wysiib/plspec) the spec checking was done in Prolog during
+runtime. A big advantage was, that there was no overhead like calling a second
+programm. Found errors were reported when they occured during an execution. A
+disadvantage was, that the programm was not checked systematically, but instead
+the check was dependent on the user's calls.
+
+
+
+So with prolog-analyzer, we tried a different approach:
+
+Files to be analysed need to import a single, small Prolog module, which
+provides the predicate for spec annotations and spec creation, and a term
+expander, which writes every predicate as edn to the filesystem.
+
+
+The analysis is then statically done on the written edn by a Clojure programm.
+Since the reimplementation of a Prolog interpreter is very error prone and
+complex, we choose an abstract interpretation approach. With abstract
+interpretation, you assign each variable a domain: A value range which is valid
+and sufficent for this variable. This fits very nicely with the already provided
+specs.
+With every predicate, which is called in the body of a predicate, we gain
+knowledge about the used terms: At the moment of the call, the term must
+conform to a certain spec. This spec can then be added to the domain of the
+term. If at some point, the specs in the domain contradict each other, we have
+found an error.
+
+\subsection{Implementation Detail}
+\subsubsection{Environment}
+Using the annotations, we want to build a domain for every used term and check,
+if it is always valid. To do so, we need a sufficent way to store the found
+domains, an environment. At first, we chose a simple map structure, which holds a list of found
+specs for every term. But this what not enough.
+More often than not, relationships between terms are introduced. Relationships
+can occur from the term structure:
+when using \texttt{[H|T]}, we have the two relations: \texttt{H is head of
+  [H|T]} and \texttt{T is tail of [H|T]}.
+Predicate calls can also create relationships. Calling \texttt{A == B} means,
+that \texttt{A} and \texttt{B} have the same domain.
+As automatic unification is lost in the abstract interpreter, we need to
+reconstruct and maintain these relationships.
+A good fitting model for the environment is a graph: The terms are the nodes,
+the domain is an attribute of those nodes, and the relations are the edges
+between the terms labelled with the type of relationship.
+We choose to use \hyperlink{https://github.com/Engelberg/ubergraph}{ubergraph}
+
+
 \subsubsection{Knowledge Discovery}
+To collect the 
 \subsubsection{Intersection}
 \subsubsection{Relationships}
 \subsubsection{Fixpoint Algorithm}
