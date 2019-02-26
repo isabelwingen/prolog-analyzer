@@ -82,7 +82,7 @@
 (defn initial-env [arglist pre-spec]
   (-> (uber/digraph)
       (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get @data :specs)}])
-      (dom/multiple-fills arglist pre-spec)
+      (dom/multiple-fills true arglist pre-spec)
       (add-index-to-input-arguments arglist)))
 
 (defn analyzing [{arglist :arglist body :body :as clause} pre-spec]
@@ -109,7 +109,7 @@
        ))
 
 (defn example []
-  (->> "resources/tree-example.pl"
+  (->> "resources/analysis.pl"
        process-prolog-file
        complete-analysis
        my-pp/pretty-print-analysis-result

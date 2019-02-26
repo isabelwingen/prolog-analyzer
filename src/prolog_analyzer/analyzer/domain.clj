@@ -29,6 +29,7 @@
 
 
 (declare remove-invalid-or-parts)
+(declare fill-env-for-term-with-spec)
 
 (defn add-doms-to-node [env node & doms]
   (if (uber/has-node? env node)
@@ -40,8 +41,6 @@
 (defn mark-as-was-var [env term]
   (let [attrs (uber/attrs env term)]
     (uber/set-attrs env term (assoc attrs :was-var true))))
-
-(declare fill-env-for-term-with-spec)
 
 (defn WRONG-TYPE
   ([]
@@ -114,16 +113,15 @@
            (add-doms-to-node env term (WRONG-TYPE term spec)))
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
-(defn fill-env-for-term-with-spec-var [env term spec]
+(defn fill-env-for-term-with-spec-var [env term spec initial?]
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if (empty? (utils/get-dom-of-term env term)) ;; if there is no initial domain
+  (if initial?
     (-> env
         (fill-env-for-term-with-spec term (r/make-spec:any))
         (mark-as-was-var term))
     (if (contains? #{r/VAR r/ANY} (r/term-type term))
-      (if (every?
-           #{r/VAR, r/ANY, r/SPECVAR}
-           (map r/spec-type (utils/get-dom-of-term env term)))
+      (if (every? #{r/VAR, r/ANY, r/SPECVAR}
+                  (map r/spec-type (utils/get-dom-of-term env term)))
         (add-doms-to-node env term spec)
         (add-doms-to-node env term (ALREADY-NONVAR)))
       (add-doms-to-node env term (ALREADY-NONVAR)))))
@@ -157,29 +155,37 @@
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec term transformed-definition))))
 
-(defn multiple-fills [env terms specs]
-  (reduce #(apply fill-env-for-term-with-spec %1 %2) env (map vector terms specs)))
-
 (defn fill-env-for-term-with-spec-simple [env term spec]
   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
   (if-let [suitable-spec (r/suitable-spec spec term)]
     (add-doms-to-node env term suitable-spec)
     (add-doms-to-node env term (WRONG-TYPE term spec))))
 
-(defn fill-env-for-term-with-spec [env term spec]
-  (case+ (r/spec-type spec)
-    r/ANY (fill-env-for-term-with-spec-any env term spec)
-    r/GROUND (fill-env-for-term-with-spec-ground env term spec)
-    r/NONVAR (fill-env-for-term-with-spec-nonvar env term spec)
-    r/VAR (fill-env-for-term-with-spec-var env term spec)
-    r/LIST (fill-env-for-term-with-spec-list env term spec)
-    r/TUPLE (fill-env-for-term-with-spec-tuple env term spec)
-    r/COMPOUND (fill-env-for-term-with-spec-compound env term spec)
-    r/SPECVAR (fill-env-for-term-with-spec-specvar env term spec)
-    r/OR (fill-env-for-term-with-spec-one-of env term spec)
-    r/AND (fill-env-for-term-with-spec-and env term spec)
-    r/USERDEFINED (fill-env-for-term-with-spec-user-defined env term spec)
-    (r/ATOMIC, r/ATOM, r/NUMBER, r/FLOAT, r/INTEGER, r/EXACT) (fill-env-for-term-with-spec-simple env term spec)))
+
+(defn fill-env-for-term-with-spec
+  ([env initial? term spec]
+   (case+ (r/spec-type spec)
+          r/ANY (fill-env-for-term-with-spec-any env term spec)
+          r/GROUND (fill-env-for-term-with-spec-ground env term spec)
+          r/NONVAR (fill-env-for-term-with-spec-nonvar env term spec)
+          r/VAR (fill-env-for-term-with-spec-var env term spec initial?)
+          r/LIST (fill-env-for-term-with-spec-list env term spec)
+          r/TUPLE (fill-env-for-term-with-spec-tuple env term spec)
+          r/COMPOUND (fill-env-for-term-with-spec-compound env term spec)
+          r/SPECVAR (fill-env-for-term-with-spec-specvar env term spec)
+          r/OR (fill-env-for-term-with-spec-one-of env term spec)
+          r/AND (fill-env-for-term-with-spec-and env term spec)
+          r/USERDEFINED (fill-env-for-term-with-spec-user-defined env term spec)
+          (r/ATOMIC, r/ATOM, r/NUMBER, r/FLOAT, r/INTEGER, r/EXACT) (fill-env-for-term-with-spec-simple env term spec)))
+  ([env term spec]
+   (fill-env-for-term-with-spec env false term spec)))
+
+(defn multiple-fills
+  ([env initial? terms specs]
+   (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) env (map vector terms specs)))
+  ([env terms specs]
+   (multiple-fills env false terms specs)))
+
 
 (defn- simplify-and [term {speclist :arglist :as or-spec}]
   (let [simplified-and (->> speclist

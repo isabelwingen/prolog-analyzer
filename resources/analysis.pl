@@ -22,3 +22,11 @@ filter([X|L],X) :-
     int(X), !.
 filter([_|L],X) :-
     filter(L,X).
+
+:- spec_pre(is_var/1,[var]).
+is_var(X) :-
+    var(X).
+
+test_is_var(A) :-
+    int(A),
+    is_var(A).
