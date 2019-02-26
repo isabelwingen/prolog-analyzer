@@ -17,6 +17,7 @@
 \newcommand{\prologPart}{\textit{prolog\_analyzer.pl}}
 \newcommand{\jarPart}{\textit{prolog-analyzer.jar}}
 \newcommand{\prologAnalyzer}{\textit{Prolog Analyzer}}
+\newcommand{\future}[1]{\textcolor{lightgray}{#1}}
 
 \begin{document}
 \maketitle
@@ -143,6 +144,9 @@ There are three types of spec annotations:
   This condition must be valid during the whole execution.
 \end{itemize}
 
+More than one spec can be annotaded. If no spec is annotated, the most general
+spec is assumed: Every position is \texttt{any}.
+
 \subsection{Execution and Result}
 The path of the files to be analysed are given to \prologAnalyzer{}.
 Every clause is analysed in combination with a pre spec given for the predicate
@@ -151,10 +155,10 @@ argument.
 
 For every term a domain is collected, which holds every spec this term has to
 conform to. These specs are collected from the initial prespec, from prespecs
-\textcolor{lightgray}{and postspec} of the called goals
-\textcolor{lightgray}{and from relations between the terms}.
+\future{and postspec} of the called goals
+\future{and from relations between the terms}.
 
-\textcolor{lightgray}{An output is returned, which mentions every term for which
+\future{An output is returned, which mentions every term for which
 no valid domain could be calculated. }
 
 \section{Implementation}
@@ -191,7 +195,7 @@ found an error.
 \subsubsection{Environment}
 Using the annotations, we want to build a domain for every used term and check,
 if it is always valid. To do so, we need a sufficent way to store the found
-domains, an environment. At first, we chose a simple map structure, which holds a list of found
+domains in an environment. At first, we chose a simple map structure, which holds a list of found
 specs for every term. But this what not enough.
 More often than not, relationships between terms are introduced. Relationships
 can occur from the term structure:
@@ -207,8 +211,124 @@ between the terms labelled with the type of relationship.
 We choose to use \hyperlink{https://github.com/Engelberg/ubergraph}{ubergraph}
 
 
+Roughly explained, we collect every knowledge about the domains of terms
+available through code and spec annotations. Using the relationships between
+them, we restrict the domains further and further. If no more change happens, the analysis
+is finished.
+
 \subsubsection{Knowledge Discovery}
-To collect the 
+The first step in the analysis is the knowledge discovery. We go through the
+code and the specs and collect every information available. Some minor
+interpretations are done, like acknowledging that \texttt{list(int)} cannot be a
+valid spec for \texttt{123}. Therefore we find some errors in this step of the
+analysis.
+
+\begin{figure}
+  \caption{Analysis Example}
+  \label{example:analysis}
+\begin{lstlisting}
+  :- spec_pre(int/1,[int]).
+int(X) :-
+    integer(X).
+
+
+:- spec_pre(filter/2,[list(atomic),var]).
+filter([X|L],X) :-
+    int(X), !.
+filter([_|L],X) :-
+    filter(L,X).
+\end{lstlisting}
+\end{figure}
+
+The analysis is done for every pair of Clause and Prespec isolated. \future{At
+  the end the result of the clauses belonging to a predicate are merged together.}
+
+
+
+\paragraph{Step 1: Gather Information From Head and Initial Spec}\hfill\\
+A pre spec gives us information about the arguments that enter the clause. So we
+can use the pre spec to fill a start domain for every argument. Furthermore the
+head of the clause reveals the structure of the arguments or restricts its
+domain. For example, when \texttt{[H|T]} is used in the head or
+\texttt{list(any)} in the spec, we already know
+that this term must be a list and we have to add this knowledge to our
+environment.
+We also memorize in our environment, which argument was used in which position
+in the head \future{for future usage}.
+
+\begin{lstlisting}
+[X|L]          dom: [list(atomic)], index: 0
+X              dom: [var],          index: 1
+
+\end{lstlisting}
+
+\paragraph{Gather Indirect Information}\hfill\\
+Gained Knowledge about a term does not only affect this term, but also some
+terms depending structural on it. This is the case when using lists or
+compounds.
+For example, \texttt{[H|T] is list(atomic)} gives us not only that \texttt{[H|T]} is list
+with atomics, but additionally \texttt{H is atomic} and \texttt{T is
+  list(atomic)}.
+Whenever information about a compound or list term are added to the environment,
+the depending terms are also processed and updated.
+
+\begin{lstlisting}
+[X|L]          dom: [list(atomic)],  index: 0
+X              dom: [var, atomic],   index: 1
+L              dom: [list(atomic)]
+\end{lstlisting}
+
+
+\paragraph{Step 2: Gather Information From the Called Goals}\hfill\\
+Next we go step to step through the body of the clause. For every goal called,
+we add the used arguments to our environment.
+For that, we first collect the pre specs of the goal. There are two aspects
+here: we need to consider every argument individually and
+we have to look at the combined value of the arguments.
+For the argument at position i, one of the
+terms at positions i of the found pre specs must hold. We can add the
+combination of these specs as a \texttt{one-of} spec to the environment.
+Furthermore there must be a valid pre-spec, which is valid for all used
+arguments. To cover this aspect, we add an artifical argument to the
+environment. This articifal argument is a list which contains the used arguments
+in the correct order. As a domain, we set a \texttt{one-of} of the found pre
+specs.
+Due to the list-type of the articifal term, the relationships for the single
+arguments to the artifical argument are added to the environment and can be used
+later on for validation.
+
+\paragraph{Step 3: Add Structural Relationships}\hfill\\
+At the end of the discovery phase, we have seen all terms used in the clause.
+We can now destruct them and add inner terms as nodes (if not already added) and their
+relationships to the parent term as edges to the environment.
+
+For lists, we add the head and the tail to the environment and the relationships
+\texttt{is-head} and \texttt{is-tail}. As we only work with head-tail-lists, we
+need to add sublist, if the list is given in a form like \texttt{[1,2,3]}.
+
+For compounds, we add the arguments with a relationship \texttt{at-pos} to the
+environment.
+
+\paragraph{Special Case: Var}\hfill\\
+A variable term can change its type in the course of the clause. This change is
+displayed in its domain: Once it gets bound, a non-var spec is added to the
+domain, and the var spec that was there once can be dismissed.
+
+But an already bound term cannot become variable. So if there are already
+non-var specs in its domain, adding a var spec is an illegal action.
+
+\paragraph{Special Case: Specvar}\hfill\\
+As mentioned above, Specvars are placeholders for other specs, but they are
+restricted to a scope, which means that if \texttt{specvar(X)} is used in one
+pre spec and in another, it is not the same.
+As the environment is not restricted to a scope, we need to assign every specvar
+a unique id. Afterwards, the specvars can be added to the domains of the terms
+associated with them.
+How do we ensure that all these terms really conform to a single spec?
+We add the specvar to the environment, and update their domain with the values
+found in domains, where this specvar is used.
+If the domain of the specvar becomes invalid, we have found an error.
+
 \subsubsection{Intersection}
 \subsubsection{Relationships}
 \subsubsection{Fixpoint Algorithm}
