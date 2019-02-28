@@ -30,3 +30,5 @@ pom.xml.asc
 *.pdf
 *.synctex.gz
 *.fdb_latexmk
+
+doc/auto
