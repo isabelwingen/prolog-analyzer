@@ -137,15 +137,15 @@
   ;; WITH EMPTY DOM
   (are [in expected]
       (= expected (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:var)) in))
-    (r/make-term:ground "anyanyany") [(r/make-spec:ground)]
-    (r/make-term:nonvar "nonononvar") [(r/make-spec:nonvar)]
-    (r/make-term:atom "batman") [(r/make-spec:atom)]
-    (r/make-term:atomic "cake") [(r/make-spec:atomic)]
-    (r/make-term:integer 42) [(r/make-spec:integer)]
-    (r/make-term:number 23) [(r/make-spec:number)]
-    (r/make-term:float 3.1415) [(r/make-spec:float)]
-    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) [(r/make-spec:list (r/make-spec:any))]
-    (r/make-term:compound "wrap" [(r/make-term:atom "salad") (r/make-term:atom "tomatoes")]) [(r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)])])
+    (r/make-term:ground "anyanyany") [(sut/ALREADY-NONVAR)]
+    (r/make-term:nonvar "nonononvar") [(sut/ALREADY-NONVAR)]
+    (r/make-term:atom "batman") [(sut/ALREADY-NONVAR)]
+    (r/make-term:atomic "cake") [(sut/ALREADY-NONVAR)]
+    (r/make-term:integer 42) [(sut/ALREADY-NONVAR)]
+    (r/make-term:number 23) [(sut/ALREADY-NONVAR)]
+    (r/make-term:float 3.1415) [(sut/ALREADY-NONVAR)]
+    (r/make-term:list (r/make-term:integer 1) (r/make-term:atomic "[]")) [(sut/ALREADY-NONVAR)]
+    (r/make-term:compound "wrap" [(r/make-term:atom "salad") (r/make-term:atom "tomatoes")]) [(sut/ALREADY-NONVAR)])
 
   (is (valid-env? (sut/fill-env-for-term-with-spec test-env (r/make-term:var "X") (r/make-spec:var))))
   (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/make-term:var "X") (r/make-spec:any)) (r/make-term:var "X") (r/make-spec:var))))
