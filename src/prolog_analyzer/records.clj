@@ -1,5 +1,5 @@
 (ns prolog-analyzer.records
-  (:require [prolog-analyzer.utils :refer [case+]]
+  (:require [prolog-analyzer.utils :refer [case+ get-elements-of-list]]
             [clojure.tools.logging :as log]
             [clojure.tools.namespace.repl :refer [refresh]]
             [clojure.string]))
@@ -23,7 +23,6 @@
 (def EXACT :exact)
 (def ERROR :error)
 
-(declare get-elements-of-list)
 (declare to-arglist)
 (declare empty-list?)
 (declare suitable-spec)
@@ -501,8 +500,8 @@
 
 (defn empty-list?
   "Checks if the input is the empty (prolog) list."
-  [{term :term type :type}]
-  (and (= type :atomic) (= term "[]")))
+  [term]
+  (and (= ATOMIC (term-type term)) (= "[]" (:term term))))
 
 (defn to-head-tail-list
   "Transforms a bunch of `terms` to a proper prolog list."
@@ -525,11 +524,6 @@
     0 (make-spec:error "Cannot build empty one-of")
     1 (first specs)
     (make-spec:one-of specs)))
-
-(defn get-elements-of-list [{head :head tail :tail}]
-  (if (= "[]" (:term tail))
-    (list head)
-    (conj (get-elements-of-list tail) head)))
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))

@@ -84,3 +84,8 @@
                       (map #(-> % first eval-dispatch (list (second %))))
                       (mapcat identity))
                  default))))
+
+(defn get-elements-of-list [{head :head tail :tail}]
+  (if (= "[]" (:term tail))
+    (list head)
+    (conj (get-elements-of-list tail) head)))

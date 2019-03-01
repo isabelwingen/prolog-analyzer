@@ -81,15 +81,15 @@
   (r/make-spec:compound functor (map transform-spec arglist)))
 
 (defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
-  (let [arglist (r/get-elements-of-list (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     (r/make-spec:one-of (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
-  (let [arglist (r/get-elements-of-list (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     (r/make-spec:and (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "tuple"] [{inner-list :arglist}]
-  (let [arglist (r/get-elements-of-list (first inner-list))]
+  (let [arglist (utils/get-elements-of-list (first inner-list))]
     (r/make-spec:tuple (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
@@ -106,8 +106,8 @@
         functor (get-in outer [:arglist 1 :arglist 0 :term])
         arity (get-in outer [:arglist 1 :arglist 1 :value])]
     (if (= 1 (count args))
-      (hash-map (vector module functor arity) (map (comp (partial map transform-spec) r/get-elements-of-list) args))
-      (hash-map (vector module functor arity) (list (map (comp (partial map transform-spec) r/get-elements-of-list) args))))))
+      (hash-map (vector module functor arity) (map (comp (partial map transform-spec) utils/get-elements-of-list) args))
+      (hash-map (vector module functor arity) (list (map (comp (partial map transform-spec) utils/get-elements-of-list) args))))))
 
 (defn- order-specs [specs]
   (->> specs

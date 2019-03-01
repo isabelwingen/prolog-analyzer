@@ -9,15 +9,6 @@
             [clojure.test.check.properties :as prop]
             [clojure.test :refer [deftest are is]]))
 
-(deftest empty-list?-test
-  (is (true? (sut/empty-list? {:type :atomic :term "[]"})))
-  (is (false? (sut/empty-list? {:type :atomic :term "."})))
-  (is (false? (sut/empty-list? {:type :atom :term "[]"})))
-  (is (false? (sut/empty-list? {:type :list :head {:spec :var :name "X"} :tail {:type :atomic :term "[]"}})))
-  (is (false? (sut/empty-list? {:term "[|]" :type :atomic})))
-  (is (false? (sut/empty-list? {:term "[]" :type :atom})))
-  (is (false? (sut/empty-list? {:type :list :arglist []}))))
-
 (deftest to-head-tail-list
   (are [x y] (= x (apply sut/to-head-tail-list y))
     (sut/make-term:atomic "[]") []
