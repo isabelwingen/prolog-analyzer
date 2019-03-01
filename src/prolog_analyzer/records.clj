@@ -275,56 +275,56 @@
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
-(defrecord VarTerm [type name]
+(defrecord VarTerm [name]
   term
   (term-type [term] VAR)
   (initial-spec [term] (->VarSpec))
   printable
   (to-string [x] (str name)))
 
-(defrecord AnonVarTerm [type name]
+(defrecord AnonVarTerm [name]
   term
   (term-type [term] VAR)
   (initial-spec [term] (->VarSpec))
   printable
   (to-string [x] (str name)))
 
-(defrecord AtomTerm [type term]
+(defrecord AtomTerm [term]
   term
   (term-type [term] ATOM)
   (initial-spec [term] (->AtomSpec))
   printable
   (to-string [x] (str term)))
 
-(defrecord AtomicTerm [type term]
+(defrecord AtomicTerm [term]
   term
   (term-type [term] ATOMIC)
   (initial-spec [term] (->AtomicSpec))
   printable
   (to-string [x] (str term)))
 
-(defrecord IntegerTerm [type value]
+(defrecord IntegerTerm [value]
   term
   (term-type [term] INTEGER)
   (initial-spec [term] (->IntegerSpec))
   printable
   (to-string [x] (str value)))
 
-(defrecord FloatTerm [type value]
+(defrecord FloatTerm [value]
   term
   (term-type [term] FLOAT)
   (initial-spec [term] (->FloatSpec))
   printable
   (to-string [x] (str value)))
 
-(defrecord NumberTerm [type value]
+(defrecord NumberTerm [value]
   term
   (term-type [term] NUMBER)
   (initial-spec [term] (->NumberSpec))
   printable
   (to-string [x] (str value)))
 
-(defrecord ListTerm [type head tail]
+(defrecord ListTerm [head tail]
   term
   (term-type [term] LIST)
   (initial-spec [term] (->ListSpec (->AnySpec)))
@@ -335,27 +335,28 @@
            VAR (str "[" (to-string head) "|" (to-string tail) "]")
            LIST (str "[" (to-arglist (get-elements-of-list x)) "]"))))
 
-(defrecord CompoundTerm [type functor arglist]
+(defrecord CompoundTerm [functor arglist]
   term
   (term-type [term] COMPOUND)
   (initial-spec [term] (->CompoundSpec functor (repeat (count arglist) (->AnySpec))))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
-(defn map-to-term [m]
-  (case (:type m)
-    :anon_var (map->AnonVarTerm m)
-    :var (map->VarTerm m)
-    :atom (map->AtomTerm m)
-    :atomic (map->AtomicTerm m)
-    :number (map->NumberTerm m)
-    :integer (map->IntegerTerm m)
-    :float (map->FloatTerm m)
-    :list (map->ListTerm (-> m
-                         (update :head map-to-term)
-                         (update :tail map-to-term)))
-    :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
-    (log/error "No case for" m "in map-to-term")))
+(defn map-to-term [input-m]
+  (let [m (dissoc input-m :type)]
+    (case (:type input-m)
+      :anon_var (map->AnonVarTerm m)
+      :var (map->VarTerm m)
+      :atom (map->AtomTerm m)
+      :atomic (map->AtomicTerm m)
+      :number (map->NumberTerm m)
+      :integer (map->IntegerTerm m)
+      :float (map->FloatTerm m)
+      :list (map->ListTerm (-> m
+                               (update :head map-to-term)
+                               (update :tail map-to-term)))
+      :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
+      (log/error "No case for" m "in map-to-term"))))
 
 (defn map-to-spec [m]
   (case (:spec m)
@@ -377,34 +378,6 @@
     :user-defined (map->UserDefinedSpec (update m :arglist (partial map map-to-spec)))
     :error-spec (map->ErrorSpec m)
     (log/error "No case for" m "in map-to-term")))
-
-
-(defn make-term:var [name]
-  (VarTerm. :var name))
-
-(defn make-term:anon_var [name]
-  (AnonVarTerm. :anon_var name))
-
-(defn make-term:atom [term]
-  (AtomTerm. :atom term))
-
-(defn make-term:atomic [term]
-  (AtomicTerm. :atomic term))
-
-(defn make-term:number [value]
-  (NumberTerm. :number value))
-
-(defn make-term:integer [value]
-  (IntegerTerm. :integer value))
-
-(defn make-term:float [value]
-  (FloatTerm. :float value))
-
-(defn make-term:list [head tail]
-  (ListTerm. :list head tail))
-
-(defn make-term:compound [functor arglist]
-  (CompoundTerm. :compound functor arglist))
 
 
 (defn make-spec:var []
@@ -473,8 +446,8 @@
   "Transforms a bunch of `terms` to a proper prolog list."
   [& terms]
   (if (empty? terms)
-    (make-term:atomic "[]")
-    (make-term:list (first terms) (apply to-head-tail-list (rest terms)))))
+    (->AtomicTerm "[]")
+    (->ListTerm (first terms) (apply to-head-tail-list (rest terms)))))
 
 (defn to-tuple-spec
   "Transforms a bunch of `specs` to a tuple spec."

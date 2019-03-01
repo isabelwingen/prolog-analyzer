@@ -11,14 +11,14 @@
 
 (deftest to-head-tail-list
   (are [x y] (= x (apply sut/to-head-tail-list y))
-    (sut/make-term:atomic "[]") []
+    (sut/->AtomicTerm "[]") []
 
-    (sut/make-term:list (sut/make-term:integer 1) (sut/make-term:atomic "[]")) [(sut/make-term:integer 1)]
+    (sut/->ListTerm (sut/->IntegerTerm 1) (sut/->AtomicTerm "[]")) [(sut/->IntegerTerm 1)]
 
-    (sut/make-term:list
-     (sut/make-term:integer 1)
-     (sut/make-term:list (sut/make-term:integer 2) (sut/make-term:atomic "[]")))
-     [(sut/make-term:integer 1) (sut/make-term:integer 2)]
+    (sut/->ListTerm
+     (sut/->IntegerTerm 1)
+     (sut/->ListTerm (sut/->IntegerTerm 2) (sut/->AtomicTerm "[]")))
+     [(sut/->IntegerTerm 1) (sut/->IntegerTerm 2)]
     ))
 
 (deftest to-tuple-spec-test
