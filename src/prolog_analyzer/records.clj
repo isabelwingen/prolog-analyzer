@@ -275,28 +275,6 @@
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
-
-(defrecord AnyTerm [type term]
-  term
-  (term-type [term] ANY)
-  (initial-spec [term] (->AnySpec))
-  printable
-  (to-string [x] (str term)))
-
-(defrecord GroundTerm [type term]
-  term
-  (term-type [term] GROUND)
-  (initial-spec [term] (->GroundSpec))
-  printable
-  (to-string [x] (str term)))
-
-(defrecord NonvarTerm [type term]
-  term
-  (term-type [term] NONVAR)
-  (initial-spec [term] (->NonvarSpec))
-  printable
-  (to-string [x] (str term)))
-
 (defrecord VarTerm [type name]
   term
   (term-type [term] VAR)
@@ -368,9 +346,6 @@
   (case (:type m)
     :anon_var (map->AnonVarTerm m)
     :var (map->VarTerm m)
-    :any (map->AnyTerm m)
-    :ground (map->GroundTerm m)
-    :nonvar (map->NonvarTerm m)
     :atom (map->AtomTerm m)
     :atomic (map->AtomicTerm m)
     :number (map->NumberTerm m)
@@ -409,15 +384,6 @@
 
 (defn make-term:anon_var [name]
   (AnonVarTerm. :anon_var name))
-
-(defn make-term:any [name]
-  (AnyTerm. :any name))
-
-(defn make-term:ground [name]
-  (GroundTerm. :ground name))
-
-(defn make-term:nonvar [name]
-  (NonvarTerm. :nonvar name))
 
 (defn make-term:atom [term]
   (AtomTerm. :atom term))

@@ -69,11 +69,7 @@
 (deftest fill-env-for-term-with-spec-test-any
   (are [in out]
       (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:any)) in))
-    (r/make-term:any "anyanyany") (r/make-spec:any)
-    (r/make-term:ground "anyanyany") (r/make-spec:ground)
-    (r/make-term:nonvar "anyanyany") (r/make-spec:nonvar)
     (r/make-term:atom "cake") (r/make-spec:atom)
-    (r/make-term:atomic "cake") (r/make-spec:atomic)
     (r/make-term:integer 42) (r/make-spec:integer)
     (r/make-term:number 23) (r/make-spec:number)
     (r/make-term:float 3.1415) (r/make-spec:float)
@@ -85,11 +81,7 @@
 (deftest fill-env-for-term-with-spec-test-ground
   (are [in out]
       (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:ground)) in))
-    (r/make-term:any "anyanyany") (r/make-spec:ground)
-    (r/make-term:ground "anyanyany") (r/make-spec:ground)
-    (r/make-term:nonvar "anyanyany") (r/make-spec:ground)
     (r/make-term:atom "bunker") (r/make-spec:atom)
-    (r/make-term:atomic "cake") (r/make-spec:atomic)
     (r/make-term:integer 42) (r/make-spec:integer)
     (r/make-term:number 23) (r/make-spec:number)
     (r/make-term:float 3.1415) (r/make-spec:float)
@@ -103,11 +95,7 @@
 (deftest fill-env-for-term-with-spec-test-nonvar
   (are [in out]
       (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:nonvar)) in))
-    (r/make-term:any "anyanyany") (r/make-spec:nonvar)
-    (r/make-term:ground "anyanyany") (r/make-spec:ground)
-    (r/make-term:nonvar "anyanyany") (r/make-spec:nonvar)
     (r/make-term:atom "cake") (r/make-spec:atom)
-    (r/make-term:atomic "cake") (r/make-spec:atomic)
     (r/make-term:integer 42) (r/make-spec:integer)
     (r/make-term:number 23) (r/make-spec:number)
     (r/make-term:float 3.1415) (r/make-spec:float)
@@ -124,10 +112,7 @@
       (= expected (utils/get-dom-of-term (-> test-env
                                              (sut/fill-env-for-term-with-spec in (r/make-spec:any))
                                              (sut/fill-env-for-term-with-spec  in (r/make-spec:var))) in))
-    (r/make-term:ground "anyanyany") [(r/make-spec:ground) (sut/ALREADY-NONVAR)]
-    (r/make-term:nonvar "nonononvar") [(r/make-spec:nonvar) (sut/ALREADY-NONVAR)]
     (r/make-term:atom "batman") [(r/make-spec:atom) (sut/ALREADY-NONVAR)]
-    (r/make-term:atomic "cake") [(r/make-spec:atomic) (sut/ALREADY-NONVAR)]
     (r/make-term:integer 42) [(r/make-spec:integer) (sut/ALREADY-NONVAR)]
     (r/make-term:number 23) [(r/make-spec:number) (sut/ALREADY-NONVAR)]
     (r/make-term:float 3.1415) [(r/make-spec:float) (sut/ALREADY-NONVAR)]
@@ -137,10 +122,7 @@
   ;; WITH EMPTY DOM
   (are [in expected]
       (= expected (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:var)) in))
-    (r/make-term:ground "anyanyany") [(sut/ALREADY-NONVAR)]
-    (r/make-term:nonvar "nonononvar") [(sut/ALREADY-NONVAR)]
     (r/make-term:atom "batman") [(sut/ALREADY-NONVAR)]
-    (r/make-term:atomic "cake") [(sut/ALREADY-NONVAR)]
     (r/make-term:integer 42) [(sut/ALREADY-NONVAR)]
     (r/make-term:number 23) [(sut/ALREADY-NONVAR)]
     (r/make-term:float 3.1415) [(sut/ALREADY-NONVAR)]
@@ -159,8 +141,6 @@
 (deftest fill-env-for-term-with-spec-test-atomic
   (are [term]
       (= [(r/make-spec:atomic)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atomic)) term))
-    (r/make-term:atomic "cake")
-    (r/make-term:atomic "1603")
     (r/make-term:var "X")
     (r/make-term:anon_var "_0410"))
   (is (= [(r/make-spec:atom)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:atom "cake") (r/make-spec:atomic)) (r/make-term:atom "cake"))))
@@ -179,14 +159,12 @@
   (are [term]
       (= [(r/make-spec:atom)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
     (r/make-term:atom "cake")
-    (r/make-term:atomic "cake")
     (r/make-term:var "X")
     (r/make-term:anon_var "_0410")
     )
   (are [term]
       (= [(sut/WRONG-TYPE term (r/make-spec:atom))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
     (r/make-term:atomic "[]")
-    (r/make-term:atomic "1603")
     (r/make-term:list (r/make-term:integer 2) (r/make-term:atomic "[]"))
     (r/make-term:compound "foo" [(r/make-term:atom "foo")])
     )
@@ -195,7 +173,6 @@
 (deftest fill-env-for-term-with-spec-test-exact
   (are [term]
       (= [(r/make-spec:exact "cake")] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:exact "cake")) term))
-    (r/make-term:atomic "cake")
     (r/make-term:atom "cake")
     (r/make-term:var "X")
     (r/make-term:anon_var "_0410")
@@ -205,7 +182,6 @@
    (r/make-term:list (r/make-term:integer 2) (r/make-term:atomic "[]"))
    (r/make-term:compound "foo" [(r/make-term:atom "foo")])
    (r/make-term:atom "nocake")
-   (r/make-term:atomic 1)
    (r/make-term:integer 2)
    (r/make-term:number 2)
    (r/make-term:float 2.0)
@@ -215,15 +191,12 @@
 (deftest fill-env-for-term-with-spec-test-number
   (are [term]
       (= [(r/make-spec:number)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:number)) term))
-    (r/make-term:atomic "3.14")
-    (r/make-term:atomic "100")
     (r/make-term:var "X")
     (r/make-term:anon_var "_234"))
   (is (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:integer 2) (r/make-spec:number)) (r/make-term:integer 2))))
   (is (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/make-term:float 2.5) (r/make-spec:number)) (r/make-term:float 2.5))))
   (are [term]
       (= [(sut/WRONG-TYPE term (r/make-spec:number))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:number)) term))
-    (r/make-term:atomic "no")
     (r/make-term:atom "no")
     (r/make-term:list (r/make-term:number 2) (r/make-term:atomic "[]"))
     (r/make-term:compound "node" [(r/make-term:atom "hello")])
@@ -236,7 +209,6 @@
       (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:integer)) term))
     (r/make-term:integer 42)
     (r/make-term:number 42)
-    (r/make-term:atomic "42")
     (r/make-term:var "X")
     (r/make-term:anon_var "_234"))
 
@@ -244,8 +216,6 @@
       (= [(sut/WRONG-TYPE term (r/make-spec:integer))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:integer)) term))
     (r/make-term:number 3.14)
     (r/make-term:float 3.14)
-    (r/make-term:atomic "3.14")
-    (r/make-term:atomic "no")
     (r/make-term:atom "no")
     (r/make-term:list (r/make-term:integer 0) (r/make-term:atomic "[]"))
     (r/make-term:compound "node" [(r/make-term:atom "hello")]))
@@ -256,7 +226,6 @@
       (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:float)) term))
     (r/make-term:float 3.14)
     (r/make-term:number 1.0)
-    (r/make-term:atomic "3.14")
     (r/make-term:var "X")
     (r/make-term:anon_var "_234"))
 
@@ -264,8 +233,6 @@
       (= [(sut/WRONG-TYPE term (r/make-spec:float))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:float)) term))
     (r/make-term:number 42)
     (r/make-term:integer 123)
-    (r/make-term:atomic "1")
-    (r/make-term:atomic "no")
     (r/make-term:atom "no")
     (r/make-term:list (r/make-term:float 0.0) (r/make-term:atomic "[]"))
     (r/make-term:compound "node" [(r/make-term:atom "hello")])
@@ -293,7 +260,6 @@
 (deftest fill-env-for-term-with-spec-test-tuple
   (are [term]
       (= [(r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])) term))
-    (r/make-term:list (r/make-term:integer 2) (r/make-term:list (r/make-term:atomic "cake") (r/make-term:atomic "[]")))
     (r/make-term:list  (r/make-term:number 2) (r/make-term:list (r/make-term:atom "cake") (r/make-term:atomic "[]")))
     (r/make-term:var "X")
     (r/make-term:anon_var "_0410")
@@ -304,8 +270,6 @@
     (r/make-term:list (r/make-term:float 2.5) (r/make-term:atomic "[]")) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
     (r/make-term:compound "foo" [(r/make-term:atom "foo")])
     (r/make-term:atom "nocake")
-    (r/make-term:atomic "cake")
-    (r/make-term:atomic 1)
     (r/make-term:integer 2)
     (r/make-term:number 2)
     (r/make-term:float 2.0)))
@@ -315,7 +279,6 @@
 (deftest fill-env-for-term-with-spec-test-compound
   (are [term]
       (= [(r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)])) term))
-    (r/make-term:compound "foo" [(r/make-term:integer 2) (r/make-term:atomic "cake")])
     (r/make-term:compound "foo" [(r/make-term:number 2) (r/make-term:atom "cake")])
     (r/make-term:var "X")
     (r/make-term:anon_var "_0410")
@@ -325,11 +288,7 @@
     (r/make-term:atomic "[]")
     (r/make-term:list  (r/make-term:float 2.5) (r/make-term:atomic "[]")) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
     (r/make-term:compound "foo" [(r/make-term:atom "foo")])
-    (r/make-term:compound "not-foo" [(r/make-term:integer 2) (r/make-term:atomic "cake")])
-    (r/make-term:compound "foo" [(r/make-term:float 2.5) (r/make-term:atomic "cake")])
     (r/make-term:atom "nocake")
-    (r/make-term:atomic "cake")
-    (r/make-term:atomic 1)
     (r/make-term:integer 2)
     (r/make-term:number 2)
     (r/make-term:float 2.0)))
