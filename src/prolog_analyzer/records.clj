@@ -22,10 +22,12 @@
 (def SPECVAR :specvar)
 (def EXACT :exact)
 (def ERROR :error)
+(def EMPTYLIST :empty-list)
 
 (declare to-arglist)
 (declare empty-list?)
 (declare suitable-spec)
+(declare next-steps)
 
 
 (defprotocol printable
@@ -33,11 +35,20 @@
 
 (defprotocol spec
   (spec-type [spec])
-  (suitable-spec [spec term]))
+  (suitable-spec [spec term])
+  (next-steps [spec term]))
 
 (defprotocol term
   (term-type [term])
   (initial-spec [term]))
+
+(defrecord ErrorSpec [reason]
+  spec
+  (spec-type [spec] ERROR)
+  (suitable-spec [spec term] spec)
+  printable
+  (to-string [x] (str "ERROR: " reason)))
+
 
 (defrecord VarSpec []
   spec
@@ -46,8 +57,20 @@
     (case+ (term-type term)
            (VAR, ANY) spec
            nil))
+  (next-steps [spec term] [])
   printable
   (to-string [x] "Var"))
+
+(defrecord EmptyListSpec []
+  spec
+  (spec-type [spec] EMPTYLIST)
+  (suitable-spec [spec term]
+    (if (= EMPTYLIST (term-type term))
+      spec nil))
+  (next-steps [spec term] [])
+  printable
+  (to-string [x] "EmptyList"))
+
 
 (defrecord AtomSpec []
   spec
@@ -57,6 +80,7 @@
            (ATOM, VAR) spec
            ATOMIC (if (and (not= "[]" (:term term)) ((complement number?) (read-string (:term term)))) spec nil)
            nil))
+  (next-steps [spec term] [])
   printable
   (to-string [x] "Atom"))
 
@@ -69,6 +93,7 @@
            NUMBER (if (int? (:value term)) spec nil)
            ATOMIC (if (int? (read-string (:term term))) spec nil)
            nil))
+  (next-steps [spec term] [])
   printable
   (to-string [x] "Integer"))
 
@@ -81,6 +106,7 @@
            NUMBER (if (float? (:value term)) spec nil)
            ATOMIC (if (float? (read-string (:term term))) spec nil)
            nil))
+  (next-steps [spec term] [])
   printable
   (to-string [x] "Float"))
 
@@ -94,6 +120,7 @@
            FLOAT (->FloatSpec)
            ATOMIC (if (number? (read-string (:term term))) spec nil)
            nil))
+  (next-steps [spec term] [])
   printable
   (to-string [x] "Number"))
 
@@ -107,9 +134,25 @@
            NUMBER (->NumberSpec)
            INTEGER (->IntegerSpec)
            FLOAT (->FloatSpec)
+           EMPTYLIST (->EmptyListSpec)
            nil))
+  (next-steps [spec term] [])
   printable
   (to-string [x] "Atomic"))
+
+
+(defrecord ExactSpec [value]
+  spec
+  (spec-type [spec] EXACT)
+  (suitable-spec [spec term]
+    (case+ (term-type term)
+           VAR spec
+           (ATOMIC, ATOM) (if (= value (:term term)) spec nil)
+           nil))
+  (next-steps [spec term] [])
+  printable
+  (to-string [x] (str "Exact(" value ")")))
+
 
 (defrecord ListSpec [type]
   spec
@@ -119,7 +162,15 @@
            VAR spec
            LIST (if (suitable-spec type (:head term)) spec nil)
            ATOMIC (if (= "[]" (:term term)) spec nil)
+           EMPTYLIST (->EmptyListSpec)
            nil))
+  (next-steps [spec term]
+    (if (= LIST (term-type term))
+      (if (empty-list? (:tail term))
+        [(.head term) type]
+        [(.head term) type
+         (.tail term) spec])
+      []))
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
 
@@ -134,21 +185,17 @@
                          (suitable-spec (->TupleSpec (rest arglist)) (:tail term)))
                   spec
                   nil)
+           EMPTYLIST (if (empty? arglist) (->EmptyListSpec) nil)
            nil))
+  (next-steps [spec term]
+    (if (= LIST (term-type term))
+      (if (empty-list? (:tail term))
+        [(.head term) (first (.arglist spec))]
+        [(.head term) (first (.arglist spec))
+         (.tail term) (update spec :arglist rest)])
+      []))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
-
-(defrecord ExactSpec [value]
-  spec
-  (spec-type [spec] EXACT)
-  (suitable-spec [spec term]
-    (case+ (term-type term)
-           VAR spec
-           (ATOMIC, ATOM) (if (= value (:term term)) spec nil)
-           nil))
-  printable
-  (to-string [x] (str "Exact(" value ")")))
-
 
 (defrecord CompoundSpec [functor arglist]
   spec
@@ -158,6 +205,10 @@
            VAR spec
            COMPOUND (if (and (= functor (:functor term)) (= (count arglist) (count (:arglist term)))) spec nil)
            nil))
+  (next-steps [spec term]
+    (if (= COMPOUND (term-type term))
+      (interleave (.arglist term) arglist)
+      []))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
@@ -174,7 +225,12 @@
            FLOAT (->FloatSpec)
            LIST (->ListSpec (->GroundSpec))
            COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->GroundSpec)))
+           EMPTYLIST (->EmptyListSpec)
            nil))
+  (next-steps [spec term]
+    (if (contains? #{LIST, COMPOUND} (term-type term))
+      [term (suitable-spec spec term)]
+      []))
   printable
   (to-string [x] "Ground"))
 
@@ -183,10 +239,22 @@
   (spec-type [spec] AND)
   (suitable-spec [spec term]
     (if (every? (complement nil?) (map #(suitable-spec % term) arglist))
-      (-> spec
-          (update :arglist distinct)
-          (update :arglist (partial apply vector)))
+      (let [mod-and (-> spec
+                        (update :arglist (partial map #(suitable-spec % term)))
+                        (update :arglist (partial map #(if (= AND (spec-type %)) (.arglist %) %)))
+                        (update :arglist flatten)
+                        (update :arglist distinct)
+                        (update :arglist (partial apply vector)))]
+        (case (count (:arglist mod-and))
+          0 (->ErrorSpec "No valid components")
+          1 (first (:arglist mod-and))
+          mod-and))
       nil))
+  (next-steps [spec term]
+    (let [suitable-spec (suitable-spec spec term)]
+      (if (= AND (spec-type suitable-spec))
+        (interleave (repeat (count (.arglist suitable-spec)) term) (.arglist suitable-spec))
+        [term suitable-spec])))
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
@@ -194,10 +262,20 @@
   spec
   (spec-type [spec] OR)
   (suitable-spec [spec term]
-    (-> spec
-        (update :arglist (partial remove #(nil? (suitable-spec % term))))
-        (update :arglist distinct)
-        (update :arglist (partial apply vector))))
+    (let [simplified-or (-> spec
+                            (update :arglist (partial map #(suitable-spec % term)))
+                            (update :arglist (partial remove #(nil? %)))
+                            (update :arglist distinct)
+                            (update :arglist (partial apply vector)))]
+      (case (count (:arglist simplified-or))
+        0 (->ErrorSpec "No valid components")
+        1 (first (.arglist simplified-or))
+        simplified-or)))
+  (next-steps [spec term]
+    (let [suitable-spec (suitable-spec spec term)]
+      (if (= OR (spec-type suitable-spec))
+        []
+        [term suitable-spec])))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
@@ -209,13 +287,6 @@
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
                    (str name))))
-
-(defrecord ErrorSpec [reason]
-  spec
-  (spec-type [spec] ERROR)
-  (suitable-spec [spec term] spec)
-  printable
-  (to-string [x] (str "ERROR: " reason)))
 
 (declare ->NonvarSpec)
 
@@ -235,7 +306,12 @@
            VAR (->VarSpec)
            LIST (->ListSpec (->AnySpec))
            COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
+           EMPTYLIST (->EmptyListSpec)
            nil))
+  (next-steps [spec term]
+    (if (contains? #{LIST, COMPOUND} (term-type term))
+      [term (suitable-spec spec term)]
+      []))
   printable
   (to-string [x] "Any"))
 
@@ -255,7 +331,12 @@
            VAR (->NonvarSpec)
            LIST (->ListSpec (->AnySpec))
            COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
+           EMPTYLIST (->EmptyListSpec)
            nil))
+  (next-steps [spec term]
+    (if (contains? #{LIST, COMPOUND} (term-type term))
+      [term (suitable-spec spec term)]
+      []))
   printable
   (to-string [x] "Nonvar"))
 
@@ -269,9 +350,11 @@
                    ANY (->AnySpec)
                    LIST (->ListSpec (->AnySpec))
                    COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
+                   EMPTYLIST (->EmptyListSpec)
                    nil
                    )]
       (->AndSpec [spec p])))
+  (next-steps [spec term] [])
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
@@ -302,6 +385,14 @@
   (initial-spec [term] (->AtomicSpec))
   printable
   (to-string [x] (str term)))
+
+(defrecord EmptyListTerm []
+  term
+  (term-type [term] EMPTYLIST)
+  (initial-spec [term] (->EmptyListSpec))
+  printable
+  (to-string [x] "[]"))
+
 
 (defrecord IntegerTerm [value]
   term
@@ -440,7 +531,8 @@
 (defn empty-list?
   "Checks if the input is the empty (prolog) list."
   [term]
-  (and (= ATOMIC (term-type term)) (= "[]" (:term term))))
+  (or (and (= ATOMIC (term-type term)) (= "[]" (:term term)))
+      (= EMPTYLIST (term-type term))))
 
 (defn to-head-tail-list
   "Transforms a bunch of `terms` to a proper prolog list."

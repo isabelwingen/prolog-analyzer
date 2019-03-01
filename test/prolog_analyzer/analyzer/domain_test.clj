@@ -22,14 +22,14 @@
 
 
 (deftest add-doms-to-node-test
-  (is (= [:a :b :c]
+  (is (= [(r/->IntegerSpec) (r/->AtomSpec) (r/->FloatSpec)]
          (-> (uber/digraph)
-             (uber/add-nodes-with-attrs [:x {:dom [:a]}])
-             (sut/add-doms-to-node :x :b :c)
+             (uber/add-nodes-with-attrs [:x {:dom [(r/->IntegerSpec)]}])
+             (sut/add-doms-to-node :x (r/->AtomSpec) (r/->FloatSpec))
              (uber/attr :x :dom))))
-  (is (= [:a :b]
+  (is (= [(r/->FloatSpec) (r/->IntegerSpec)]
          (-> (uber/digraph)
-             (sut/add-doms-to-node :x :a :b)
+             (sut/add-doms-to-node :x (r/->FloatSpec) (r/->IntegerSpec))
              (uber/attr :x :dom)))))
 
 
@@ -76,7 +76,8 @@
     (r/->ListTerm (r/->IntegerTerm 1) (r/->AtomicTerm "[]")) (r/make-spec:list (r/make-spec:any))
     (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) (r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)])
     (r/->VarTerm "X") (r/make-spec:var)
-    (r/->AnonVarTerm "_1603") (r/make-spec:var)))
+    (r/->AnonVarTerm "_1603") (r/make-spec:var)
+    (r/->EmptyListTerm) (r/->EmptyListSpec)))
 
 (deftest fill-env-for-term-with-spec-test-ground
   (are [in out]
@@ -356,8 +357,9 @@
     (r/->IntegerTerm 3)
     (r/make-spec:and [(r/make-spec:ground) (r/make-spec:specvar 0)])
     (-> test-env
-        (sut/add-doms-to-node (r/make-spec:specvar 0) (r/make-spec:integer))
-        (sut/add-doms-to-node (r/->IntegerTerm 3) (r/make-spec:integer) (r/make-spec:specvar 0)))))
+       (sut/add-doms-to-node (r/make-spec:specvar 0) (r/make-spec:integer))
+       (sut/add-doms-to-node (r/->IntegerTerm 3) (r/make-spec:integer) (r/make-spec:specvar 0)))
+    ))
 
 (deftest fill-env-for-term-with-spec-test-user-defined
   (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))

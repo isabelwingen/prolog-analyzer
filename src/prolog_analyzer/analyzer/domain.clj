@@ -28,15 +28,17 @@
       (reduce-kv r/replace-specvars-with-spec definition replace-map))))
 
 
-(declare remove-invalid-or-parts)
 (declare fill-env-for-term-with-spec)
 
 (defn add-doms-to-node [env node & doms]
-  (if (uber/has-node? env node)
-    (uber/set-attrs env node (-> (uber/attrs env node)
-                                 (update :dom #(concat % doms))
-                                 (update :dom distinct)))
-    (uber/add-nodes-with-attrs env [node {:dom doms}])))
+  (let [mod-doms (->> doms
+                      (map #(if (= r/AND (r/spec-type %)) (:arglist %) %))
+                      flatten)]
+    (if (uber/has-node? env node)
+      (uber/set-attrs env node (-> (uber/attrs env node)
+                                   (update :dom #(concat % mod-doms))
+                                   (update :dom distinct)))
+      (uber/add-nodes-with-attrs env [node {:dom mod-doms}]))))
 
 (defn mark-as-was-var [env term]
   (let [attrs (uber/attrs env term)]
@@ -53,71 +55,13 @@
 (defn ALREADY-NONVAR []
   (r/make-spec:error (str "Term cannot be var, because its already nonvar")))
 
-(defn fill-env-for-term-with-spec-list [env term {t :type :as spec}]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (if (= r/LIST (r/term-type term))
-      (-> (if (r/empty-list? (:tail term)) env (fill-env-for-term-with-spec env (:tail term) spec))
-          (add-doms-to-node term suitable-spec)
-          (fill-env-for-term-with-spec (:head term) t))
-      (add-doms-to-node env term suitable-spec))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
 
-(defn fill-env-for-term-with-spec-tuple [env term {[head-type & rest-types :as arglist] :arglist :as spec}]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (if (= r/LIST (r/term-type term))
-      (-> (if (r/empty-list? (:tail term)) env (fill-env-for-term-with-spec env (:tail term) (update spec :arglist rest)))
-          (fill-env-for-term-with-spec (:head term) head-type)
-          (add-doms-to-node term suitable-spec))
-      (add-doms-to-node env term suitable-spec))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
+(defmulti fill-env (fn [env term spec initial?] (r/spec-type spec)))
 
-
-(defn fill-env-for-term-with-spec-compound [env term {spec-fun :functor spec-args :arglist :as spec}]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (if (= r/COMPOUND (r/term-type term))
-      (let [{term-fun :functor term-args :arglist} term
-            pairs (map vector term-args (:arglist spec))]
-        (reduce #(apply fill-env-for-term-with-spec %1 %2)
-                (add-doms-to-node env term suitable-spec)
-                pairs))
-      (add-doms-to-node env term suitable-spec))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
-
-(defn fill-env-for-term-with-spec-any [env term spec]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (case+ (r/term-type term)
-           (r/VAR, r/ANY, r/GROUND, r/NONVAR, r/ATOM, r/ATOMIC, r/INTEGER, r/FLOAT, r/NUMBER) (add-doms-to-node env term suitable-spec)
-           (r/LIST, r/COMPOUND) (fill-env-for-term-with-spec env term suitable-spec)
-           (add-doms-to-node env term (WRONG-TYPE term spec)))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
-
-(defn fill-env-for-term-with-spec-ground [env term spec]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (case+ (r/term-type term)
-           (r/VAR, r/ANY, r/GROUND, r/NONVAR, r/ATOM, r/ATOMIC, r/INTEGER, r/FLOAT, r/NUMBER) (add-doms-to-node env term suitable-spec)
-           (r/COMPOUND, r/LIST) (fill-env-for-term-with-spec env term suitable-spec)
-           (add-doms-to-node env term (WRONG-TYPE term spec)))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
-
-(defn fill-env-for-term-with-spec-nonvar [env term spec]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (case+ (r/term-type term)
-           (r/VAR, r/ANY, r/GROUND, r/NONVAR, r/ATOM, r/ATOMIC, r/INTEGER, r/FLOAT, r/NUMBER) (add-doms-to-node env term suitable-spec)
-           (r/LIST, r/COMPOUND) (fill-env-for-term-with-spec env term suitable-spec)
-           (add-doms-to-node env term (WRONG-TYPE term spec)))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
-
-(defn fill-env-for-term-with-spec-var [env term spec initial?]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
+(defmethod fill-env r/VAR [env term spec initial?]
   (if initial?
     (-> env
-        (fill-env-for-term-with-spec term (r/make-spec:any))
+        (fill-env-for-term-with-spec initial? term (r/make-spec:any))
         (mark-as-was-var term))
     (if (contains? #{r/VAR r/ANY} (r/term-type term))
       (if (every? #{r/VAR, r/ANY, r/SPECVAR}
@@ -127,56 +71,33 @@
       (add-doms-to-node env term (ALREADY-NONVAR)))))
 
 
-(defn fill-env-for-term-with-spec-specvar [env term spec]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
+(defmethod fill-env r/SPECVAR [env term spec initial?]
   (let [suitable-spec (r/suitable-spec spec term)
-        term-env (if (= r/AND (r/spec-type suitable-spec))
-                   (apply add-doms-to-node env term (:arglist suitable-spec))
-                   (add-doms-to-node env term suitable-spec))]
+        [specvar other] (.arglist suitable-spec)
+        term-env (-> env
+                     (add-doms-to-node term specvar)
+                     (fill-env-for-term-with-spec initial? term other))]
     (apply add-doms-to-node term-env spec (remove #{spec} (utils/get-dom-of-term term-env term)))
     ))
 
-(defn fill-env-for-term-with-spec-one-of [env term spec]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (let [modified-or (remove-invalid-or-parts term spec)]
-    (if (= r/OR (r/spec-type modified-or))
-      (add-doms-to-node env term modified-or)
-      (fill-env-for-term-with-spec env term modified-or))))
-
-(defn fill-env-for-term-with-spec-and [env term spec]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (reduce #(fill-env-for-term-with-spec %1 term %2) env (:arglist spec))
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
-
-(defn fill-env-for-term-with-spec-user-defined [env term spec]
+(defmethod fill-env r/USERDEFINED [env term spec initial?]
   (let [transformed-definition (resolve-definition-with-parameters spec env)]
     (-> env
         (add-doms-to-node term spec)
-        (fill-env-for-term-with-spec term transformed-definition))))
+        (fill-env-for-term-with-spec initial? term transformed-definition))))
 
-(defn fill-env-for-term-with-spec-simple [env term spec]
-  (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
-  (if-let [suitable-spec (r/suitable-spec spec term)]
-    (add-doms-to-node env term suitable-spec)
-    (add-doms-to-node env term (WRONG-TYPE term spec))))
+(defmethod fill-env :default [env term spec initial?]
+  (let [suitable-spec (r/suitable-spec spec term)
+        next-steps (r/next-steps spec term)]
+    (if (nil? suitable-spec)
+      (add-doms-to-node env term (WRONG-TYPE term spec))
+      (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) (add-doms-to-node env term suitable-spec) (partition 2 next-steps)))))
 
 
 (defn fill-env-for-term-with-spec
   ([env initial? term spec]
-   (case+ (r/spec-type spec)
-          r/ANY (fill-env-for-term-with-spec-any env term spec)
-          r/GROUND (fill-env-for-term-with-spec-ground env term spec)
-          r/NONVAR (fill-env-for-term-with-spec-nonvar env term spec)
-          r/VAR (fill-env-for-term-with-spec-var env term spec initial?)
-          r/LIST (fill-env-for-term-with-spec-list env term spec)
-          r/TUPLE (fill-env-for-term-with-spec-tuple env term spec)
-          r/COMPOUND (fill-env-for-term-with-spec-compound env term spec)
-          r/SPECVAR (fill-env-for-term-with-spec-specvar env term spec)
-          r/OR (fill-env-for-term-with-spec-one-of env term spec)
-          r/AND (fill-env-for-term-with-spec-and env term spec)
-          r/USERDEFINED (fill-env-for-term-with-spec-user-defined env term spec)
-          (r/ATOMIC, r/ATOM, r/NUMBER, r/FLOAT, r/INTEGER, r/EXACT) (fill-env-for-term-with-spec-simple env term spec)))
+   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
+   (fill-env env term spec initial?))
   ([env term spec]
    (fill-env-for-term-with-spec env false term spec)))
 
@@ -185,29 +106,3 @@
    (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) env (map vector terms specs)))
   ([env terms specs]
    (multiple-fills env false terms specs)))
-
-
-(defn- simplify-and [term {speclist :arglist :as or-spec}]
-  (let [simplified-and (->> speclist
-                            (map #(r/suitable-spec % term))
-                            (remove nil?)
-                            (distinct)
-                            (apply vector)
-                            r/make-spec:and)]
-    (case (count (:arglist simplified-and))
-      0 (r/make-spec:error "No valid and component")
-      1 (first (:arglist simplified-and))
-      simplified-and)))
-
-
-(defn- remove-invalid-or-parts [term {speclist :arglist :as or-spec}]
-  (let [simplified-or (->> speclist 
-                           (map #(r/suitable-spec % term))
-                           (remove nil?)
-                           (distinct)
-                           (apply vector)
-                           r/make-spec:one-of)]
-    (case (count (:arglist simplified-or))
-      0 (r/make-spec:error "No valid or component")
-      1 (first (:arglist simplified-or))
-      simplified-or)))
