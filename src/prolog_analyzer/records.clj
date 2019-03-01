@@ -46,6 +46,7 @@
   spec
   (spec-type [spec] ERROR)
   (suitable-spec [spec term] spec)
+  (next-steps [spec term] [])
   printable
   (to-string [x] (str "ERROR: " reason)))
 
@@ -423,6 +424,7 @@
   (to-string [x]
     (case+ (term-type tail)
            ATOMIC (str "[" (to-string head) "]")
+           EMPTYLIST (str "[" (to-string head) "]")
            VAR (str "[" (to-string head) "|" (to-string tail) "]")
            LIST (str "[" (to-arglist (get-elements-of-list x)) "]"))))
 
