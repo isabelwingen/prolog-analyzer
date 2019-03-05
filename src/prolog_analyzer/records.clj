@@ -78,7 +78,6 @@
   (suitable-spec [spec term]
     (case+ (term-type term)
            (ATOM, VAR) spec
-           ATOMIC (if (and (not= "[]" (:term term)) ((complement number?) (read-string (:term term)))) spec nil)
            nil))
   (next-steps [spec term] [])
   printable
@@ -90,8 +89,6 @@
   (suitable-spec [spec term]
     (case+ (term-type term)
            (INTEGER, VAR) spec
-           NUMBER (if (int? (:value term)) spec nil)
-           ATOMIC (if (int? (read-string (:term term))) spec nil)
            nil))
   (next-steps [spec term] [])
   printable
@@ -103,8 +100,6 @@
   (suitable-spec [spec term]
     (case+ (term-type term)
            (FLOAT, VAR) spec
-           NUMBER (if (float? (:value term)) spec nil)
-           ATOMIC (if (float? (read-string (:term term))) spec nil)
            nil))
   (next-steps [spec term] [])
   printable
@@ -118,7 +113,6 @@
            (NUMBER, VAR) spec
            INTEGER (->IntegerSpec)
            FLOAT (->FloatSpec)
-           ATOMIC (if (number? (read-string (:term term))) spec nil)
            nil))
   (next-steps [spec term] [])
   printable
@@ -129,7 +123,7 @@
   (spec-type [spec] ATOMIC)
   (suitable-spec [spec term]
     (case+ (term-type term)
-           (ATOMIC, VAR) spec
+           VAR spec
            ATOM (->AtomSpec)
            NUMBER (->NumberSpec)
            INTEGER (->IntegerSpec)
@@ -147,7 +141,7 @@
   (suitable-spec [spec term]
     (case+ (term-type term)
            VAR spec
-           (ATOMIC, ATOM) (if (= value (:term term)) spec nil)
+           ATOM (if (= value (:term term)) spec nil)
            nil))
   (next-steps [spec term] [])
   printable
@@ -161,7 +155,6 @@
     (case+ (term-type term)
            VAR spec
            LIST (if (suitable-spec type (:head term)) spec nil)
-           ATOMIC (if (= "[]" (:term term)) spec nil)
            EMPTYLIST (->EmptyListSpec)
            nil))
   (next-steps [spec term]
@@ -180,7 +173,6 @@
   (suitable-spec [spec term]
     (case+ (term-type term)
            VAR spec
-           ATOMIC (if (and (empty-list? term) (empty? arglist)) spec nil)
            LIST (if (and (suitable-spec (first arglist) (:head term))
                          (suitable-spec (->TupleSpec (rest arglist)) (:tail term)))
                   spec
@@ -217,12 +209,11 @@
   (spec-type [spec] GROUND)
   (suitable-spec [spec term]
     (case+ (term-type term)
-           (GROUND, NONVAR, ANY, VAR) spec
-           ATOMIC (->AtomicSpec)
+           VAR spec
            ATOM (->AtomSpec)
-           NUMBER (->NumberSpec)
            INTEGER (->IntegerSpec)
            FLOAT (->FloatSpec)
+           NUMBER (->NumberSpec)
            LIST (->ListSpec (->GroundSpec))
            COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->GroundSpec)))
            EMPTYLIST (->EmptyListSpec)
@@ -299,10 +290,6 @@
            FLOAT (->FloatSpec)
            NUMBER (->NumberSpec)
            ATOM (->AtomSpec)
-           ATOMIC (->AtomicSpec)
-           ANY (->AnySpec)
-           GROUND (->GroundSpec)
-           NONVAR (->NonvarSpec)
            VAR (->VarSpec)
            LIST (->ListSpec (->AnySpec))
            COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
@@ -324,10 +311,6 @@
            FLOAT (->FloatSpec)
            NUMBER (->NumberSpec)
            ATOM (->AtomSpec)
-           ATOMIC (->AtomicSpec)
-           ANY (->NonvarSpec)
-           GROUND (->GroundSpec)
-           NONVAR (->NonvarSpec)
            VAR (->NonvarSpec)
            LIST (->ListSpec (->AnySpec))
            COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
@@ -345,9 +328,8 @@
   (spec-type [spec] SPECVAR)
   (suitable-spec [spec term]
     (let [p (case+ (term-type term)
-                   (GROUND, NONVAR, ATOM, ATOMIC, INTEGER, FLOAT, NUMBER) (initial-spec term)
+                   (ATOM, INTEGER, FLOAT, NUMBER) (initial-spec term)
                    VAR (->VarSpec)
-                   ANY (->AnySpec)
                    LIST (->ListSpec (->AnySpec))
                    COMPOUND (->CompoundSpec (:functor term) (repeat (count (:arglist term)) (->AnySpec)))
                    EMPTYLIST (->EmptyListSpec)
@@ -376,13 +358,6 @@
   term
   (term-type [term] ATOM)
   (initial-spec [term] (->AtomSpec))
-  printable
-  (to-string [x] (str term)))
-
-(defrecord AtomicTerm [term]
-  term
-  (term-type [term] ATOMIC)
-  (initial-spec [term] (->AtomicSpec))
   printable
   (to-string [x] (str term)))
 
@@ -447,7 +422,6 @@
       :anon_var (map->AnonVarTerm m)
       :var (map->VarTerm m)
       :atom (map->AtomTerm m)
-      :atomic (map->AtomicTerm m)
       :number (map->NumberTerm m)
       :integer (map->IntegerTerm m)
       :float (map->FloatTerm m)

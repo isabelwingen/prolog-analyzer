@@ -209,7 +209,6 @@
   (are [term]
       (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:integer)) term))
     (r/->IntegerTerm 42)
-    (r/->NumberTerm 42)
     (r/->VarTerm "X")
     (r/->AnonVarTerm "_234"))
 
@@ -226,7 +225,6 @@
   (are [term]
       (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:float)) term))
     (r/->FloatTerm 3.14)
-    (r/->NumberTerm 1.0)
     (r/->VarTerm "X")
     (r/->AnonVarTerm "_234"))
 
@@ -251,8 +249,6 @@
     (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm)) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     (r/->AtomTerm "nocake")
-    (r/->AtomicTerm "cake")
-    (r/->AtomicTerm 1)
     (r/->IntegerTerm 2)
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
@@ -260,7 +256,7 @@
 (deftest fill-env-for-term-with-spec-test-tuple
   (are [term]
       (= [(r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])) term))
-    (r/->ListTerm  (r/->NumberTerm 2) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm)))
+    (r/->ListTerm  (r/->IntegerTerm 2) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm)))
     (r/->VarTerm "X")
     (r/->AnonVarTerm "_0410")
     )
