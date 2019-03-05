@@ -549,14 +549,14 @@
   "Transforms a bunch of `terms` to a proper prolog list."
   [& terms]
   (if (empty? terms)
-    (->AtomicTerm "[]")
+    (->EmptyListTerm)
     (->ListTerm (first terms) (apply to-head-tail-list (rest terms)))))
 
 (defn to-tuple-spec
   "Transforms a bunch of `specs` to a tuple spec."
   [& specs]
   (if (empty? specs)
-    (->ErrorSpec "Cannot build a tuple with zero arguments")
+    (->TupleSpec [])
     (->TupleSpec specs)))
 
 (defn to-or-spec
