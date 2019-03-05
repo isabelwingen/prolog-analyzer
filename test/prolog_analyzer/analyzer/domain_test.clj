@@ -379,4 +379,14 @@
          (r/make-spec:exact "empty")))))
 
 
-    
+(deftest fill-env-for-term-with-spec-test-empty-list
+  (are [term spec expected-dom] (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term))
+    (r/->EmptyListTerm) (r/->TupleSpec []) [(r/->EmptyListSpec)]
+
+    (r/->EmptyListTerm) (r/->ListSpec (r/->IntegerSpec)) [(r/->EmptyListSpec)]
+
+    (r/->EmptyListTerm) (r/->EmptyListSpec) [(r/->EmptyListSpec)]
+
+    (r/->VarTerm "X") (r/->EmptyListSpec) [(r/->EmptyListSpec)]
+
+    ))

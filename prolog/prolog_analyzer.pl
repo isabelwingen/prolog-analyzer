@@ -55,6 +55,7 @@ spec(atom(X)) :- atom(X).
 spec(integer).
 spec(number).
 spec(float).
+spec(emptylist).
 
 spec(compound(X)) :- compound(X), compound_name_arguments(X,_,Args), maplist(spec_and_nonvar,Args).
 spec(list(X)) :- spec_and_nonvar(X).
@@ -272,18 +273,15 @@ arg_to_map(Arg,Map) :-
     compound(Arg),!,
     arg_to_map(compound,Arg,Map).
 arg_to_map(Arg,Map) :-
-    ground(Arg),!,
-    arg_to_map(ground,Arg,Map).
-arg_to_map(Arg,Map) :-
     var(Arg),!,
     arg_to_map(var,Arg,Map).
 
 arg_to_map(Arg,Map) :-
-    arg_to_map(any,Arg,Map).
+    arg_to_map(error,Arg,Map).
 
 
 arg_to_map(compound,Term,Map) :-
-    Term =.. ['[|]'|[Head,Tail]],
+    Term =.. ['[|]'|[Head,Tail]],!,
     arg_to_map(Head,HeadString),
     arg_to_map(Tail,TailString),
 
@@ -323,13 +321,17 @@ arg_to_map(Type,Term,Map) :-
     string_concat(R2, Type, R3),
     string_concat(R3, "}",Map).
 
-arg_to_map(Type,Term,Map) :-
+arg_to_map(atom,Term,Map) :- !,
     term_string(Term,String),
     string_concat("{:term \"", String,R1),
-    string_concat(R1, "\" :type :", R2),
-    string_concat(R2, Type, R3),
-    string_concat(R3, "}",Map).
+    string_concat(R1, "\" :type :atom}", Map).
 
+
+arg_to_map(atomic,[],"{:type :empty-list}") :- !.
+arg_to_map(error,Term,Map) :-
+    term_string(Term, String),
+    multi_string_concat(["{:type :should-not-happen :term ",String, "}"], Map).
+    
 
 split(Module:Term,Name,Arity,Arglist,Module) :-
     !,

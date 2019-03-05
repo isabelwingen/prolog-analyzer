@@ -49,18 +49,17 @@
             :head {:value 2 :type :integer}
             :tail {:type :list
                    :head {:value 3 :type :integer}
-                   :tail {:term "[]" :type :atomic}}}}
+                   :tail {:type :empty-list}}}}
     "[H|T]"
     {:type :list
      :head {:name "H" :type :var}
      :tail {:name "T" :type :var}}
     "[]"
-    {:term "[]"
-     :type :atomic}
+    {:type :empty-list}
     "[1]"
     {:type :list
      :head {:value 1 :type :integer}
-     :tail {:term "[]" :type :atomic}}
+     :tail {:type :empty-list}}
     "[1,2|T]"
     {:type :list
      :head {:value 1 :type :integer}
@@ -229,7 +228,7 @@
                                                            :head {:term "int" :type :atom}
                                                            :tail {:type :list
                                                                   :head {:term "int" :type :atom}
-                                                                  :tail {:term "[]" :type :atomic}}}]}
+                                                                  :tail {:type :empty-list}}}]}
 
     ":- spec_post(foo/2,[any,int],[int,int])."
     :spec_post
@@ -245,12 +244,12 @@
                                                              :head {:term "any" :type :atom}
                                                              :tail {:type :list
                                                                     :head {:term "int" :type :atom}
-                                                                    :tail {:term "[]" :type :atomic}}}
+                                                                    :tail {:type :empty-list}}}
                                                             {:type :list
                                                              :head {:term "int" :type :atom}
                                                              :tail {:type :list
                                                                     :head {:term "int" :type :atom}
-                                                                    :tail {:term "[]" :type :atomic}}}]}
+                                                                    :tail {:type :empty-list}}}]}
 
     ":- spec_invariant(foo/1,[int])."
     :spec_inv
@@ -264,7 +263,7 @@
                                                                             {:value 1 :type :integer}]}]}
                                                                {:type :list
                                                                 :head {:term "int" :type :atom}
-                                                                :tail {:term "[]" :type :atomic}}]}
+                                                                :tail {:type :empty-list}}]}
     ))
 
 

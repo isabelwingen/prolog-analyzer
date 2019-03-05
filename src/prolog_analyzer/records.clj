@@ -66,8 +66,7 @@
   spec
   (spec-type [spec] EMPTYLIST)
   (suitable-spec [spec term]
-    (if (= EMPTYLIST (term-type term))
-      spec nil))
+    (if (contains? #{EMPTYLIST, VAR} (term-type term)) spec nil))
   (next-steps [spec term] [])
   printable
   (to-string [x] "EmptyList"))
@@ -435,6 +434,13 @@
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
+(defrecord ShouldNotHappenTerm [term]
+  term
+  (term-type [term] ERROR)
+  (initial-spec [term] (->ErrorSpec (str "This term should not exists: " term)))
+  printable
+  (to-string [x] (str "ERROR: " term)))
+
 (defn map-to-term [input-m]
   (let [m (dissoc input-m :type)]
     (case (:type input-m)
@@ -449,6 +455,8 @@
                                (update :head map-to-term)
                                (update :tail map-to-term)))
       :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
+      :empty-list (->EmptyListTerm)
+      :should-not-happen (map->ShouldNotHappenTerm m)
       (log/error "No case for" m "in map-to-term"))))
 
 (defn map-to-spec [m]
@@ -470,6 +478,7 @@
     :one-of (map->OneOfSpec (update m :arglist (partial map map-to-spec)))
     :user-defined (map->UserDefinedSpec (update m :arglist (partial map map-to-spec)))
     :error-spec (map->ErrorSpec m)
+    :emptylist (->EmptyListSpec)
     (log/error "No case for" m "in map-to-term")))
 
 
@@ -547,16 +556,16 @@
   "Transforms a bunch of `specs` to a tuple spec."
   [& specs]
   (if (empty? specs)
-    (make-spec:error "Cannot build a tuple with zero arguments")
-    (make-spec:tuple specs)))
+    (->ErrorSpec "Cannot build a tuple with zero arguments")
+    (->TupleSpec specs)))
 
 (defn to-or-spec
   "Transforms a bunch of `specs` to a one-of spec."
   [& specs]
   (case (count specs)
-    0 (make-spec:error "Cannot build empty one-of")
+    0 (->ErrorSpec "Cannot build empty one-of")
     1 (first specs)
-    (make-spec:one-of specs)))
+    (->OneOfSpec specs)))
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
@@ -595,4 +604,3 @@
     (USERDEFINED, OR, AND, COMPOUND, TUPLE) (distinct (reduce concat (map find-specvars (:arglist spec))))
     LIST (find-specvars (spec-type spec))
     []))
-
