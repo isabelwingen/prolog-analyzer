@@ -47,13 +47,13 @@
 (defn WRONG-TYPE
   ([]
    (log/error "Wrong type associated")
-   (r/make-spec:error "Wrong type associated"))
+   (r/->ErrorSpec "Wrong type associated"))
   ([term spec]
    (log/error "term" (r/to-string term) "cannot be of type " (r/to-string spec))
-   (r/make-spec:error (str "Term " (r/to-string term) " cannot be of spec " (r/to-string spec)))))
+   (r/->ErrorSpec (str "Term " (r/to-string term) " cannot be of spec " (r/to-string spec)))))
 
 (defn ALREADY-NONVAR []
-  (r/make-spec:error (str "Term cannot be var, because its already nonvar")))
+  (r/->ErrorSpec (str "Term cannot be var, because its already nonvar")))
 
 
 (defmulti fill-env (fn [env term spec initial?] (r/spec-type spec)))
@@ -61,7 +61,7 @@
 (defmethod fill-env r/VAR [env term spec initial?]
   (if initial?
     (-> env
-        (fill-env-for-term-with-spec initial? term (r/make-spec:any))
+        (fill-env-for-term-with-spec initial? term (r/->AnySpec))
         (mark-as-was-var term))
     (if (contains? #{r/VAR r/ANY} (r/term-type term))
       (if (every? #{r/VAR, r/ANY, r/SPECVAR}

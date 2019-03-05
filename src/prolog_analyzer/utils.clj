@@ -86,6 +86,7 @@
                  default))))
 
 (defn get-elements-of-list [{head :head tail :tail}]
-  (if (= "[]" (:term tail))
-    (list head)
+  (if (nil? tail)
+    (list)
     (conj (get-elements-of-list tail) head)))
+

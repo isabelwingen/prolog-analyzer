@@ -62,44 +62,45 @@
 
 (defmethod transform-spec [:atom nil] [{term :term}]
   (case term
-    "any" (r/make-spec:any)
-    "ground" (r/make-spec:ground)
-    "var" (r/make-spec:var)
-    "nonvar" (r/make-spec:nonvar)
-    "number" (r/make-spec:number)
-    "float" (r/make-spec:float)
-    "integer" (r/make-spec:integer)
-    "atom" (r/make-spec:atom)
-    "atomic" (r/make-spec:atomic)
-    "int" (r/make-spec:integer)
-    (r/make-spec:user-defined term)))
+    "any" (r/->AnySpec)
+    "ground" (r/->GroundSpec)
+    "var" (r/->VarSpec)
+    "nonvar" (r/->NonvarSpec)
+    "number" (r/->NumberSpec)
+    "float" (r/->FloatSpec)
+    "integer" (r/->IntegerSpec)
+    "atom" (r/->AtomSpec)
+    "atomic" (r/->AtomicSpec)
+    "int" (r/->IntegerSpec)
+    "emptylist" (r/->EmptyListSpec)
+    (r/->UserDefinedSpec term)))
 
 (defmethod transform-spec [:compound "list"] [{[type] :arglist}]
-  (r/make-spec:list (transform-spec type)))
+  (r/->ListSpec (transform-spec type)))
 
 (defmethod transform-spec [:compound "compound"] [{[{functor :functor arglist :arglist}] :arglist}]
-  (r/make-spec:compound functor (map transform-spec arglist)))
+  (r/->CompoundSpec functor (map transform-spec arglist)))
 
 (defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
-    (r/make-spec:one-of (map transform-spec arglist))))
+    (r/->OneOfSpec (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
-    (r/make-spec:and (map transform-spec arglist))))
+    (r/->AndSpec (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "tuple"] [{inner-list :arglist}]
   (let [arglist (utils/get-elements-of-list (first inner-list))]
-    (r/make-spec:tuple (map transform-spec arglist))))
+    (r/->TupleSpec (map transform-spec arglist))))
 
 (defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
-  (r/make-spec:exact (:term (first arglist))))
+  (r/->ExactSpec (:term (first arglist))))
 
 (defmethod transform-spec [:compound "specvar"] [{[spec] :arglist}]
-  (r/make-spec:specvar (:name spec)))
+  (r/->SpecvarSpec (:name spec)))
 
 (defmethod transform-spec :default [spec]
-  (r/make-spec:user-defined (:functor spec) (map transform-spec (:arglist spec))))
+  (assoc (r/->UserDefinedSpec (:functor spec)) :arglist (map transform-spec (:arglist spec))))
 
 (defn- specs-to-map [{[outer & args] :arglist}]
   (let [module (get-in outer [:arglist 0 :term])

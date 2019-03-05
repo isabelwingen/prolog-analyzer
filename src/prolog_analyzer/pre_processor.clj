@@ -33,7 +33,7 @@
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
       (if (nil? (:pre-specs (utils/get-specs-of-pred pred-id data)))
-        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (list (repeat arity (r/make-spec:any)))))
+        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (list (repeat arity (r/->AnySpec)))))
         (recur (rest pred-ids) result))
       result)))
 

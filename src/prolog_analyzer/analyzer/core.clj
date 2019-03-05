@@ -38,17 +38,17 @@
 (defmethod add-relationships-aux prolog_analyzer.records.ListTerm [[env {head :head tail :tail :as term}]]
   (if (r/empty-list? tail)
     (-> env
-        (dom/fill-env-for-term-with-spec head (r/make-spec:any))
+        (dom/fill-env-for-term-with-spec head (r/->AnySpec))
         (uber/add-edges [head term {:relation :is-head}]))
     (-> env
-        (dom/fill-env-for-term-with-spec head (r/make-spec:any))
-        (dom/fill-env-for-term-with-spec tail (r/make-spec:list (r/make-spec:any)))
+        (dom/fill-env-for-term-with-spec head (r/->AnySpec))
+        (dom/fill-env-for-term-with-spec tail (r/->ListSpec (r/->AnySpec)))
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
 (defmethod add-relationships-aux prolog_analyzer.records.CompoundTerm [[env {functor :functor arglist :arglist :as term}]]
   (apply
    uber/add-edges
-   (dom/multiple-fills env arglist (repeat (count arglist) (r/make-spec:any)))
+   (dom/multiple-fills env arglist (repeat (count arglist) (r/->AnySpec)))
    (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) arglist)))
 
 
@@ -122,4 +122,4 @@
        my-pp/pretty-print-analysis-result
        ))
 
-(example)
+(playground)
