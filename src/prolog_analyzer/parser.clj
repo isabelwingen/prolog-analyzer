@@ -102,11 +102,14 @@
 (defmethod transform-spec :default [spec]
   (assoc (r/->UserDefinedSpec (:functor spec)) :arglist (map transform-spec (:arglist spec))))
 
-(defn- specs-to-map [{[outer & args] :arglist}]
+(defn- validation-spec? [{[_ & args] :arglist}]
+  (= 1 (count args)))
+
+(defn- specs-to-map [{[outer & args] :arglist :as spec}]
   (let [module (get-in outer [:arglist 0 :term])
         functor (get-in outer [:arglist 1 :arglist 0 :term])
         arity (get-in outer [:arglist 1 :arglist 1 :value])]
-    (if (= 1 (count args))
+    (if (validation-spec? spec)
       (hash-map (vector module functor arity) (map (comp (partial map transform-spec) utils/get-elements-of-list) args))
       (hash-map (vector module functor arity) (list (map (comp (partial map transform-spec) utils/get-elements-of-list) args))))))
 
