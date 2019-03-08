@@ -12,7 +12,9 @@
             [loom.attr]
             [ubergraph.protocols]
             [clojure.spec.test.alpha :as stest]
+            [clojure.template :refer [do-template]]
             ))
+
 
 (defn valid-env?
   "Checks, if a env is valid and contains no errors."
@@ -38,342 +40,243 @@
                                    {:user-defined-specs
                                     {(r/make-spec:user-defined
                                       "tree"
-                                      [(r/make-spec:specvar "X")])
-                                     (r/make-spec:one-of
-                                      [(r/make-spec:compound
+                                      [(r/->SpecvarSpec "X")])
+                                     (r/->OneOfSpec
+                                      [(r/->CompoundSpec
                                         "node"
                                         [(r/make-spec:user-defined
                                           "tree"
-                                          [(r/make-spec:specvar "X")])
-                                         (r/make-spec:specvar "X")
+                                          [(r/->SpecvarSpec "X")])
+                                         (r/->SpecvarSpec "X")
                                          (r/make-spec:user-defined
                                           "tree"
-                                          [(r/make-spec:specvar "X")])])
-                                       (r/make-spec:exact "empty")])
+                                          [(r/->SpecvarSpec "X")])])
+                                       (r/->ExactSpec "empty")])
 
                                      (r/make-spec:user-defined "atomOrInt")
-                                     (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:atom)])}
+                                     (r/->OneOfSpec [(r/->IntegerSpec) (r/->AtomSpec)])}
                                     (r/make-spec:user-defined "blob")
-                                    (r/make-spec:exact "blob")}])))
+                                    (r/->ExactSpec "blob")}])))
 
 
 (def spec-simple (r/make-spec:user-defined "atomOrInt"))
-(def spec-tree-int (r/make-spec:user-defined "tree" [(r/make-spec:integer)]))
-(def spec-tree-x (r/make-spec:user-defined"tree" [(r/make-spec:specvar 0)]))
+(def spec-tree-int (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]))
+(def spec-tree-x (r/make-spec:user-defined"tree" [(r/->SpecvarSpec 0)]))
 
 (def unfolded-tree-int
-  (r/make-spec:one-of
-   [(r/make-spec:compound "node" [spec-tree-int (r/make-spec:integer) spec-tree-int])
-    (r/make-spec:exact "empty")]))
+  (r/->OneOfSpec
+   [(r/->CompoundSpec "node" [spec-tree-int (r/->IntegerSpec) spec-tree-int])
+    (r/->ExactSpec "empty")]))
 
-(deftest fill-env-for-term-with-spec-test-any
-  (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:any)) in))
-    (r/->AtomTerm "cake") (r/make-spec:atom)
-    (r/->IntegerTerm 42) (r/make-spec:integer)
-    (r/->NumberTerm 23) (r/make-spec:number)
-    (r/->FloatTerm 3.1415) (r/make-spec:float)
-    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) (r/make-spec:list (r/make-spec:any))
-    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) (r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)])
-    (r/->VarTerm "X") (r/make-spec:var)
-    (r/->AnonVarTerm "_1603") (r/make-spec:var)
-    (r/->EmptyListTerm) (r/->EmptyListSpec)))
+(defn calculate-and-get-dom
+  ([initial? term spec]
+   (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env initial? term spec) term))
+  ([term spec]
+   (calculate-and-get-dom false term spec)))
 
-(deftest fill-env-for-term-with-spec-test-ground
-  (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:ground)) in))
-    (r/->AtomTerm "bunker") (r/make-spec:atom)
-    (r/->IntegerTerm 42) (r/make-spec:integer)
-    (r/->NumberTerm 23) (r/make-spec:number)
-    (r/->FloatTerm 3.1415) (r/make-spec:float)
-    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) (r/make-spec:list (r/make-spec:ground))
-    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) (r/make-spec:compound "wrap" [(r/make-spec:ground) (r/make-spec:ground)])
-    (r/->VarTerm "X") (r/make-spec:ground)
-    (r/->AnonVarTerm "_1603") (r/make-spec:ground)
-    ))
+(deftest fill-env-test:any
+  (do-template [term expected-dom] (is (= expected-dom (calculate-and-get-dom term (r/->AnySpec))) (str (r/to-string term)))
+    (r/->AtomTerm "cake") [(r/->AtomSpec)]
+    (r/->IntegerTerm 42) [(r/->IntegerSpec)]
+    (r/->NumberTerm 23) [(r/->NumberSpec)]
+    (r/->FloatTerm 3.1415) [(r/->FloatSpec)]
+    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
+    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)])]
+    (r/->VarTerm "X") [(r/->VarSpec)]
+    (r/->AnonVarTerm "_1603") [(r/->VarSpec)]
+    (r/->EmptyListTerm) [(r/->EmptyListSpec)]))
 
-
-(deftest fill-env-for-term-with-spec-test-nonvar
-  (are [in out]
-      (= [out] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:nonvar)) in))
-    (r/->AtomTerm "cake") (r/make-spec:atom)
-    (r/->IntegerTerm 42) (r/make-spec:integer)
-    (r/->NumberTerm 23) (r/make-spec:number)
-    (r/->FloatTerm 3.1415) (r/make-spec:float)
-    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) (r/make-spec:list (r/make-spec:any))
-    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) (r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)])
-    (r/->VarTerm "X") (r/make-spec:nonvar)
-    (r/->AnonVarTerm "_1603") (r/make-spec:nonvar)
-    ))
-
-
-(deftest fill-env-for-term-with-spec-test-var
-  ;; WITH NON-EMPTY-DOM
-  (are [in expected]
-      (= expected (utils/get-dom-of-term (-> test-env
-                                             (sut/fill-env-for-term-with-spec in (r/make-spec:any))
-                                             (sut/fill-env-for-term-with-spec  in (r/make-spec:var))) in))
-    (r/->AtomTerm "batman") [(r/make-spec:atom) (sut/ALREADY-NONVAR)]
-    (r/->IntegerTerm 42) [(r/make-spec:integer) (sut/ALREADY-NONVAR)]
-    (r/->NumberTerm 23) [(r/make-spec:number) (sut/ALREADY-NONVAR)]
-    (r/->FloatTerm 3.1415) [(r/make-spec:float) (sut/ALREADY-NONVAR)]
-    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/make-spec:list (r/make-spec:any)) (sut/ALREADY-NONVAR)]
-    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(r/make-spec:compound "wrap" [(r/make-spec:any) (r/make-spec:any)]) (sut/ALREADY-NONVAR)])
-  
-  ;; WITH EMPTY DOM
-  (are [in expected]
-      (= expected (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env in (r/make-spec:var)) in))
-    (r/->AtomTerm "batman") [(sut/ALREADY-NONVAR)]
-    (r/->IntegerTerm 42) [(sut/ALREADY-NONVAR)]
-    (r/->NumberTerm 23) [(sut/ALREADY-NONVAR)]
-    (r/->FloatTerm 3.1415) [(sut/ALREADY-NONVAR)]
-    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(sut/ALREADY-NONVAR)]
-    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(sut/ALREADY-NONVAR)])
-
-  (is (valid-env? (sut/fill-env-for-term-with-spec test-env (r/->VarTerm "X") (r/make-spec:var))))
-  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/make-spec:any)) (r/->VarTerm "X") (r/make-spec:var))))
-  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/make-spec:var) (r/make-spec:var) (r/make-spec:any)) (r/->VarTerm "X") (r/make-spec:var))))
-  (is ((complement valid-env?) (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/make-spec:ground)) (r/->VarTerm "X") (r/make-spec:var))))
-  (is (valid-env? (sut/fill-env-for-term-with-spec test-env (r/->AnonVarTerm "X") (r/make-spec:var))))
-  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/->AnonVarTerm "X") (r/make-spec:any)) (r/->AnonVarTerm "X") (r/make-spec:var))))
-  (is (valid-env? (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/->AnonVarTerm "X") (r/make-spec:var) (r/make-spec:var) (r/make-spec:any)) (r/->AnonVarTerm "X") (r/make-spec:var))))
-  (is ((complement valid-env?) (sut/fill-env-for-term-with-spec (sut/add-doms-to-node test-env (r/->AnonVarTerm "X") (r/make-spec:ground)) (r/->AnonVarTerm "X") (r/make-spec:var)))))
-
-(deftest fill-env-for-term-with-spec-test-atomic
-  (are [term]
-      (= [(r/make-spec:atomic)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atomic)) term))
+(deftest fill-env-test:ground
+  (do-template [term expected-dom] (is (= expected-dom (calculate-and-get-dom term (r/->GroundSpec))) (str (r/to-string term)))
+    (r/->AtomTerm "bunker") [(r/->AtomSpec)]
+    (r/->IntegerTerm 42) [(r/->IntegerSpec)]
+    (r/->NumberTerm 23) [(r/->NumberSpec)]
+    (r/->FloatTerm 3.1415) [(r/->FloatSpec)]
+    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
+    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)])])
+  (do-template [term] (is (some r/error-spec? (calculate-and-get-dom term (r/->GroundSpec))) (str (r/to-string term)))
     (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410"))
-  (is (= [(r/make-spec:atom)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->AtomTerm "cake") (r/make-spec:atomic)) (r/->AtomTerm "cake"))))
-  (is (= [(r/make-spec:number)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->NumberTerm 2) (r/make-spec:atomic)) (r/->NumberTerm 2))))
-  (is (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->IntegerTerm 2) (r/make-spec:atomic)) (r/->IntegerTerm 2))))
-  (is (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->FloatTerm 2.0) (r/make-spec:atomic)) (r/->FloatTerm 2.0))))
+    (r/->AnonVarTerm "_1603")
+    (r/->ListTerm (r/->VarTerm "X") (r/->EmptyListTerm))
+    (r/->CompoundTerm "foo" [(r/->VarTerm "X")]))
+
+  )
+
+
+
+
+(deftest fill-env-test:nonvar
+  (do-template [term expected-dom] (is (= expected-dom (calculate-and-get-dom term (r/->NonvarSpec))) (str (r/to-string term)))
+    (r/->AtomTerm "cake") [(r/->AtomSpec)]
+    (r/->IntegerTerm 42) [(r/->IntegerSpec)]
+    (r/->NumberTerm 23) [(r/->NumberSpec)]
+    (r/->FloatTerm 3.1415) [(r/->FloatSpec)]
+    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
+    (r/->ListTerm (r/->VarTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->VarSpec))]
+    (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)])])
+  (do-template [term] (is (some r/error-spec? (calculate-and-get-dom term (r/->NonvarSpec))) (str (r/to-string term)))
+    (r/->VarTerm "X")
+    (r/->AnonVarTerm "_1603"))
+  )
+;; Important Example:
+;; :- spec_pre(foo/1,[var]).
+;; foo([1,2,3]).
+;; --> Var is immediatly unified to [1,2,3] --> Change allowed
+(deftest fill-env-test:var
+  ;; NORMAL PRE_SPEC
+  (is (some r/error-spec? (calculate-and-get-dom (r/->AtomTerm "batman") (r/->VarSpec))))
+  (is (some r/error-spec? (calculate-and-get-dom (r/->IntegerTerm 1) (r/->VarSpec))))
+  (is (every? (complement r/error-spec?) (calculate-and-get-dom (r/->VarTerm "X") (r/->VarSpec))))
+  ;; UNIFICATION IN HEADER
+  (do-template [term expected-dom] (is (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env true term (r/->VarSpec)) term)))
+               (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
+               (r/->AtomTerm "a") [(r/->AtomSpec)]
+    ))
+
+
+(deftest fill-env-test:atomic
+  (is (= [(r/->AtomSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->AtomTerm "cake") (r/->AtomicSpec)) (r/->AtomTerm "cake"))))
+  (is (= [(r/->NumberSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->NumberTerm 2) (r/->AtomicSpec)) (r/->NumberTerm 2))))
+  (is (= [(r/->IntegerSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->IntegerTerm 2) (r/->AtomicSpec)) (r/->IntegerTerm 2))))
+  (is (= [(r/->FloatSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->FloatTerm 2.0) (r/->AtomicSpec)) (r/->FloatTerm 2.0))))
   (are [term]
-      (= [(sut/WRONG-TYPE term (r/make-spec:atom))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
+      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->AtomSpec)) term))
     (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     )
   )
 
 
-(deftest fill-env-for-term-with-spec-test-atom
+
+(deftest fill-env-test:atom
+  (is (= [(r/->AtomSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->AtomTerm "cake") (r/->AtomSpec)) (r/->AtomTerm "cake"))))
   (are [term]
-      (= [(r/make-spec:atom)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
-    (r/->AtomTerm "cake")
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410")
-    )
-  (are [term]
-      (= [(sut/WRONG-TYPE term (r/make-spec:atom))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:atom)) term))
+      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->AtomSpec)) term))
     (r/->EmptyListTerm)
     (r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
-    )
-  )
-
-(deftest fill-env-for-term-with-spec-test-exact
-  (are [term]
-      (= [(r/make-spec:exact "cake")] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:exact "cake")) term))
-    (r/->AtomTerm "cake")
     (r/->VarTerm "X")
     (r/->AnonVarTerm "_0410")
     )
-  (are [term]
-        (= [(sut/WRONG-TYPE term (r/make-spec:exact "cake"))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:exact "cake")) term))
-   (r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm))
-   (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
-   (r/->AtomTerm "nocake")
-   (r/->IntegerTerm 2)
-   (r/->NumberTerm 2)
-   (r/->FloatTerm 2.0)
-   )
   )
 
-(deftest fill-env-for-term-with-spec-test-number
+;;TODO: what is the initial spec of an atom? ExactSpec or AtomSpec? How handle intersectioning with exact?
+;; Current Status: Value of atom is lost, intersect with exact always yields a result, check later, if it matches with the original value
+(deftest fill-env-test:exact
   (are [term]
-      (= [(r/make-spec:number)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:number)) term))
+      (= [(r/->ExactSpec "cake")] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->ExactSpec "cake")) term))
+    (r/->AtomTerm "cake")
+    )
+  (are [term]
+      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->ExactSpec "cake")) term))
+    (r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm))
+    (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
+    (r/->AtomTerm "nocake")
+    (r/->IntegerTerm 2)
+    (r/->NumberTerm 2)
+    (r/->FloatTerm 2.0)
     (r/->VarTerm "X")
-    (r/->AnonVarTerm "_234"))
-  (is (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->IntegerTerm 2) (r/make-spec:number)) (r/->IntegerTerm 2))))
-  (is (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->FloatTerm 2.5) (r/make-spec:number)) (r/->FloatTerm 2.5))))
+    ))
+
+
+(deftest fill-env-test:number
+  (is (= [(r/->IntegerSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->IntegerTerm 2) (r/->NumberSpec)) (r/->IntegerTerm 2))))
+  (is (= [(r/->FloatSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->FloatTerm 2.5) (r/->NumberSpec)) (r/->FloatTerm 2.5))))
   (are [term]
-      (= [(sut/WRONG-TYPE term (r/make-spec:number))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:number)) term))
+      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->NumberSpec)) term))
     (r/->AtomTerm "no")
+    (r/->VarTerm "X")
     (r/->ListTerm (r/->NumberTerm 2) (r/->EmptyListTerm))
     (r/->CompoundTerm "node" [(r/->AtomTerm "hello")])
     )
   )
 
-
-(deftest fill-env-for-term-with-spec-test-integer
+(deftest fill-env-test:integer
   (are [term]
-      (= [(r/make-spec:integer)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:integer)) term))
-    (r/->IntegerTerm 42)
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_234"))
+      (= [(r/->IntegerSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->IntegerSpec)) term))
+    (r/->IntegerTerm 42))
 
-  (are [term]
-      (= [(sut/WRONG-TYPE term (r/make-spec:integer))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:integer)) term))
-    (r/->NumberTerm 3.14)
-    (r/->FloatTerm 3.14)
-    (r/->AtomTerm "no")
-    (r/->ListTerm (r/->IntegerTerm 0) (r/->EmptyListTerm))
-    (r/->CompoundTerm "node" [(r/->AtomTerm "hello")]))
+  (do-template [term]
+               (is (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->IntegerSpec)) term)) (str (r/to-string term)))
+               (r/->NumberTerm 3.14)
+               (r/->FloatTerm 3.14)
+               (r/->VarTerm "X")
+               (r/->AtomTerm "no")
+               (r/->AnonVarTerm "_123")
+               (r/->ListTerm (r/->IntegerTerm 0) (r/->EmptyListTerm))
+               (r/->CompoundTerm "node" [(r/->AtomTerm "hello")]))
   )
 
-(deftest fill-env-for-term-with-spec-test-float
+
+(deftest fill-env-test:float
   (are [term]
-      (= [(r/make-spec:float)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:float)) term))
-    (r/->FloatTerm 3.14)
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_234"))
+      (= [(r/->FloatSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->FloatSpec)) term))
+    (r/->FloatTerm 3.14))
 
   (are [term]
-      (= [(sut/WRONG-TYPE term (r/make-spec:float))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:float)) term))
+      (= [(sut/WRONG-TYPE term (r/->FloatSpec))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->FloatSpec)) term))
     (r/->NumberTerm 42)
     (r/->IntegerTerm 123)
     (r/->AtomTerm "no")
     (r/->ListTerm (r/->FloatTerm 0.0) (r/->EmptyListTerm))
+    (r/->VarTerm "X")
+    (r/->AnonVarTerm "_234")
     (r/->CompoundTerm "node" [(r/->AtomTerm "hello")])
     )
   )
 
-(deftest fill-env-for-term-with-spec-test-list
+  (deftest fill-env-test:list
+    (are [term]
+        (= [(r/->ListSpec (r/->IntegerSpec))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->ListSpec (r/->IntegerSpec))) term))
+      (r/->ListTerm (r/->IntegerTerm 2) (r/->ListTerm (r/->IntegerTerm 3) (r/->EmptyListTerm)))
+      )
+    (are [term]
+        (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/->ListSpec (r/->IntegerSpec)))))
+      (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm)) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
+      (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
+      (r/->AtomTerm "nocake")
+      (r/->VarTerm "X")
+      (r/->AnonVarTerm "_0410")
+      (r/->IntegerTerm 2)
+      (r/->NumberTerm 2)
+      (r/->FloatTerm 2.0)))
+
+(deftest fill-env-test:tuple
   (are [term]
-      (= [(r/make-spec:list (r/make-spec:integer))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:list (r/make-spec:integer))) term))
+      (= [(r/make-spec:tuple [(r/->IntegerSpec) (r/->IntegerSpec)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/->IntegerSpec) (r/->IntegerSpec)])) term))
+                                        ; (r/->ListTerm  (r/->IntegerTerm 2) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm))) ;;will only work if we can intersect or
     (r/->ListTerm (r/->IntegerTerm 2) (r/->ListTerm (r/->IntegerTerm 3) (r/->EmptyListTerm)))
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410"))
-  (are [term]
-      (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:list (r/make-spec:integer)))))
-    (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm)) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
-    (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
-    (r/->AtomTerm "nocake")
-    (r/->IntegerTerm 2)
-    (r/->NumberTerm 2)
-    (r/->FloatTerm 2.0)))
-
-(deftest fill-env-for-term-with-spec-test-tuple
-  (are [term]
-      (= [(r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)])) term))
-    (r/->ListTerm  (r/->IntegerTerm 2) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm)))
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410")
     )
   (are [term]
-      (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:atom)]))))
+      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/->IntegerSpec) (r/->AtomSpec)])) term))
     (r/->EmptyListTerm)
-    (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm)) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
+    (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     (r/->AtomTerm "nocake")
     (r/->IntegerTerm 2)
+    (r/->VarTerm "X")
+    (r/->AnonVarTerm "_0410")
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
 
 
 
-(deftest fill-env-for-term-with-spec-test-compound
+(deftest fill-env-test:compound
   (are [term]
-      (= [(r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)])) term))
+      (= [(r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])) term))
     (r/->CompoundTerm "foo" [(r/->NumberTerm 2) (r/->AtomTerm "cake")])
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410")
     )
   (are [term]
-      (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:atom)]))))
+      (false? (valid-env? (sut/fill-env-for-term-with-spec test-env term (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)]))))
     (r/->EmptyListTerm)
     (r/->ListTerm  (r/->FloatTerm 2.5) (r/->EmptyListTerm)) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     (r/->AtomTerm "nocake")
     (r/->IntegerTerm 2)
+    (r/->VarTerm "X")
+    (r/->AnonVarTerm "_0410")
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
-
-(deftest fill-env-for-term-with-spec-test-specvar
-  (let [term (r/->IntegerTerm 42)
-        specvar (r/make-spec:specvar 0)
-        expected-env (-> test-env
-                         (sut/add-doms-to-node term specvar (r/make-spec:integer))
-                         (sut/add-doms-to-node specvar (r/make-spec:integer)))]
-    (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
-  (let [term (r/->AtomTerm "nevegonnagiveyouup")
-        specvar (r/make-spec:specvar 0)
-        expected-env (-> test-env
-                      (sut/add-doms-to-node term specvar (r/make-spec:atom))
-                      (sut/add-doms-to-node specvar (r/make-spec:atom)))]
-    (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
-  (let [term (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-        specvar (r/make-spec:specvar 0)
-        spec-to-be-filled (r/make-spec:list specvar)
-        expected-env (-> test-env
-                         (sut/add-doms-to-node term spec-to-be-filled)
-                         (sut/add-doms-to-node (r/->IntegerTerm 1) specvar (r/make-spec:integer))
-                         (sut/add-doms-to-node specvar (r/make-spec:integer))
-                         )
-        actual-env (sut/fill-env-for-term-with-spec test-env term spec-to-be-filled)]
-    (is (= expected-env actual-env))))
-
-(deftest fill-env-for-term-with-spec-test-one-of
-  (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
-    (r/->AtomTerm "hallohallo")
-    (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:atomic)])
-    (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/make-spec:atom))
-
-    (r/->AtomTerm "hallohallo")
-    (r/make-spec:one-of [(r/make-spec:atom) (r/make-spec:atomic)])
-    (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/make-spec:atom))
-
-    (r/->IntegerTerm 3)
-    (r/make-spec:one-of [(r/make-spec:number) (r/make-spec:integer) (r/make-spec:atom)])
-    (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/make-spec:integer))
-
-    (r/->IntegerTerm 3)
-    (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:specvar 0)])
-    (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:and [(r/make-spec:specvar 0) (r/make-spec:integer)])]))
-
-    (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-    (r/make-spec:one-of [(r/make-spec:list (r/make-spec:number)) (r/make-spec:tuple [(r/make-spec:atomic)])])
-    (sut/add-doms-to-node test-env
-                          (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-                          (r/make-spec:one-of [(r/make-spec:list (r/make-spec:number)) (r/make-spec:tuple [(r/make-spec:atomic)])]))
-    ))
-
-(deftest fill-env-for-term-with-spec-test-and
-  (are [term spec expected-env]
-      (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
-    (r/->AtomTerm "hallohallo")
-    (r/make-spec:and [(r/make-spec:atom) (r/make-spec:atomic)])
-    (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/make-spec:atom))
-
-    (r/->AtomTerm "hallohallo")
-    (r/make-spec:and [(r/make-spec:any) (r/make-spec:atomic)])
-    (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/make-spec:atom))
-
-    (r/->IntegerTerm 3)
-    (r/make-spec:and [(r/make-spec:ground) (r/make-spec:specvar 0)])
-    (-> test-env
-       (sut/add-doms-to-node (r/make-spec:specvar 0) (r/make-spec:integer))
-       (sut/add-doms-to-node (r/->IntegerTerm 3) (r/make-spec:integer) (r/make-spec:specvar 0)))
-    ))
-
-(deftest fill-env-for-term-with-spec-test-user-defined
-  (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
-    (r/->AtomTerm "empty")
-    (r/make-spec:user-defined
-     "tree" [(r/make-spec:integer)])
-    (sut/add-doms-to-node
-     test-env
-     (r/->AtomTerm "empty")
-     (r/make-spec:user-defined "tree" [(r/make-spec:integer)]) (r/make-spec:exact "empty"))
-
-    (r/->AtomTerm "empty")
-    (r/make-spec:user-defined "tree" [(r/make-spec:specvar 0)])
-    (-> test-env
-        (sut/add-doms-to-node
-         (r/->AtomTerm "empty")
-         (r/make-spec:user-defined "tree" [(r/make-spec:specvar 0)])
-         (r/make-spec:exact "empty")))))
-
 
 (deftest fill-env-for-term-with-spec-test-empty-list
   (are [term spec expected-dom] (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term))
@@ -383,6 +286,104 @@
 
     (r/->EmptyListTerm) (r/->EmptyListSpec) [(r/->EmptyListSpec)]
 
-    (r/->VarTerm "X") (r/->EmptyListSpec) [(r/->EmptyListSpec)]
 
     ))
+
+(comment
+  (deftest fill-env-for-term-with-spec-test-specvar
+    (let [term (r/->IntegerTerm 42)
+          specvar (r/->SpecvarSpec 0)
+          expected-env (-> test-env
+                           (sut/add-doms-to-node term specvar (r/->IntegerSpec))
+                           (sut/add-doms-to-node specvar (r/->IntegerSpec)))]
+      (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
+    (let [term (r/->AtomTerm "nevegonnagiveyouup")
+          specvar (r/->SpecvarSpec 0)
+          expected-env (-> test-env
+                           (sut/add-doms-to-node term specvar (r/->AtomSpec))
+                           (sut/add-doms-to-node specvar (r/->AtomSpec)))]
+      (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
+    (let [term (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
+          specvar (r/->SpecvarSpec 0)
+          spec-to-be-filled (r/->ListSpec specvar)
+          expected-env (-> test-env
+                           (sut/add-doms-to-node term spec-to-be-filled)
+                           (sut/add-doms-to-node (r/->IntegerTerm 1) specvar (r/->IntegerSpec))
+                           (sut/add-doms-to-node specvar (r/->IntegerSpec))
+                           )
+          actual-env (sut/fill-env-for-term-with-spec test-env term spec-to-be-filled)]
+      (is (= expected-env actual-env))))
+
+  (deftest fill-env-for-term-with-spec-test-one-of
+    (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
+      (r/->AtomTerm "hallohallo")
+      (r/->OneOfSpec [(r/->IntegerSpec) (r/->AtomicSpec)])
+      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
+
+      (r/->AtomTerm "hallohallo")
+      (r/->OneOfSpec [(r/->AtomSpec) (r/->AtomicSpec)])
+      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
+
+      (r/->IntegerTerm 3)
+      (r/->OneOfSpec [(r/->NumberSpec) (r/->IntegerSpec) (r/->AtomSpec)])
+      (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/->IntegerSpec))
+
+      (r/->IntegerTerm 3)
+      (r/->OneOfSpec [(r/->IntegerSpec) (r/->SpecvarSpec 0)])
+      (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/->OneOfSpec [(r/->IntegerSpec) (r/make-spec:and [(r/->SpecvarSpec 0) (r/->IntegerSpec)])]))
+
+      (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
+      (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/make-spec:tuple [(r/->AtomicSpec)])])
+      (sut/add-doms-to-node test-env
+                            (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
+                            (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/make-spec:tuple [(r/->AtomicSpec)])]))
+      ))
+
+  (deftest fill-env-for-term-with-spec-test-and
+    (are [term spec expected-env]
+        (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
+      (r/->AtomTerm "hallohallo")
+      (r/make-spec:and [(r/->AtomSpec) (r/->AtomicSpec)])
+      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
+
+      (r/->AtomTerm "hallohallo")
+      (r/make-spec:and [(r/->AnySpec) (r/->AtomicSpec)])
+      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
+
+      (r/->IntegerTerm 3)
+      (r/make-spec:and [(r/->GroundSpec) (r/->SpecvarSpec 0)])
+      (-> test-env
+          (sut/add-doms-to-node (r/->SpecvarSpec 0) (r/->IntegerSpec))
+          (sut/add-doms-to-node (r/->IntegerTerm 3) (r/->IntegerSpec) (r/->SpecvarSpec 0)))
+      ))
+
+  (deftest fill-env-for-term-with-spec-test-user-defined
+    (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
+      (r/->AtomTerm "empty")
+      (r/make-spec:user-defined
+       "tree" [(r/->IntegerSpec)])
+      (sut/add-doms-to-node
+       test-env
+       (r/->AtomTerm "empty")
+       (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]) (r/->ExactSpec "empty"))
+
+      (r/->AtomTerm "empty")
+      (r/make-spec:user-defined "tree" [(r/->SpecvarSpec 0)])
+      (-> test-env
+          (sut/add-doms-to-node
+           (r/->AtomTerm "empty")
+           (r/make-spec:user-defined "tree" [(r/->SpecvarSpec 0)])
+           (r/->ExactSpec "empty")))))
+
+
+  (deftest fill-env-for-term-with-spec-test-empty-list
+    (are [term spec expected-dom] (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term))
+      (r/->EmptyListTerm) (r/->TupleSpec []) [(r/->EmptyListSpec)]
+
+      (r/->EmptyListTerm) (r/->ListSpec (r/->IntegerSpec)) [(r/->EmptyListSpec)]
+
+      (r/->EmptyListTerm) (r/->EmptyListSpec) [(r/->EmptyListSpec)]
+
+      (r/->VarTerm "X") (r/->EmptyListSpec) [(r/->EmptyListSpec)]
+
+      )))

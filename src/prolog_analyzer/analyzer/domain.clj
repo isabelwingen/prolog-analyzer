@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r :refer [suitable-spec]]
+            [prolog-analyzer.records :as r :refer [suitable-spec intersect]]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [loom.graph]
@@ -86,12 +86,29 @@
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec initial? term transformed-definition))))
 
+(defmulti check-if-valid (fn [term spec] [(r/term-type term) (r/spec-type spec)]))
+
+(defmethod check-if-valid [r/ATOM r/EXACT] [term spec]
+  (= (:term term) (:value spec)))
+
+(defmethod check-if-valid [r/NUMBER r/INTEGER] [term spec]
+  (int? (:value term)))
+
+(defmethod check-if-valid [r/NUMBER r/FLOAT] [term spec]
+  (float? (:value term)))
+
+(defmethod check-if-valid :default [term spec]
+  true)
+
+
 (defmethod fill-env :default [env term spec initial?]
-  (let [suitable-spec (r/suitable-spec spec term)
+  (let [suitable-spec (r/intersect spec (r/initial-spec term))
         next-steps (r/next-steps spec term)]
     (if (nil? suitable-spec)
       (add-doms-to-node env term (WRONG-TYPE term spec))
-      (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) (add-doms-to-node env term suitable-spec) (partition 2 next-steps)))))
+      (if (check-if-valid term spec)
+        (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) (add-doms-to-node env term suitable-spec) (partition 2 next-steps))
+        (add-doms-to-node env term (WRONG-TYPE term spec))))))
 
 
 (defn fill-env-for-term-with-spec

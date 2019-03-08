@@ -33,6 +33,7 @@
 (declare next-steps)
 (declare spec-type)
 (declare term-type)
+(declare simplify-or)
 
 (defprotocol printable
   (to-string [x]))
@@ -353,24 +354,29 @@
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
+(defn- simplify-or [spec]
+  (let [simplified-or (-> spec
+                          (update :arglist distinct)
+                          (update :arglist (partial apply vector)))]
+    (case (count (:arglist simplified-or))
+      0 (->ErrorSpec "No Valid Components")
+      1 (first (.arglist simplified-or))
+      simplified-or)))
+
 (defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
   (suitable-spec [spec term]
-    (let [simplified-or (-> spec
-                            (update :arglist (partial map #(suitable-spec % term)))
-                            (update :arglist (partial remove #(nil? %)))
-                            (update :arglist distinct)
-                            (update :arglist (partial apply vector)))]
-      (case (count (:arglist simplified-or))
-        0 (->ErrorSpec "No valid components")
-        1 (first (.arglist simplified-or))
-        simplified-or)))
+    (-> spec
+        (update :arglist (partial map #(suitable-spec % term)))
+        (update :arglist (partial remove #(nil? %)))
+        simplify-or))
   (next-steps [spec term]
     (let [suitable-spec (suitable-spec spec term)]
       (if (= OR (spec-type suitable-spec))
         []
         [term suitable-spec])))
+  (intersect [spec other-spec] nil)
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
@@ -378,6 +384,8 @@
   spec
   (spec-type [spec] USERDEFINED)
   (suitable-spec [spec term] spec)
+  (next-steps [spec term] [])
+  (intersect [spec term] [])
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
@@ -403,12 +411,7 @@
     (if (contains? #{LIST, COMPOUND} (term-type term))
       [term (suitable-spec spec term)]
       []))
-  (intersect [spec other-spec]
-    (case+ (spec-type other-spec)
-           ANY spec
-           VAR other-spec
-           (intersect other-spec spec))
-    (intersect other-spec spec))
+  (intersect [spec other-spec] other-spec)
   printable
   (to-string [x] "Any"))
 
@@ -430,6 +433,11 @@
     (if (contains? #{LIST, COMPOUND} (term-type term))
       [term (suitable-spec spec term)]
       []))
+  (intersect [spec other-spec]
+    (case+ (spec-type other-spec)
+           (NONVAR, ANY) spec
+           GROUND other-spec
+           (intersect other-spec spec)))
   printable
   (to-string [x] "Nonvar"))
 
@@ -503,7 +511,9 @@
 (defrecord ListTerm [head tail]
   term
   (term-type [term] LIST)
-  (initial-spec [term] (->ListSpec (->AnySpec)))
+  (initial-spec [term] (if (empty-list? tail)
+                         (->ListSpec (initial-spec head))
+                         (->ListSpec (simplify-or (->OneOfSpec [(initial-spec head) (:type (initial-spec tail))])))))
   printable
   (to-string [x]
     (case+ (term-type tail)
@@ -512,10 +522,11 @@
            VAR (str "[" (to-string head) "|" (to-string tail) "]")
            LIST (str "[" (to-arglist (get-elements-of-list x)) "]"))))
 
+
 (defrecord CompoundTerm [functor arglist]
   term
   (term-type [term] COMPOUND)
-  (initial-spec [term] (->CompoundSpec functor (repeat (count arglist) (->AnySpec))))
+  (initial-spec [term] (->CompoundSpec functor (map initial-spec arglist)))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
