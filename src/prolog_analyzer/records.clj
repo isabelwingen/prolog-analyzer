@@ -7,22 +7,25 @@
 (def INTEGER :integer)
 (def FLOAT :float)
 (def NUMBER :number)
+(def EXACT :exact)
 (def ATOM :atom)
 (def ATOMIC :atomic)
+(def COMPOUND :compound)
+(def LIST :list)
+(def EMPTYLIST :empty-list)
+(def TUPLE :tuple)
 (def GROUND :ground)
-(def ANY :any)
 (def NONVAR :nonvar)
 (def VAR :var)
-(def LIST :list)
-(def COMPOUND :compound)
-(def TUPLE :tuple)
+
+(def USERDEFINED :user-defined)
+(def SPECVAR :specvr)
+(def ERROR :error)
+
 (def AND :and)
 (def OR :one-of)
-(def USERDEFINED :user-defined)
-(def SPECVAR :specvar)
-(def EXACT :exact)
-(def ERROR :error)
-(def EMPTYLIST :empty-list)
+
+(def ANY :any)
 
 (declare to-arglist)
 (declare empty-list?)
@@ -61,17 +64,16 @@
 
 
 (defn error-spec? [spec]
-  (or (= ERROR (spec-type spec))
-      (some->> spec
-               :type
-               error-spec?)
-      (some->> spec
-               :arglist
-               (some error-spec?))))
+  (or (nil? spec)
+      (= ERROR (spec-type spec))
+      (if (contains? spec :type) (error-spec? (.type spec)))
+      (if (contains? spec :arglist) (some error-spec? (.arglist spec)))))
 
-(defn check-if-error [spec]
+
+
+(defn replace-error-spec-with-nil [spec]
   (if (error-spec? spec)
-    (if (:reason spec) spec (->ErrorSpec "Contains error spec"))
+    nil
     spec))
 
 (defrecord VarSpec []
@@ -82,7 +84,10 @@
            (VAR, ANY) spec
            nil))
   (next-steps [spec term] [])
-  (intersect [spec other-spec] other-spec)
+  (intersect [spec other-spec]
+    (case+ (spec-type other-spec)
+           (VAR, ANY) spec
+           nil))
   printable
   (to-string [x] "Var"))
 
@@ -94,9 +99,9 @@
   (next-steps [spec term] [])
   (intersect [spec other-spec]
     (case+ (spec-type other-spec)
-           (EMPTYLIST, VAR, LIST, GROUND, NONVAR, ANY) spec
-           TUPLE (if (empty? (.arglist other-spec)) spec (->ErrorSpec (str "Cannot be tuple of size " (count (.arglist other-spec)))))
-           DISJOINT))
+           (EMPTYLIST, LIST, GROUND, NONVAR, ANY, ATOMIC) spec
+           TUPLE (if (empty? (.arglist other-spec)) spec nil)
+           nil))
   printable
   (to-string [x] "EmptyList"))
 
@@ -110,7 +115,10 @@
            nil))
   (next-steps [spec term] [])
   (intersect [spec other-spec]
-    (if (contains? #{VAR, ATOM, ATOMIC, GROUND, NONVAR, ANY} (spec-type other-spec)) spec DISJOINT))
+    (case+ (spec-type other-spec)
+           (ATOM, ATOMIC, GROUND, NONVAR, ANY) spec
+           EXACT other-spec
+           nil))
   printable
   (to-string [x] "Atom"))
 
@@ -123,7 +131,7 @@
            nil))
   (next-steps [spec term] [])
   (intersect [spec other-spec]
-    (if (contains? #{VAR, ATOMIC, INTEGER, NUMBER, GROUND, NONVAR, ANY} (spec-type other-spec)) spec DISJOINT))
+    (if (contains? #{ATOMIC, INTEGER, NUMBER, GROUND, NONVAR, ANY} (spec-type other-spec)) spec nil))
   printable
   (to-string [x] "Integer"))
 
@@ -136,7 +144,7 @@
            nil))
   (next-steps [spec term] [])
   (intersect [spec other-spec]
-    (if (contains? #{VAR, ATOMIC, FLOAT, NUMBER, GROUND, NONVAR, ANY} (spec-type other-spec)) spec DISJOINT))
+    (if (contains? #{ATOMIC, FLOAT, NUMBER, GROUND, NONVAR, ANY} (spec-type other-spec)) spec nil))
   printable
   (to-string [x] "Float"))
 
@@ -152,9 +160,9 @@
   (next-steps [spec term] [])
   (intersect [spec other-spec]
     (case+ (spec-type other-spec)
-           (VAR, ATOMIC, NUMBER, GROUND, NONVAR, ANY) spec
+           (ATOMIC, NUMBER, GROUND, NONVAR, ANY) spec
            (INTEGER, FLOAT) other-spec
-           DISJOINT))
+           nil))
   printable
   (to-string [x] "Number"))
 
@@ -173,9 +181,9 @@
   (next-steps [spec term] [])
   (intersect [spec other-spec]
     (case+ (spec-type other-spec)
-           (VAR, ATOMIC, GROUND, NONVAR, ANY) spec
-           (INTEGER, FLOAT, ATOM) other-spec
-           DISJOINT))
+           (ATOMIC, GROUND, NONVAR, ANY) spec
+           (INTEGER, FLOAT, ATOM, NUMBER, EMPTYLIST, EXACT) other-spec
+           nil))
   printable
   (to-string [x] "Atomic"))
 
@@ -190,7 +198,10 @@
            nil))
   (next-steps [spec term] [])
   (intersect [spec other-spec]
-    (if (contains? #{VAR, EXACT, ATOM, ATOMIC, GROUND, NONVAR, ANY} (spec-type other-spec)) spec DISJOINT))
+    (case+ (spec-type other-spec)
+           (GROUND, NONVAR, ANY, ATOM, ATOMIC) spec
+           EXACT (if (= value (.value other-spec)) spec nil)
+           nil))
   printable
   (to-string [x] (str "Exact(" value ")")))
 
@@ -213,14 +224,17 @@
       []))
   (intersect [spec other-spec]
     (case+ (spec-type other-spec)
-           LIST (->ListSpec (intersect type (.type other-spec)))
+           LIST (-> other-spec
+                    (update :type (partial intersect type))
+                    replace-error-spec-with-nil)
            TUPLE (-> other-spec
-                     (update :arglist (partial intersect type))
-                     check-if-error)
+                     (update :arglist (partial map (partial intersect type)))
+                     replace-error-spec-with-nil)
            EMPTYLIST other-spec
-           (ANY, VAR, NONVAR) spec
-           GROUND (update spec :type (partial intersect other-spec))
-           DISJOINT))
+           ATOMIC (->EmptyListSpec)
+           (ANY, NONVAR) spec
+           GROUND (replace-error-spec-with-nil (update spec :type (partial intersect other-spec)))
+           nil))
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
 
@@ -245,17 +259,19 @@
       []))
   (intersect [spec other-spec]
     (case+ (spec-type other-spec)
-           EMPTYLIST (if (empty? arglist) other-spec DISJOINT)
-           LIST (let [p (update spec :arglist (partial intersect other-spec))]
-                  (if (error-spec? p) DISJOINT p))
+           EMPTYLIST (if (empty? arglist) other-spec nil)
+           LIST (-> spec
+                    (update :arglist (partial map (partial intersect (.type other-spec))))
+                    replace-error-spec-with-nil)
            TUPLE (if (= (count arglist) (count (.arglist other-spec)))
                    (-> other-spec
                        (update :arglist (partial map intersect arglist))
-                       check-if-error)
-                   DISJOINT)
-           (ANY, VAR, NONVAR) spec
-           GROUND (update spec :arglist (partial intersect other-spec))
-           DISJOINT))
+                       replace-error-spec-with-nil)
+                   nil)
+           ATOMIC (if (empty? arglist) (->EmptyListSpec) nil)
+           (ANY, NONVAR) spec
+           GROUND (replace-error-spec-with-nil (update spec :arglist (partial map (partial intersect other-spec))))
+           nil))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
@@ -278,11 +294,11 @@
                              (= (count arglist) (count (.arglist other-spec))))
                       (-> other-spec
                           (update :arglist (partial map intersect arglist))
-                          check-if-error)
-                      DISJOINT)
-           (ANY, VAR, NONVAR) spec
-           GROUND (update spec :arglist (partial intersect other-spec))
-           DISJOINT))
+                          replace-error-spec-with-nil)
+                      nil)
+           (ANY, NONVAR) spec
+           GROUND (replace-error-spec-with-nil (update spec :arglist (partial map (partial intersect other-spec))))
+           nil))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
@@ -311,6 +327,7 @@
   printable
   (to-string [x] "Ground"))
 
+
 (defrecord AndSpec [arglist]
   spec
   (spec-type [spec] AND)
@@ -332,6 +349,7 @@
       (if (= AND (spec-type suitable-spec))
         (interleave (repeat (count (.arglist suitable-spec)) term) (.arglist suitable-spec))
         [term suitable-spec])))
+  (intersect [spec other-spec] nil)
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
