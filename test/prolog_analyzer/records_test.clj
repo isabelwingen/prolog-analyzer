@@ -205,5 +205,45 @@
                (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->AnySpec) (sut/->TupleSpec [(sut/->IntegerSpec)])
 
 
+               (sut/->GroundSpec) (sut/->GroundSpec) (sut/->GroundSpec)
+               (sut/->GroundSpec) (sut/->NonvarSpec) (sut/->GroundSpec)
+               (sut/->GroundSpec) (sut/->AnySpec) (sut/->GroundSpec)
+               (sut/->GroundSpec) (sut/->VarSpec) nil
+
+               (sut/->NonvarSpec) (sut/->GroundSpec) (sut/->GroundSpec)
+               (sut/->NonvarSpec) (sut/->NonvarSpec) (sut/->NonvarSpec)
+               (sut/->NonvarSpec) (sut/->AnySpec) (sut/->NonvarSpec)
+               (sut/->NonvarSpec) (sut/->VarSpec) nil
+
+               (sut/->VarSpec) (sut/->IntegerSpec) nil
+               (sut/->VarSpec) (sut/->FloatSpec) nil
+               (sut/->VarSpec) (sut/->NumberSpec) nil
+               (sut/->VarSpec) (sut/->ExactSpec "cake") nil
+               (sut/->VarSpec) (sut/->AtomSpec) nil
+               (sut/->VarSpec) (sut/->AtomicSpec) nil
+               (sut/->VarSpec) (sut/->CompoundSpec "foo" [(sut/->AtomSpec)]) nil
+               (sut/->VarSpec) (sut/->ListSpec (sut/->AtomicSpec)) nil
+               (sut/->VarSpec) (sut/->EmptyListSpec) nil
+               (sut/->VarSpec) (sut/->TupleSpec [(sut/->VarSpec)]) nil
+               (sut/->VarSpec) (sut/->GroundSpec) nil
+               (sut/->VarSpec) (sut/->NonvarSpec) nil
+               (sut/->VarSpec) (sut/->VarSpec) (sut/->VarSpec)
+               (sut/->VarSpec) (sut/->AnySpec) (sut/->VarSpec)
+
+               (sut/->AnySpec) (sut/->IntegerSpec) (sut/->IntegerSpec)
+               (sut/->AnySpec) (sut/->FloatSpec) (sut/->FloatSpec)
+               (sut/->AnySpec) (sut/->NumberSpec) (sut/->NumberSpec)
+               (sut/->AnySpec) (sut/->ExactSpec "cake") (sut/->ExactSpec "cake")
+               (sut/->AnySpec) (sut/->AtomSpec) (sut/->AtomSpec)
+               (sut/->AnySpec) (sut/->AtomicSpec) (sut/->AtomicSpec)
+               (sut/->AnySpec) (sut/->CompoundSpec "foo" [(sut/->AtomSpec)]) (sut/->CompoundSpec "foo" [(sut/->AtomSpec)])
+               (sut/->AnySpec) (sut/->ListSpec (sut/->AtomicSpec)) (sut/->ListSpec (sut/->AtomicSpec))
+               (sut/->AnySpec) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
+               (sut/->AnySpec) (sut/->TupleSpec [(sut/->AnySpec)]) (sut/->TupleSpec [(sut/->AnySpec)])
+               (sut/->AnySpec) (sut/->GroundSpec) (sut/->GroundSpec)
+               (sut/->AnySpec) (sut/->NonvarSpec) (sut/->NonvarSpec)
+               (sut/->AnySpec) (sut/->AnySpec) (sut/->AnySpec)
+               (sut/->AnySpec) (sut/->VarSpec) (sut/->VarSpec)
+
 
                ))
