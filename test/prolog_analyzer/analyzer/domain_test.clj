@@ -242,11 +242,16 @@
       (r/->FloatTerm 2.0)))
 
 (deftest fill-env-test:tuple
-  (are [term]
-      (= [(r/make-spec:tuple [(r/->IntegerSpec) (r/->IntegerSpec)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/->IntegerSpec) (r/->IntegerSpec)])) term))
-                                        ; (r/->ListTerm  (r/->IntegerTerm 2) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm))) ;;will only work if we can intersect or
-    (r/->ListTerm (r/->IntegerTerm 2) (r/->ListTerm (r/->IntegerTerm 3) (r/->EmptyListTerm)))
-    )
+  (do-template [term spec expected-dom] (is (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term)) (str (r/to-string term)))
+               (r/->ListTerm (r/->IntegerTerm 1) (r/->ListTerm (r/->IntegerTerm 3) (r/->EmptyListTerm)))
+               (r/->TupleSpec [(r/->IntegerSpec) (r/->IntegerSpec)])
+               [(r/->TupleSpec [(r/->IntegerSpec) (r/->IntegerSpec)])]
+
+
+               (r/->ListTerm (r/->IntegerTerm 1) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm)))
+               (r/->TupleSpec [(r/->NumberSpec) (r/->AtomSpec)])
+               [(r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])]
+               )
   (are [term]
       (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/->IntegerSpec) (r/->AtomSpec)])) term))
     (r/->EmptyListTerm)
@@ -258,8 +263,6 @@
     (r/->AnonVarTerm "_0410")
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
-
-
 
 (deftest fill-env-test:compound
   (are [term]
@@ -278,13 +281,15 @@
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
 
-(deftest fill-env-for-term-with-spec-test-empty-list
+(deftest fill-env-test:empty-list
   (are [term spec expected-dom] (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term))
     (r/->EmptyListTerm) (r/->TupleSpec []) [(r/->EmptyListSpec)]
 
     (r/->EmptyListTerm) (r/->ListSpec (r/->IntegerSpec)) [(r/->EmptyListSpec)]
 
     (r/->EmptyListTerm) (r/->EmptyListSpec) [(r/->EmptyListSpec)]
+
+    (r/->EmptyListTerm) (r/->AndSpec [(r/->ListSpec (r/->IntegerSpec)) (r/->AtomicSpec)]) [(r/->EmptyListSpec)]
 
 
     ))

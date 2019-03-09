@@ -61,16 +61,11 @@
   (to-string [x] (str "ERROR: " reason)))
 
 
-(def DISJOINT (->ErrorSpec "Intersect is empty"))
-
-
 (defn error-spec? [spec]
   (or (nil? spec)
       (= ERROR (spec-type spec))
       (if (contains? spec :type) (error-spec? (.type spec)))
       (if (contains? spec :arglist) (some error-spec? (.arglist spec)))))
-
-
 
 (defn replace-error-spec-with-nil [spec]
   (if (error-spec? spec)
@@ -184,6 +179,7 @@
     (case+ (spec-type other-spec)
            (ATOMIC, GROUND, NONVAR, ANY) spec
            (INTEGER, FLOAT, ATOM, NUMBER, EMPTYLIST, EXACT) other-spec
+           LIST (->EmptyListSpec)
            nil))
   printable
   (to-string [x] "Atomic"))
@@ -328,31 +324,11 @@
   printable
   (to-string [x] "Ground"))
 
-
-(defrecord AndSpec [arglist]
-  spec
-  (spec-type [spec] AND)
-  (suitable-spec [spec term]
-    (if (every? (complement nil?) (map #(suitable-spec % term) arglist))
-      (let [mod-and (-> spec
-                        (update :arglist (partial map #(suitable-spec % term)))
-                        (update :arglist (partial map #(if (= AND (spec-type %)) (.arglist %) %)))
-                        (update :arglist flatten)
-                        (update :arglist distinct)
-                        (update :arglist (partial apply vector)))]
-        (case (count (:arglist mod-and))
-          0 (->ErrorSpec "No valid components")
-          1 (first (:arglist mod-and))
-          mod-and))
-      nil))
-  (next-steps [spec term]
-    (let [suitable-spec (suitable-spec spec term)]
-      (if (= AND (spec-type suitable-spec))
-        (interleave (repeat (count (.arglist suitable-spec)) term) (.arglist suitable-spec))
-        [term suitable-spec])))
-  (intersect [spec other-spec] nil)
-  printable
-  (to-string [x] (str "And(" (to-arglist arglist) ")")))
+(defn- simplify-and [{arglist :arglist}]
+  (let [p (reduce intersect arglist)]
+    (if (nil? p)
+      (->ErrorSpec "No Valid Components")
+      p)))
 
 (defn- simplify-or [spec]
   (let [simplified-or (-> spec
@@ -362,6 +338,41 @@
       0 (->ErrorSpec "No Valid Components")
       1 (first (.arglist simplified-or))
       simplified-or)))
+
+
+(defrecord AndSpec [arglist]
+  spec
+  (spec-type [spec] AND)
+  (suitable-spec [spec term]
+    (if (every? (complement nil?) (map #(suitable-spec % term) arglist))
+      (-> spec
+          (update :arglist (partial map #(suitable-spec % term)))
+          (update :arglist (partial map #(if (= AND (spec-type %)) (.arglist %) %)))
+          (update :arglist flatten)
+          simplify-and
+          replace-error-spec-with-nil)
+      nil))
+  (next-steps [spec term]
+    (let [suitable-spec (suitable-spec spec term)]
+      (if (= AND (spec-type suitable-spec))
+        (interleave (repeat (count (.arglist suitable-spec)) term) (.arglist suitable-spec))
+        [term suitable-spec])))
+  (intersect [spec other-spec]
+    (case+ (spec-type other-spec)
+           AND (-> other-spec
+                   (update :arglist (partial concat arglist))
+                   simplify-and
+                   replace-error-spec-with-nil)
+           OR (-> other-spec
+                  (update :arglist (partial map #(simplify-and (->AndSpec (conj arglist %)))))
+                  simplify-or
+                  replace-error-spec-with-nil)
+           (-> spec
+               (update :arglist #(conj % other-spec))
+               simplify-and
+               replace-error-spec-with-nil)))
+  printable
+  (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
 (defrecord OneOfSpec [arglist]
   spec
@@ -376,7 +387,27 @@
       (if (= OR (spec-type suitable-spec))
         []
         [term suitable-spec])))
-  (intersect [spec other-spec] nil)
+  (intersect [spec other-spec]
+    (case+ (spec-type other-spec)
+           OR (->> (for [x arglist
+                         y (.arglist other-spec)]
+                     [x y])
+                   (map ->AndSpec)
+                   (map simplify-and)
+                   (apply vector)
+                   ->OneOfSpec
+                   simplify-or
+                   replace-error-spec-with-nil)
+           AND (-> spec
+                   (update :arglist (partial map #(simplify-and (->AndSpec (conj (.arglist other-spec) %)))))
+                   simplify-or
+                   replace-error-spec-with-nil)
+           (-> spec
+               (update :arglist (partial map (partial intersect other-spec)))
+               (update :arglist (partial remove nil?))
+               simplify-or
+               replace-error-spec-with-nil
+               )))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 

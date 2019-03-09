@@ -119,7 +119,7 @@
                (sut/->AtomicSpec) (sut/->AtomSpec) (sut/->AtomSpec)
                (sut/->AtomicSpec) (sut/->AtomicSpec) (sut/->AtomicSpec)
                (sut/->AtomicSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
-               (sut/->AtomicSpec) (sut/->ListSpec (sut/->AtomicSpec)) nil
+               (sut/->AtomicSpec) (sut/->ListSpec (sut/->AtomicSpec)) (sut/->EmptyListSpec)
                (sut/->AtomicSpec) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
                (sut/->AtomicSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
                (sut/->AtomicSpec) (sut/->GroundSpec) (sut/->AtomicSpec)
