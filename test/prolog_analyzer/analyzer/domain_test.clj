@@ -214,7 +214,7 @@
     (r/->FloatTerm 3.14))
 
   (are [term]
-      (= [(sut/WRONG-TYPE term (r/->FloatSpec))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->FloatSpec)) term))
+      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->FloatSpec)) term))
     (r/->NumberTerm 42)
     (r/->IntegerTerm 123)
     (r/->AtomTerm "no")

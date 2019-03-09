@@ -61,8 +61,17 @@
                              r/VAR r/VAR
                              r/SPECVAR r/SPECVAR
                              r/USERDEFINED r/USERDEFINED
+                             r/ANY r/ANY
                              :simple)
                       (if (= r/VAR (r/term-type term)) :term:var :term:nonvar)]))
+
+(defmethod fill-env [r/ANY :term:var] [env term spec initial?]
+  (log/info (str :any :term:var))
+  (add-doms-to-node env term (r/initial-spec term)))
+
+(defmethod fill-env [r/ANY :term:nonvar] [env term spec initial?]
+  (log/info (str :any :term:nonvar))
+  (add-doms-to-node env term (r/initial-spec term)))
 
 (defmethod fill-env [r/VAR :term:var] [env term spec initial?]
   (log/info (str :var :term:var))
@@ -74,7 +83,9 @@
 
 (defmethod fill-env [r/VAR :term:nonvar] [env term spec initial?]
   (log/info (str :var :term:nonvar))
-  (add-doms-to-node env term (ALREADY-NONVAR)))
+  (if initial?
+    (add-doms-to-node env term (r/initial-spec term))
+    (add-doms-to-node env term (ALREADY-NONVAR))))
 
 (defmethod fill-env [r/SPECVAR :term:var] [env term spec initial?]
   (log/info (str :specvar :term:var))
@@ -84,6 +95,7 @@
     step3))
 
 (defmethod fill-env [r/SPECVAR :term:nonvar] [env term spec initial?]
+  (log/info (str :specvar :term:nonvar))
   (let [step1 (fill-env-for-term-with-spec initial? term (r/initial-spec term))
         step2 (apply add-doms-to-node step1 spec (utils/get-dom-of-term step1 term))
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
@@ -91,12 +103,14 @@
 
 
 (defmethod fill-env [r/USERDEFINED :term:var] [env term spec initial?]
+  (log/info (str :user-defined :term:var))
   (let [transformed-definition (resolve-definition-with-parameters spec env)]
     (-> env
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec initial? term transformed-definition))))
 
 (defmethod fill-env [r/USERDEFINED :term:nonvar] [env term spec initial?]
+  (log/info (str :user-defined :term:nonvar))
   (let [transformed-definition (resolve-definition-with-parameters spec env)]
     (-> env
         (add-doms-to-node term spec)
