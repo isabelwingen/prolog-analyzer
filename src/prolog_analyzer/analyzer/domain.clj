@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r :refer [suitable-spec intersect]]
+            [prolog-analyzer.records :as r :refer [intersect]]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [loom.graph]
@@ -56,35 +56,52 @@
   (r/->ErrorSpec (str "Term cannot be var, because its already nonvar")))
 
 
-(defmulti fill-env (fn [env term spec initial?] (r/spec-type spec)))
+(defmulti fill-env (fn [env term spec initial?]
+                     [(case+ (r/spec-type spec)
+                             r/VAR r/VAR
+                             r/SPECVAR r/SPECVAR
+                             r/USERDEFINED r/USERDEFINED
+                             :simple)
+                      (if (= r/VAR (r/term-type term)) :term:var :term:nonvar)]))
 
-(defmethod fill-env r/VAR [env term spec initial?]
+(defmethod fill-env [r/VAR :term:var] [env term spec initial?]
+  (log/info (str :var :term:var))
   (if initial?
-    (-> env
-        (fill-env-for-term-with-spec initial? term (r/->AnySpec))
-        (mark-as-was-var term))
-    (if (contains? #{r/VAR r/ANY} (r/term-type term))
-      (if (every? #{r/VAR, r/ANY, r/SPECVAR}
-                  (map r/spec-type (utils/get-dom-of-term env term)))
-        (add-doms-to-node env term spec)
-        (add-doms-to-node env term (ALREADY-NONVAR)))
+    (add-doms-to-node env term spec)
+    (if (every? #{r/VAR, r/ANY} (map r/spec-type (utils/get-dom-of-term env term)))
+      (add-doms-to-node env term spec)
       (add-doms-to-node env term (ALREADY-NONVAR)))))
 
+(defmethod fill-env [r/VAR :term:nonvar] [env term spec initial?]
+  (log/info (str :var :term:nonvar))
+  (add-doms-to-node env term (ALREADY-NONVAR)))
 
-(defmethod fill-env r/SPECVAR [env term spec initial?]
-  (let [suitable-spec (r/suitable-spec spec term)
-        [specvar other] (.arglist suitable-spec)
-        term-env (-> env
-                     (add-doms-to-node term specvar)
-                     (fill-env-for-term-with-spec initial? term other))]
-    (apply add-doms-to-node term-env spec (remove #{spec} (utils/get-dom-of-term term-env term)))
-    ))
+(defmethod fill-env [r/SPECVAR :term:var] [env term spec initial?]
+  (log/info (str :specvar :term:var))
+  (let [step1 (fill-env-for-term-with-spec initial? term (r/initial-spec term))
+        step2 (apply add-doms-to-node step1 spec (utils/get-dom-of-term step1 term))
+        step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
+    step3))
 
-(defmethod fill-env r/USERDEFINED [env term spec initial?]
+(defmethod fill-env [r/SPECVAR :term:nonvar] [env term spec initial?]
+  (let [step1 (fill-env-for-term-with-spec initial? term (r/initial-spec term))
+        step2 (apply add-doms-to-node step1 spec (utils/get-dom-of-term step1 term))
+        step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
+    step3))
+
+
+(defmethod fill-env [r/USERDEFINED :term:var] [env term spec initial?]
   (let [transformed-definition (resolve-definition-with-parameters spec env)]
     (-> env
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec initial? term transformed-definition))))
+
+(defmethod fill-env [r/USERDEFINED :term:nonvar] [env term spec initial?]
+  (let [transformed-definition (resolve-definition-with-parameters spec env)]
+    (-> env
+        (add-doms-to-node term spec)
+        (fill-env-for-term-with-spec initial? term transformed-definition))))
+
 
 (defmulti check-if-valid (fn [term spec] [(r/term-type term) (r/spec-type spec)]))
 
@@ -100,16 +117,21 @@
 (defmethod check-if-valid :default [term spec]
   true)
 
+(defmethod fill-env [:simple :term:var] [env term spec initial?]
+  (log/info (str :simple :term:var))
+  (if initial?
+    (add-doms-to-node env term spec)
+    (add-doms-to-node env term r/DISJOINT)))
 
-(defmethod fill-env :default [env term spec initial?]
+(defmethod fill-env [:simple :term:nonvar] [env term spec initial?]
+  (log/info (str :simple :term:nonvar))
   (let [suitable-spec (r/intersect spec (r/initial-spec term))
         next-steps (r/next-steps spec term)]
-    (if (nil? suitable-spec)
+    (if (r/error-spec? suitable-spec)
       (add-doms-to-node env term (WRONG-TYPE term spec))
       (if (check-if-valid term spec)
         (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) (add-doms-to-node env term suitable-spec) (partition 2 next-steps))
         (add-doms-to-node env term (WRONG-TYPE term spec))))))
-
 
 (defn fill-env-for-term-with-spec
   ([env initial? term spec]

@@ -5,10 +5,12 @@
 
 
 foo(X,Y) :-
+    X = 1,
+    Y = 2,
     bar(X,Y),
     int(X).
 
-:- spec_pre(bar/2,[int,int]).
+:- spec_pre(bar/2,[][int,int]).
 :- spec_pre(bar/2,[atom,atom]).
 bar(X,X).
 

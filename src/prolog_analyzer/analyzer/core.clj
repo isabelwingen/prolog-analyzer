@@ -109,7 +109,7 @@
        ))
 
 (defn example []
-  (->> "resources/analysis.pl"
+  (->> "resources/new-system.pl"
        process-prolog-file
        complete-analysis
        my-pp/pretty-print-analysis-result
@@ -122,4 +122,5 @@
        my-pp/pretty-print-analysis-result
        ))
 
-(playground)
+
+(example)

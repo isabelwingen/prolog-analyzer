@@ -264,6 +264,11 @@
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
 
+(let [term (r/->ListTerm (r/->IntegerTerm 1) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm)))
+        spec (r/->TupleSpec [(r/->NumberSpec) (r/->AtomSpec)])]
+    (calculate-and-get-dom term spec)
+    )
+
 (deftest fill-env-test:compound
   (are [term]
       (= [(r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])) term))
