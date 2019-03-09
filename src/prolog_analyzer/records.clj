@@ -405,14 +405,14 @@
 (defrecord VarTerm [name]
   term
   (term-type [term] VAR)
-  (initial-spec [term] (->VarSpec))
+  (initial-spec [term] (->AnySpec))
   printable
   (to-string [x] (str name)))
 
 (defrecord AnonVarTerm [name]
   term
   (term-type [term] VAR)
-  (initial-spec [term] (->VarSpec))
+  (initial-spec [term] (->AnySpec))
   printable
   (to-string [x] (str name)))
 

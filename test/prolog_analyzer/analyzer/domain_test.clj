@@ -82,8 +82,8 @@
     (r/->FloatTerm 3.1415) [(r/->FloatSpec)]
     (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
     (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)])]
-    (r/->VarTerm "X") [(r/->VarSpec)]
-    (r/->AnonVarTerm "_1603") [(r/->VarSpec)]
+    (r/->VarTerm "X") [(r/->AnySpec)]
+    (r/->AnonVarTerm "_1603") [(r/->AnySpec)]
     (r/->EmptyListTerm) [(r/->EmptyListSpec)]))
 
 (deftest fill-env-test:ground
@@ -93,12 +93,13 @@
     (r/->NumberTerm 23) [(r/->NumberSpec)]
     (r/->FloatTerm 3.1415) [(r/->FloatSpec)]
     (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
+    (r/->ListTerm (r/->VarTerm "X") (r/->EmptyListTerm)) [(r/->ListSpec (r/->GroundSpec))] ;; TODO: is this okay?
+    (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) [(r/->CompoundSpec "foo" [(r/->GroundSpec)])]
     (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)])])
   (do-template [term] (is (some r/error-spec? (calculate-and-get-dom term (r/->GroundSpec))) (str (r/to-string term)))
     (r/->VarTerm "X")
     (r/->AnonVarTerm "_1603")
-    (r/->ListTerm (r/->VarTerm "X") (r/->EmptyListTerm))
-    (r/->CompoundTerm "foo" [(r/->VarTerm "X")]))
+    )
 
   )
 
@@ -112,7 +113,7 @@
     (r/->NumberTerm 23) [(r/->NumberSpec)]
     (r/->FloatTerm 3.1415) [(r/->FloatSpec)]
     (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
-    (r/->ListTerm (r/->VarTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->VarSpec))]
+    (r/->ListTerm (r/->VarTerm "Y") (r/->EmptyListTerm)) [(r/->ListSpec (r/->AnySpec))]
     (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) [(r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)])])
   (do-template [term] (is (some r/error-spec? (calculate-and-get-dom term (r/->NonvarSpec))) (str (r/to-string term)))
     (r/->VarTerm "X")
@@ -128,7 +129,7 @@
   (is (some r/error-spec? (calculate-and-get-dom (r/->IntegerTerm 1) (r/->VarSpec))))
   (is (every? (complement r/error-spec?) (calculate-and-get-dom (r/->VarTerm "X") (r/->VarSpec))))
   ;; UNIFICATION IN HEADER
-  (do-template [term expected-dom] (is (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env true term (r/->VarSpec)) term)))
+  (do-template [term expected-dom] (is (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env true term (r/->VarSpec)) term)) (str (r/to-string term)))
                (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
                (r/->AtomTerm "a") [(r/->AtomSpec)]
     ))
