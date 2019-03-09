@@ -37,79 +37,79 @@
 (deftest intersect
   (do-template [left right result] (is (= result (sut/intersect left right)) (str "Intersect of " (sut/spec-type left) " " (sut/spec-type right)))
                (sut/->IntegerSpec) (sut/->IntegerSpec) (sut/->IntegerSpec)
-               (sut/->IntegerSpec) (sut/->FloatSpec) nil
+               (sut/->IntegerSpec) (sut/->FloatSpec) sut/DISJOINT
                (sut/->IntegerSpec) (sut/->NumberSpec) (sut/->IntegerSpec)
-               (sut/->IntegerSpec) (sut/->ExactSpec "cake") nil
-               (sut/->IntegerSpec) (sut/->AtomSpec) nil
+               (sut/->IntegerSpec) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->IntegerSpec) (sut/->AtomSpec) sut/DISJOINT
                (sut/->IntegerSpec) (sut/->AtomicSpec) (sut/->IntegerSpec)
-               (sut/->IntegerSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
-               (sut/->IntegerSpec) (sut/->ListSpec (sut/->AtomicSpec)) nil
-               (sut/->IntegerSpec) (sut/->EmptyListSpec) nil
-               (sut/->IntegerSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
+               (sut/->IntegerSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
+               (sut/->IntegerSpec) (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
+               (sut/->IntegerSpec) (sut/->EmptyListSpec) sut/DISJOINT
+               (sut/->IntegerSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->IntegerSpec) (sut/->GroundSpec) (sut/->IntegerSpec)
                (sut/->IntegerSpec) (sut/->NonvarSpec) (sut/->IntegerSpec)
-               (sut/->IntegerSpec) (sut/->VarSpec) nil
+               (sut/->IntegerSpec) (sut/->VarSpec) sut/DISJOINT
                (sut/->IntegerSpec) (sut/->AnySpec) (sut/->IntegerSpec)
 
-               (sut/->FloatSpec) (sut/->IntegerSpec) nil
+               (sut/->FloatSpec) (sut/->IntegerSpec) sut/DISJOINT
                (sut/->FloatSpec) (sut/->FloatSpec) (sut/->FloatSpec)
                (sut/->FloatSpec) (sut/->NumberSpec) (sut/->FloatSpec)
-               (sut/->FloatSpec) (sut/->ExactSpec "cake") nil
-               (sut/->FloatSpec) (sut/->AtomSpec) nil
+               (sut/->FloatSpec) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->FloatSpec) (sut/->AtomSpec) sut/DISJOINT
                (sut/->FloatSpec) (sut/->AtomicSpec) (sut/->FloatSpec)
-               (sut/->FloatSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
-               (sut/->FloatSpec) (sut/->ListSpec (sut/->AtomicSpec)) nil
-               (sut/->FloatSpec) (sut/->EmptyListSpec) nil
-               (sut/->FloatSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
+               (sut/->FloatSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
+               (sut/->FloatSpec) (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
+               (sut/->FloatSpec) (sut/->EmptyListSpec) sut/DISJOINT
+               (sut/->FloatSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->FloatSpec) (sut/->GroundSpec) (sut/->FloatSpec)
                (sut/->FloatSpec) (sut/->NonvarSpec) (sut/->FloatSpec)
-               (sut/->FloatSpec) (sut/->VarSpec) nil
+               (sut/->FloatSpec) (sut/->VarSpec) sut/DISJOINT
                (sut/->FloatSpec) (sut/->AnySpec) (sut/->FloatSpec)
 
                (sut/->NumberSpec) (sut/->IntegerSpec) (sut/->IntegerSpec)
                (sut/->NumberSpec) (sut/->FloatSpec) (sut/->FloatSpec)
                (sut/->NumberSpec) (sut/->NumberSpec) (sut/->NumberSpec)
-               (sut/->NumberSpec) (sut/->ExactSpec "cake") nil
-               (sut/->NumberSpec) (sut/->AtomSpec) nil
+               (sut/->NumberSpec) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->NumberSpec) (sut/->AtomSpec) sut/DISJOINT
                (sut/->NumberSpec) (sut/->AtomicSpec) (sut/->NumberSpec)
-               (sut/->NumberSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
-               (sut/->NumberSpec) (sut/->ListSpec (sut/->AtomicSpec)) nil
-               (sut/->NumberSpec) (sut/->EmptyListSpec) nil
-               (sut/->NumberSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
+               (sut/->NumberSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
+               (sut/->NumberSpec) (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
+               (sut/->NumberSpec) (sut/->EmptyListSpec) sut/DISJOINT
+               (sut/->NumberSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->NumberSpec) (sut/->GroundSpec) (sut/->NumberSpec)
                (sut/->NumberSpec) (sut/->NonvarSpec) (sut/->NumberSpec)
-               (sut/->NumberSpec) (sut/->VarSpec) nil
+               (sut/->NumberSpec) (sut/->VarSpec) sut/DISJOINT
                (sut/->NumberSpec) (sut/->AnySpec) (sut/->NumberSpec)
 
-               (sut/->ExactSpec "cake") (sut/->IntegerSpec) nil
-               (sut/->ExactSpec "cake") (sut/->FloatSpec) nil
-               (sut/->ExactSpec "cake") (sut/->NumberSpec) nil
+               (sut/->ExactSpec "cake") (sut/->IntegerSpec) sut/DISJOINT
+               (sut/->ExactSpec "cake") (sut/->FloatSpec) sut/DISJOINT
+               (sut/->ExactSpec "cake") (sut/->NumberSpec) sut/DISJOINT
                (sut/->ExactSpec "cake") (sut/->ExactSpec "cake") (sut/->ExactSpec "cake")
-               (sut/->ExactSpec "cake") (sut/->ExactSpec "nocake") nil
+               (sut/->ExactSpec "cake") (sut/->ExactSpec "nocake") sut/DISJOINT
                (sut/->ExactSpec "cake") (sut/->AtomSpec) (sut/->ExactSpec "cake")
                (sut/->ExactSpec "cake") (sut/->AtomicSpec) (sut/->ExactSpec "cake")
-               (sut/->ExactSpec "cake") (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
-               (sut/->ExactSpec "cake") (sut/->ListSpec (sut/->AtomicSpec)) nil
-               (sut/->ExactSpec "cake") (sut/->EmptyListSpec) nil
-               (sut/->ExactSpec "cake") (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
+               (sut/->ExactSpec "cake") (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
+               (sut/->ExactSpec "cake") (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
+               (sut/->ExactSpec "cake") (sut/->EmptyListSpec) sut/DISJOINT
+               (sut/->ExactSpec "cake") (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->ExactSpec "cake") (sut/->GroundSpec) (sut/->ExactSpec "cake")
                (sut/->ExactSpec "cake") (sut/->NonvarSpec) (sut/->ExactSpec "cake")
-               (sut/->ExactSpec "cake") (sut/->VarSpec) nil
+               (sut/->ExactSpec "cake") (sut/->VarSpec) sut/DISJOINT
                (sut/->ExactSpec "cake") (sut/->AnySpec) (sut/->ExactSpec "cake")
 
-               (sut/->AtomSpec) (sut/->IntegerSpec) nil
-               (sut/->AtomSpec) (sut/->FloatSpec) nil
-               (sut/->AtomSpec) (sut/->NumberSpec) nil
+               (sut/->AtomSpec) (sut/->IntegerSpec) sut/DISJOINT
+               (sut/->AtomSpec) (sut/->FloatSpec) sut/DISJOINT
+               (sut/->AtomSpec) (sut/->NumberSpec) sut/DISJOINT
                (sut/->AtomSpec) (sut/->ExactSpec "cake") (sut/->ExactSpec "cake")
                (sut/->AtomSpec) (sut/->AtomSpec) (sut/->AtomSpec)
                (sut/->AtomSpec) (sut/->AtomicSpec) (sut/->AtomSpec)
-               (sut/->AtomSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
-               (sut/->AtomSpec) (sut/->ListSpec (sut/->AtomicSpec)) nil
-               (sut/->AtomSpec) (sut/->EmptyListSpec) nil
-               (sut/->AtomSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
+               (sut/->AtomSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
+               (sut/->AtomSpec) (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
+               (sut/->AtomSpec) (sut/->EmptyListSpec) sut/DISJOINT
+               (sut/->AtomSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->AtomSpec) (sut/->GroundSpec) (sut/->AtomSpec)
                (sut/->AtomSpec) (sut/->NonvarSpec) (sut/->AtomSpec)
-               (sut/->AtomSpec) (sut/->VarSpec) nil
+               (sut/->AtomSpec) (sut/->VarSpec) sut/DISJOINT
                (sut/->AtomSpec) (sut/->AnySpec) (sut/->AtomSpec)
 
                (sut/->AtomicSpec) (sut/->IntegerSpec) (sut/->IntegerSpec)
@@ -118,115 +118,115 @@
                (sut/->AtomicSpec) (sut/->ExactSpec "cake") (sut/->ExactSpec "cake")
                (sut/->AtomicSpec) (sut/->AtomSpec) (sut/->AtomSpec)
                (sut/->AtomicSpec) (sut/->AtomicSpec) (sut/->AtomicSpec)
-               (sut/->AtomicSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
+               (sut/->AtomicSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->AtomicSpec) (sut/->ListSpec (sut/->AtomicSpec)) (sut/->EmptyListSpec)
                (sut/->AtomicSpec) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
-               (sut/->AtomicSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
+               (sut/->AtomicSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->AtomicSpec) (sut/->GroundSpec) (sut/->AtomicSpec)
                (sut/->AtomicSpec) (sut/->NonvarSpec) (sut/->AtomicSpec)
-               (sut/->AtomicSpec) (sut/->VarSpec) nil
+               (sut/->AtomicSpec) (sut/->VarSpec) sut/DISJOINT
                (sut/->AtomicSpec) (sut/->AnySpec) (sut/->AtomicSpec)
 
 
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->IntegerSpec) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->FloatSpec) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->NumberSpec) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->ExactSpec "cake") nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->AtomSpec) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->AtomicSpec) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->ListSpec (sut/->AtomicSpec)) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->EmptyListSpec) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->VarSpec) nil
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->IntegerSpec) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->FloatSpec) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->NumberSpec) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->AtomSpec) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->AtomicSpec) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->EmptyListSpec) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->VarSpec) sut/DISJOINT
 
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->VarSpec)]) (sut/->GroundSpec) nil
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->VarSpec)]) (sut/->GroundSpec) sut/DISJOINT
                (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->GroundSpec) (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)])
                (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->VarSpec)]) (sut/->NonvarSpec) (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->VarSpec)])
                (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)])
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "nofoo" [(sut/->IntegerSpec)]) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->AtomSpec)]) nil
-               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) nil
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "nofoo" [(sut/->IntegerSpec)]) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->AtomSpec)]) sut/DISJOINT
+               (sut/->CompoundSpec "foo" [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) sut/DISJOINT
                (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->AnySpec) (sut/->CompoundSpec "foo" [(sut/->IntegerSpec) (sut/->AtomSpec)])
 
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->IntegerSpec) nil
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->FloatSpec) nil
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->NumberSpec) nil
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->ExactSpec "cake") nil
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomSpec) nil
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->IntegerSpec) sut/DISJOINT
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->FloatSpec) sut/DISJOINT
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->NumberSpec) sut/DISJOINT
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomSpec) sut/DISJOINT
                (sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec) (sut/->EmptyListSpec)
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->ListSpec (sut/->IntegerSpec)) (sut/->ListSpec (sut/->AtomicSpec)) (sut/->ListSpec (sut/->IntegerSpec))
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->ListSpec (sut/->AtomSpec)) nil
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->ListSpec (sut/->AtomSpec)) sut/DISJOINT
                (sut/->ListSpec (sut/->IntegerSpec)) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
                (sut/->ListSpec (sut/->IntegerSpec)) (sut/->TupleSpec [(sut/->AtomicSpec)]) (sut/->TupleSpec [(sut/->IntegerSpec)])
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->TupleSpec [(sut/->AtomSpec)]) nil
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->TupleSpec [(sut/->AtomSpec)]) sut/DISJOINT
                (sut/->ListSpec (sut/->IntegerSpec)) (sut/->GroundSpec) (sut/->ListSpec (sut/->IntegerSpec))
-               (sut/->ListSpec (sut/->VarSpec)) (sut/->GroundSpec) nil
+               (sut/->ListSpec (sut/->VarSpec)) (sut/->GroundSpec) sut/DISJOINT
                (sut/->ListSpec (sut/->IntegerSpec)) (sut/->NonvarSpec) (sut/->ListSpec (sut/->IntegerSpec))
                (sut/->ListSpec (sut/->VarSpec)) (sut/->NonvarSpec) (sut/->ListSpec (sut/->VarSpec))
-               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->VarSpec) nil
+               (sut/->ListSpec (sut/->IntegerSpec)) (sut/->VarSpec) sut/DISJOINT
                (sut/->ListSpec (sut/->IntegerSpec)) (sut/->AnySpec) (sut/->ListSpec (sut/->IntegerSpec))
 
-               (sut/->EmptyListSpec) (sut/->IntegerSpec) nil
-               (sut/->EmptyListSpec) (sut/->FloatSpec) nil
-               (sut/->EmptyListSpec) (sut/->NumberSpec) nil
-               (sut/->EmptyListSpec) (sut/->ExactSpec "cake") nil
-               (sut/->EmptyListSpec) (sut/->AtomSpec) nil
+               (sut/->EmptyListSpec) (sut/->IntegerSpec) sut/DISJOINT
+               (sut/->EmptyListSpec) (sut/->FloatSpec) sut/DISJOINT
+               (sut/->EmptyListSpec) (sut/->NumberSpec) sut/DISJOINT
+               (sut/->EmptyListSpec) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->EmptyListSpec) (sut/->AtomSpec) sut/DISJOINT
                (sut/->EmptyListSpec) (sut/->AtomicSpec) (sut/->EmptyListSpec)
-               (sut/->EmptyListSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
+               (sut/->EmptyListSpec) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->EmptyListSpec) (sut/->ListSpec (sut/->AtomicSpec)) (sut/->EmptyListSpec)
                (sut/->EmptyListSpec) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
-               (sut/->EmptyListSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) nil
+               (sut/->EmptyListSpec) (sut/->TupleSpec [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->EmptyListSpec) (sut/->TupleSpec []) (sut/->EmptyListSpec)
                (sut/->EmptyListSpec) (sut/->GroundSpec) (sut/->EmptyListSpec)
                (sut/->EmptyListSpec) (sut/->NonvarSpec) (sut/->EmptyListSpec)
-               (sut/->EmptyListSpec) (sut/->VarSpec) nil
+               (sut/->EmptyListSpec) (sut/->VarSpec) sut/DISJOINT
                (sut/->EmptyListSpec) (sut/->AnySpec) (sut/->EmptyListSpec)
 
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->IntegerSpec) nil
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->FloatSpec) nil
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->NumberSpec) nil
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->ExactSpec "cake") nil
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->AtomSpec) nil
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->AtomicSpec) nil
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->IntegerSpec) sut/DISJOINT
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->FloatSpec) sut/DISJOINT
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->NumberSpec) sut/DISJOINT
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->AtomSpec) sut/DISJOINT
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->AtomicSpec) sut/DISJOINT
                (sut/->TupleSpec []) (sut/->AtomicSpec) (sut/->EmptyListSpec)
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) nil
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->CompoundSpec "foo" [(sut/->AtomicSpec)]) sut/DISJOINT
                (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->ListSpec (sut/->AtomicSpec)) (sut/->TupleSpec [(sut/->IntegerSpec)])
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->EmptyListSpec) nil
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->EmptyListSpec) sut/DISJOINT
                (sut/->TupleSpec []) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->TupleSpec []) nil
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->TupleSpec [(sut/->AtomSpec)]) nil
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->TupleSpec []) sut/DISJOINT
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->TupleSpec [(sut/->AtomSpec)]) sut/DISJOINT
                (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->TupleSpec [(sut/->AtomicSpec)]) (sut/->TupleSpec [(sut/->IntegerSpec)])
                (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->GroundSpec) (sut/->TupleSpec [(sut/->IntegerSpec)])
-               (sut/->TupleSpec [(sut/->VarSpec)]) (sut/->GroundSpec) nil
+               (sut/->TupleSpec [(sut/->VarSpec)]) (sut/->GroundSpec) sut/DISJOINT
                (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->NonvarSpec) (sut/->TupleSpec [(sut/->IntegerSpec)])
                (sut/->TupleSpec [(sut/->VarSpec)]) (sut/->NonvarSpec) (sut/->TupleSpec [(sut/->VarSpec)])
-               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->VarSpec) nil
+               (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->VarSpec) sut/DISJOINT
                (sut/->TupleSpec [(sut/->IntegerSpec)]) (sut/->AnySpec) (sut/->TupleSpec [(sut/->IntegerSpec)])
 
 
                (sut/->GroundSpec) (sut/->GroundSpec) (sut/->GroundSpec)
                (sut/->GroundSpec) (sut/->NonvarSpec) (sut/->GroundSpec)
                (sut/->GroundSpec) (sut/->AnySpec) (sut/->GroundSpec)
-               (sut/->GroundSpec) (sut/->VarSpec) nil
+               (sut/->GroundSpec) (sut/->VarSpec) sut/DISJOINT
 
                (sut/->NonvarSpec) (sut/->GroundSpec) (sut/->GroundSpec)
                (sut/->NonvarSpec) (sut/->NonvarSpec) (sut/->NonvarSpec)
                (sut/->NonvarSpec) (sut/->AnySpec) (sut/->NonvarSpec)
-               (sut/->NonvarSpec) (sut/->VarSpec) nil
+               (sut/->NonvarSpec) (sut/->VarSpec) sut/DISJOINT
 
-               (sut/->VarSpec) (sut/->IntegerSpec) nil
-               (sut/->VarSpec) (sut/->FloatSpec) nil
-               (sut/->VarSpec) (sut/->NumberSpec) nil
-               (sut/->VarSpec) (sut/->ExactSpec "cake") nil
-               (sut/->VarSpec) (sut/->AtomSpec) nil
-               (sut/->VarSpec) (sut/->AtomicSpec) nil
-               (sut/->VarSpec) (sut/->CompoundSpec "foo" [(sut/->AtomSpec)]) nil
-               (sut/->VarSpec) (sut/->ListSpec (sut/->AtomicSpec)) nil
-               (sut/->VarSpec) (sut/->EmptyListSpec) nil
-               (sut/->VarSpec) (sut/->TupleSpec [(sut/->VarSpec)]) nil
-               (sut/->VarSpec) (sut/->GroundSpec) nil
-               (sut/->VarSpec) (sut/->NonvarSpec) nil
+               (sut/->VarSpec) (sut/->IntegerSpec) sut/DISJOINT
+               (sut/->VarSpec) (sut/->FloatSpec) sut/DISJOINT
+               (sut/->VarSpec) (sut/->NumberSpec) sut/DISJOINT
+               (sut/->VarSpec) (sut/->ExactSpec "cake") sut/DISJOINT
+               (sut/->VarSpec) (sut/->AtomSpec) sut/DISJOINT
+               (sut/->VarSpec) (sut/->AtomicSpec) sut/DISJOINT
+               (sut/->VarSpec) (sut/->CompoundSpec "foo" [(sut/->AtomSpec)]) sut/DISJOINT
+               (sut/->VarSpec) (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
+               (sut/->VarSpec) (sut/->EmptyListSpec) sut/DISJOINT
+               (sut/->VarSpec) (sut/->TupleSpec [(sut/->VarSpec)]) sut/DISJOINT
+               (sut/->VarSpec) (sut/->GroundSpec) sut/DISJOINT
+               (sut/->VarSpec) (sut/->NonvarSpec) sut/DISJOINT
                (sut/->VarSpec) (sut/->VarSpec) (sut/->VarSpec)
                (sut/->VarSpec) (sut/->AnySpec) (sut/->VarSpec)
 
