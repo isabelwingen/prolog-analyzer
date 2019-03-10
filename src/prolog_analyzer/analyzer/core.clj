@@ -15,8 +15,6 @@
    [clojure.tools.namespace.repl :refer [refresh]]
    ))
 
-(def data (atom {}))
-
 (defn replace-specvars-with-uuid
   ([pre-spec]
    (let [specvars (->> pre-spec
@@ -53,8 +51,8 @@
   (reduce #(add-relationships-aux [%1 %2]) env (utils/get-terms env)))
 
 
-(defn evaluate-goal [env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
-  (let [goal-specs (some->> @data
+(defn evaluate-goal [data env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
+  (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
                             (:pre-specs)
                             (apply replace-specvars-with-uuid))
@@ -67,34 +65,33 @@
         (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec goal-specs-as-tuple) :goal)))
       env)))
 
-(defn evaluate-body [env body]
-  (reduce evaluate-goal env body))
+(defn evaluate-body [env data body]
+  (reduce (partial evaluate-goal data) env body))
 
 (defn- add-index-to-input-arguments [env arglist]
   (apply uber/add-nodes-with-attrs env (map-indexed #(vector %2 {:index %1}) arglist)))
 
-(defn initial-env [arglist pre-spec]
+(defn initial-env [data arglist pre-spec]
   (-> (uber/digraph)
-      (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get @data :specs)}])
+      (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get data :specs)}])
       (dom/multiple-fills true arglist (map #(r/mark-spec % :initial) pre-spec))
       (add-index-to-input-arguments arglist)
       ))
 
-(defn analyzing [{arglist :arglist body :body :as clause} pre-spec]
-  (-> (initial-env arglist pre-spec)
-      (evaluate-body body)
+(defn analyzing [data {arglist :arglist body :body :as clause} pre-spec]
+  (-> (initial-env data arglist pre-spec)
+      (evaluate-body data body)
       (add-relationships)
       ))
 
-(defn complete-analysis [input-data]
-  (reset! data input-data)
-  (for [pred-id (utils/get-pred-identities @data)
-        clause-id (utils/get-clause-identities-of-pred pred-id @data)
-        pre-spec (:pre-specs (utils/get-specs-of-pred pred-id @data))]
+(defn complete-analysis [data]
+  (for [pred-id (utils/get-pred-identities data)
+        clause-id (utils/get-clause-identities-of-pred pred-id data)
+        pre-spec (:pre-specs (utils/get-specs-of-pred pred-id data))]
     (do
       (log/debug (str "Clause: " [clause-id pre-spec]))
       (let [mod-pre-spec (first (replace-specvars-with-uuid pre-spec))]
-        [[clause-id mod-pre-spec] (analyzing (utils/get-clause clause-id @data) mod-pre-spec)]
+        [[clause-id mod-pre-spec] (analyzing data (utils/get-clause clause-id data) mod-pre-spec)]
         ))))
 
 (defn playground []
