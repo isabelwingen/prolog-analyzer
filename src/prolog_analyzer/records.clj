@@ -34,6 +34,16 @@
 (declare term-type)
 (declare simplify-or)
 
+(defn mark-spec [spec origin]
+  (assoc spec :origin origin))
+
+(defn copy-mark [from to]
+  (assoc to :origin (:origin from)))
+
+(defn get-mark [spec]
+  (:origin spec))
+
+
 (defprotocol printable
   (to-string [x]))
 
@@ -45,6 +55,18 @@
 (defprotocol term
   (term-type [term])
   (initial-spec [term]))
+
+(defrecord AnySpec []
+  spec
+  (spec-type [spec] ANY)
+  (next-steps [spec term]
+    (if (contains? #{LIST, COMPOUND} (term-type term))
+      [term (intersect spec (initial-spec term))]
+      []))
+  (intersect [spec other-spec] other-spec)
+  printable
+  (to-string [x] "Any"))
+
 
 (defrecord ErrorSpec [reason]
   spec
@@ -288,12 +310,13 @@
 (defn- simplify-or [spec]
   (let [simplified-or (-> spec
                           (update :arglist distinct)
-                          (update :arglist (fn [args] (if (> (count args) 1) (remove #(= ANY (spec-type %)) args))))
                           (update :arglist (partial apply vector)))]
     (case (count (:arglist simplified-or))
       0 DISJOINT
       1 (first (:arglist simplified-or))
-      simplified-or)))
+      (if (some #{ANY} (map spec-type (:arglist simplified-or)))
+        (copy-mark spec (->AnySpec))
+        simplified-or))))
 
 (defrecord AndSpec [arglist]
   spec
@@ -366,17 +389,6 @@
                    (str name))))
 
 (declare ->NonvarSpec)
-
-(defrecord AnySpec []
-  spec
-  (spec-type [spec] ANY)
-   (next-steps [spec term]
-    (if (contains? #{LIST, COMPOUND} (term-type term))
-      [term (intersect spec (initial-spec term))]
-      []))
-  (intersect [spec other-spec] other-spec)
-  printable
-  (to-string [x] "Any"))
 
 (defrecord NonvarSpec []
   spec
@@ -467,6 +479,7 @@
            EMPTYLIST (str "[" (to-string head) "]")
            VAR (str "[" (to-string head) "|" (to-string tail) "]")
            LIST (str "[" (to-arglist (get-elements-of-list x)) "]"))))
+
 
 (defrecord CompoundTerm [functor arglist]
   term
@@ -644,12 +657,3 @@
     (USERDEFINED, OR, AND, COMPOUND, TUPLE) (distinct (reduce concat (map find-specvars (:arglist spec))))
     LIST (find-specvars (spec-type spec))
     []))
-
-(defn mark-spec [spec origin]
-  (assoc spec :origin origin))
-
-(defn copy-mark [from to]
-  (assoc to :origin (:origin from)))
-
-(defn get-mark [spec]
-  (:origin spec))
