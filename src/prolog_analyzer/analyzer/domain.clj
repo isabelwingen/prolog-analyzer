@@ -63,20 +63,17 @@
 (defmulti fill-env (fn [env term spec initial?] (r/spec-type spec)))
 
 (defmethod fill-env r/ANY [env term spec initial?]
-  (log/info (str :any))
   (if (empty? (utils/get-dom-of-term env term))
     (add-doms-to-node env term (r/copy-mark spec (r/initial-spec term)))
     env))
 
 (defmethod fill-env r/SPECVAR [env term spec initial?]
-  (log/info (str :specvar :term:var))
   (let [step1 (fill-env-for-term-with-spec env initial? term (r/copy-mark spec (r/initial-spec term)))
         step2 (apply add-doms-to-node step1 spec (utils/get-dom-of-term step1 term))
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
     step3))
 
 (defmethod fill-env r/USERDEFINED [env term spec initial?]
-  (log/info (str :user-defined :term:nonvar))
   (let [transformed-definition (r/copy-mark spec (resolve-definition-with-parameters spec env))]
     (-> env
         (add-doms-to-node term spec)
@@ -98,7 +95,6 @@
   true)
 
 (defmethod fill-env :default [env term spec initial?]
-  (log/info :default)
   (let [suitable-spec (r/copy-mark spec (if (and initial? (= r/VAR (r/spec-type spec))) (r/initial-spec term) (r/intersect spec (r/initial-spec term))))
         next-steps (r/next-steps spec term)]
     (if (r/error-spec? suitable-spec)

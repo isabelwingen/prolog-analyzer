@@ -51,14 +51,15 @@
   (reduce #(add-relationships-aux [%1 %2]) env (utils/get-terms env)))
 
 
+
+
 (defn evaluate-goal [data env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
                             (:pre-specs)
                             (apply replace-specvars-with-uuid))
-
-        [term goal-specs-as-tuple] [(if (= arity 1) (first arglist) (apply r/to-head-tail-list arglist))
-                                    (if (= arity 1) (map first goal-specs) (map (partial apply r/to-tuple-spec) goal-specs))]]
+        term (if (= arity 1) (first arglist) (apply r/to-head-tail-list arglist))
+        goal-specs-as-tuple (if (= arity 1) (map first goal-specs) (map (partial apply r/to-tuple-spec) goal-specs))]
     (if (and (> arity 0) goal-specs)
       (if (= 1 (count goal-specs))
         (dom/fill-env-for-term-with-spec env term (r/mark-spec (first goal-specs-as-tuple) :goal))
@@ -114,3 +115,5 @@
        complete-analysis
        my-pp/pretty-print-analysis-result
        ))
+
+(example)
