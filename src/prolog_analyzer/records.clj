@@ -60,7 +60,7 @@
   (or (nil? spec)
       (= ERROR (spec-type spec))
       (if (contains? spec :type) (error-spec? (.type spec)))
-      (if (contains? spec :arglist) (some error-spec? (.arglist spec)))))
+      (if (contains? spec :arglist) (some error-spec? (:arglist spec)))))
 
 (defn replace-error-spec-with-intersect-error [spec]
   (if (error-spec? spec)
@@ -288,12 +288,12 @@
 (defn- simplify-or [spec]
   (let [simplified-or (-> spec
                           (update :arglist distinct)
+                          (update :arglist (fn [args] (if (> (count args) 1) (remove #(= ANY (spec-type %)) args))))
                           (update :arglist (partial apply vector)))]
     (case (count (:arglist simplified-or))
       0 DISJOINT
-      1 (first (.arglist simplified-or))
+      1 (first (:arglist simplified-or))
       simplified-or)))
-
 
 (defrecord AndSpec [arglist]
   spec
@@ -644,3 +644,12 @@
     (USERDEFINED, OR, AND, COMPOUND, TUPLE) (distinct (reduce concat (map find-specvars (:arglist spec))))
     LIST (find-specvars (spec-type spec))
     []))
+
+(defn mark-spec [spec origin]
+  (assoc spec :origin origin))
+
+(defn copy-mark [from to]
+  (assoc to :origin (:origin from)))
+
+(defn get-mark [spec]
+  (:origin spec))

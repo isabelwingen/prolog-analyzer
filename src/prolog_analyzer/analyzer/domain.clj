@@ -65,19 +65,19 @@
 (defmethod fill-env r/ANY [env term spec initial?]
   (log/info (str :any))
   (if (empty? (utils/get-dom-of-term env term))
-    (add-doms-to-node env term (r/initial-spec term))
+    (add-doms-to-node env term (r/copy-mark spec (r/initial-spec term)))
     env))
 
 (defmethod fill-env r/SPECVAR [env term spec initial?]
   (log/info (str :specvar :term:var))
-  (let [step1 (fill-env-for-term-with-spec initial? term (r/initial-spec term))
+  (let [step1 (fill-env-for-term-with-spec initial? term (r/copy-mark spec (r/initial-spec term)))
         step2 (apply add-doms-to-node step1 spec (utils/get-dom-of-term step1 term))
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
     step3))
 
 (defmethod fill-env r/USERDEFINED [env term spec initial?]
   (log/info (str :user-defined :term:nonvar))
-  (let [transformed-definition (resolve-definition-with-parameters spec env)]
+  (let [transformed-definition (r/copy-mark spec (resolve-definition-with-parameters spec env))]
     (-> env
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec initial? term transformed-definition))))
@@ -99,13 +99,15 @@
 
 (defmethod fill-env :default [env term spec initial?]
   (log/info :default)
-  (let [suitable-spec (if (and initial? (= r/VAR (r/spec-type spec))) (r/initial-spec term) (r/intersect spec (r/initial-spec term)))
+  (let [suitable-spec (r/copy-mark spec (if (and initial? (= r/VAR (r/spec-type spec))) (r/initial-spec term) (r/intersect spec (r/initial-spec term))))
         next-steps (r/next-steps spec term)]
     (if (r/error-spec? suitable-spec)
-      (add-doms-to-node env term (WRONG-TYPE term spec))
+      (add-doms-to-node env term (r/copy-mark spec (WRONG-TYPE term spec)))
       (if (check-if-valid term spec)
-        (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) (add-doms-to-node env term suitable-spec) (partition 2 next-steps))
-        (add-doms-to-node env term (WRONG-TYPE term spec))))))
+        (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) (add-doms-to-node env term suitable-spec) (map (fn [[t s]] [t (r/copy-mark spec s)]) (partition 2 next-steps)))
+        (add-doms-to-node env term (r/copy-mark spec (WRONG-TYPE term spec)))))))
+
+
 
 (defn fill-env-for-var [env term spec initial?]
   (if initial?
@@ -113,11 +115,9 @@
     (if (contains? #{r/VAR, r/ANY} (r/spec-type spec))
       (add-doms-to-node env term spec)
       (if (every? #{r/VAR, r/ANY} (utils/get-dom-of-term env term))
-        (add-doms-to-node env term (ALREADY-NONVAR))
+        (add-doms-to-node env term (r/mark-spec (ALREADY-NONVAR) :fill-env-for-var))
         (fill-env env term spec initial?)))
     ))
-
-
 
 (defn fill-env-for-term-with-spec
   ([env initial? term spec]

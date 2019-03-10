@@ -39,7 +39,7 @@
             (print-in-columns [(+ 2 max-length)] "" key))
           (if (coll? (get attrs key))
             (doseq [val (get attrs key)]
-              (print-in-columns [(+ 4 max-length)] "" (r/to-string val)))
+              (print-in-columns [(+ 4 max-length) 15] "" (str (:origin val)) (r/to-string val)))
             (print-in-columns [(+ 4 max-length)] "" (get attrs key)))))
       (println "-------------------------------------------"))))
 
