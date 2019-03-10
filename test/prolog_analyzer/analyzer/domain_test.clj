@@ -68,9 +68,17 @@
    [(r/->CompoundSpec "node" [spec-tree-int (r/->IntegerSpec) spec-tree-int])
     (r/->ExactSpec "empty")]))
 
+
+(defn- remove-origin [spec]
+  (let [p (dissoc spec :origin)]
+    (cond
+      (contains? p :type) (update p :type remove-origin)
+      (contains? p :arglist) (update p :arglist (partial map remove-origin))
+      :else p)))
+
 (defn calculate-and-get-dom
   ([initial? term spec]
-   (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env initial? term spec) term))
+   (map remove-origin (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env initial? term (r/mark-spec spec :test)) term)))
   ([term spec]
    (calculate-and-get-dom false term spec)))
 
@@ -129,17 +137,17 @@
   (is (some r/error-spec? (calculate-and-get-dom (r/->IntegerTerm 1) (r/->VarSpec))))
   (is (every? (complement r/error-spec?) (calculate-and-get-dom (r/->VarTerm "X") (r/->VarSpec))))
   ;; UNIFICATION IN HEADER
-  (do-template [term expected-dom] (is (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env true term (r/->VarSpec)) term)) (str (r/to-string term)))
+  (do-template [term expected-dom] (is (= expected-dom (calculate-and-get-dom true term (r/->VarSpec))) (str (r/to-string term)))
                (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) [(r/->ListSpec (r/->IntegerSpec))]
                (r/->AtomTerm "a") [(r/->AtomSpec)]
     ))
 
 
 (deftest fill-env-test:atomic
-  (is (= [(r/->AtomSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->AtomTerm "cake") (r/->AtomicSpec)) (r/->AtomTerm "cake"))))
-  (is (= [(r/->NumberSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->NumberTerm 2) (r/->AtomicSpec)) (r/->NumberTerm 2))))
-  (is (= [(r/->IntegerSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->IntegerTerm 2) (r/->AtomicSpec)) (r/->IntegerTerm 2))))
-  (is (= [(r/->FloatSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->FloatTerm 2.0) (r/->AtomicSpec)) (r/->FloatTerm 2.0))))
+  (is (= [(r/->AtomSpec)] (calculate-and-get-dom (r/->AtomTerm "cake") (r/->AtomicSpec))))
+  (is (= [(r/->NumberSpec)] (calculate-and-get-dom (r/->NumberTerm 2) (r/->AtomicSpec))))
+  (is (= [(r/->IntegerSpec)] (calculate-and-get-dom (r/->IntegerTerm 2) (r/->AtomicSpec))))
+  (is (= [(r/->FloatSpec)] (calculate-and-get-dom (r/->FloatTerm 2.0) (r/->AtomicSpec))))
   (are [term]
       (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->AtomSpec)) term))
     (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
@@ -150,9 +158,9 @@
 
 
 (deftest fill-env-test:atom
-  (is (= [(r/->AtomSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->AtomTerm "cake") (r/->AtomSpec)) (r/->AtomTerm "cake"))))
+  (is (= [(r/->AtomSpec)] (calculate-and-get-dom (r/->AtomTerm "cake") (r/->AtomSpec))))
   (are [term]
-      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->AtomSpec)) term))
+      (some r/error-spec? (calculate-and-get-dom term (r/->AtomSpec)))
     (r/->EmptyListTerm)
     (r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
@@ -165,7 +173,7 @@
 ;; Current Status: Value of atom is lost, intersect with exact always yields a result, check later, if it matches with the original value
 (deftest fill-env-test:exact
   (are [term]
-      (= [(r/->ExactSpec "cake")] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->ExactSpec "cake")) term))
+      (= [(r/->ExactSpec "cake")] (calculate-and-get-dom term (r/->ExactSpec "cake")))
     (r/->AtomTerm "cake")
     )
   (are [term]
@@ -181,10 +189,10 @@
 
 
 (deftest fill-env-test:number
-  (is (= [(r/->IntegerSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->IntegerTerm 2) (r/->NumberSpec)) (r/->IntegerTerm 2))))
-  (is (= [(r/->FloatSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env (r/->FloatTerm 2.5) (r/->NumberSpec)) (r/->FloatTerm 2.5))))
+  (is (= [(r/->IntegerSpec)] (calculate-and-get-dom (r/->IntegerTerm 2) (r/->NumberSpec))))
+  (is (= [(r/->FloatSpec)] (calculate-and-get-dom (r/->FloatTerm 2.5) (r/->NumberSpec))))
   (are [term]
-      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->NumberSpec)) term))
+      (some r/error-spec? (calculate-and-get-dom term (r/->NumberSpec)))
     (r/->AtomTerm "no")
     (r/->VarTerm "X")
     (r/->ListTerm (r/->NumberTerm 2) (r/->EmptyListTerm))
@@ -194,11 +202,11 @@
 
 (deftest fill-env-test:integer
   (are [term]
-      (= [(r/->IntegerSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->IntegerSpec)) term))
+      (= [(r/->IntegerSpec)] (calculate-and-get-dom term (r/->IntegerSpec)))
     (r/->IntegerTerm 42))
 
   (do-template [term]
-               (is (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->IntegerSpec)) term)) (str (r/to-string term)))
+               (is (some r/error-spec? (calculate-and-get-dom term (r/->IntegerSpec))) (str (r/to-string term)))
                (r/->NumberTerm 3.14)
                (r/->FloatTerm 3.14)
                (r/->VarTerm "X")
@@ -211,11 +219,11 @@
 
 (deftest fill-env-test:float
   (are [term]
-      (= [(r/->FloatSpec)] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->FloatSpec)) term))
+      (= [(r/->FloatSpec)] (calculate-and-get-dom term (r/->FloatSpec)))
     (r/->FloatTerm 3.14))
 
   (are [term]
-      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->FloatSpec)) term))
+      (some r/error-spec? (calculate-and-get-dom term (r/->FloatSpec)))
     (r/->NumberTerm 42)
     (r/->IntegerTerm 123)
     (r/->AtomTerm "no")
@@ -228,7 +236,7 @@
 
   (deftest fill-env-test:list
     (are [term]
-        (= [(r/->ListSpec (r/->IntegerSpec))] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->ListSpec (r/->IntegerSpec))) term))
+        (= [(r/->ListSpec (r/->IntegerSpec))] (calculate-and-get-dom term (r/->ListSpec (r/->IntegerSpec))))
       (r/->ListTerm (r/->IntegerTerm 2) (r/->ListTerm (r/->IntegerTerm 3) (r/->EmptyListTerm)))
       )
     (are [term]
@@ -243,7 +251,7 @@
       (r/->FloatTerm 2.0)))
 
 (deftest fill-env-test:tuple
-  (do-template [term spec expected-dom] (is (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term)) (str (r/to-string term)))
+  (do-template [term spec expected-dom] (is (= expected-dom (calculate-and-get-dom term spec)) (str (r/to-string term)))
                (r/->ListTerm (r/->IntegerTerm 1) (r/->ListTerm (r/->IntegerTerm 3) (r/->EmptyListTerm)))
                (r/->TupleSpec [(r/->IntegerSpec) (r/->IntegerSpec)])
                [(r/->TupleSpec [(r/->IntegerSpec) (r/->IntegerSpec)])]
@@ -272,7 +280,7 @@
 
 (deftest fill-env-test:compound
   (are [term]
-      (= [(r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])] (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])) term))
+      (= [(r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])] (calculate-and-get-dom term (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])))
     (r/->CompoundTerm "foo" [(r/->NumberTerm 2) (r/->AtomTerm "cake")])
     )
   (are [term]
@@ -288,7 +296,7 @@
     (r/->FloatTerm 2.0)))
 
 (deftest fill-env-test:empty-list
-  (are [term spec expected-dom] (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term))
+  (are [term spec expected-dom] (= expected-dom (calculate-and-get-dom term spec))
     (r/->EmptyListTerm) (r/->TupleSpec []) [(r/->EmptyListSpec)]
 
     (r/->EmptyListTerm) (r/->ListSpec (r/->IntegerSpec)) [(r/->EmptyListSpec)]
