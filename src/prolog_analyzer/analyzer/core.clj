@@ -16,11 +16,6 @@
    ))
 
 (def data (atom {}))
-(def last-uuid (atom 0))
-
-(defn get-next-uuid []
-  (inc @last-uuid))
-
 
 (defn replace-specvars-with-uuid
   ([pre-spec]
@@ -28,10 +23,8 @@
                        (reduce #(concat %1 (r/find-specvars %2)) [])
                        distinct
                        (map :name))
-         ids (take (count specvars) (drop (get-next-uuid) (range)))
+         ids (repeatedly (count specvars) gensym)
          uuid-map (apply hash-map (interleave specvars ids))]
-     (if ((complement empty?) ids)
-       (reset! last-uuid (last ids)))
      (vector (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) pre-spec))))
   ([pre-spec & pre-specs] (reduce #(concat %1 (replace-specvars-with-uuid %2)) [] (cons pre-spec pre-specs))))
 
@@ -95,7 +88,6 @@
 
 (defn complete-analysis [input-data]
   (reset! data input-data)
-  (reset! last-uuid 0)
   (for [pred-id (utils/get-pred-identities @data)
         clause-id (utils/get-clause-identities-of-pred pred-id @data)
         pre-spec (:pre-specs (utils/get-specs-of-pred pred-id @data))]

@@ -19,7 +19,7 @@
 (def VAR :var)
 
 (def USERDEFINED :user-defined)
-(def SPECVAR :specvr)
+(def SPECVAR :specvar)
 (def ERROR :error)
 
 (def AND :and)
@@ -412,7 +412,9 @@
   (next-steps [spec term] [])
   (intersect [spec other-spec] other-spec)
   printable
-  (to-string [x] (str "Specvar(" name ")")))
+  (to-string [x] (str "Specvar(" (apply str (drop 3 (str name))) ")")))
+
+(apply str (take 2 "hallo"))
 
 (defrecord VarTerm [name]
   term
@@ -624,7 +626,7 @@
   (clojure.string/join ", " (map to-string list)))
 
 (defn replace-specvar-name-with-value [spec specvar-name replace-value]
-  (case (spec-type spec)
+  (case+ (spec-type spec)
     SPECVAR
     (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
@@ -638,7 +640,7 @@
     ))
 
 (defn replace-specvars-with-spec [spec specvar-name replace-spec]
-  (case (spec-type spec)
+  (case+ (spec-type spec)
     SPECVAR
     (if (= specvar-name (:name spec)) replace-spec spec)
 
@@ -652,7 +654,7 @@
     ))
 
 (defn find-specvars [spec]
-  (case (spec-type spec)
+  (case+ (spec-type spec)
     SPECVAR [spec]
     (USERDEFINED, OR, AND, COMPOUND, TUPLE) (distinct (reduce concat (map find-specvars (:arglist spec))))
     LIST (find-specvars (spec-type spec))
