@@ -70,7 +70,7 @@
 
 (defmethod fill-env r/SPECVAR [env term spec initial?]
   (log/info (str :specvar :term:var))
-  (let [step1 (fill-env-for-term-with-spec initial? term (r/copy-mark spec (r/initial-spec term)))
+  (let [step1 (fill-env-for-term-with-spec env initial? term (r/copy-mark spec (r/initial-spec term)))
         step2 (apply add-doms-to-node step1 spec (utils/get-dom-of-term step1 term))
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
     step3))
