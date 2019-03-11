@@ -50,20 +50,28 @@
 (defn add-relationships [env]
   (reduce #(add-relationships-aux [%1 %2]) env (utils/get-terms env)))
 
+(defn- get-pre-specs [goal-id data]
+  (some->> data
+           (utils/get-specs-of-pred goal-id)
+           (:pre-specs)
+           (apply replace-specvars-with-uuid)))
 
+(defn- goal-args->tuple [arglist]
+  (apply r/to-head-tail-list arglist))
 
+(defn- goal-specs->tuples [goal-specs]
+  (map (partial apply r/to-tuple-spec) goal-specs))
 
 (defn evaluate-goal [data env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
                             (:pre-specs)
                             (apply replace-specvars-with-uuid))
-        term (if (= arity 1) (first arglist) (apply r/to-head-tail-list arglist))
-        goal-specs-as-tuple (if (= arity 1) (map first goal-specs) (map (partial apply r/to-tuple-spec) goal-specs))]
+        term (goal-args->tuple arglist)
+        goal-specs-as-tuples (goal-specs->tuples goal-specs)
+        ]
     (if (and (> arity 0) goal-specs)
-      (if (= 1 (count goal-specs))
-        (dom/fill-env-for-term-with-spec env term (r/mark-spec (first goal-specs-as-tuple) :goal))
-        (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec goal-specs-as-tuple) :goal)))
+      (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec goal-specs-as-tuples) :goal))
       env)))
 
 (defn evaluate-body [env data body]
@@ -116,4 +124,5 @@
        my-pp/pretty-print-analysis-result
        ))
 
+(playground)
 (example)

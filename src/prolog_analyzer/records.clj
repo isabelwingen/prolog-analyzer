@@ -620,7 +620,7 @@
   (case (count specs)
     0 (->ErrorSpec "Cannot build empty one-of")
     1 (first specs)
-    (->OneOfSpec specs)))
+    (simplify-or (->OneOfSpec specs))))
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
