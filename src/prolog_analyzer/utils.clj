@@ -54,6 +54,9 @@
 (defn get-terms [env]
   (remove #{:ENVIRONMENT} (uber/nodes env)))
 
+(defn get-user-defined-specs [env]
+  (uber/attr env :ENVIRONMENT :user-defined-specs))
+
 (defn get-dom-of-term [env term]
   (if (uber/has-node? env term)
     (uber/attr env term :dom)
@@ -89,4 +92,3 @@
   (if (nil? tail)
     (list)
     (conj (get-elements-of-list tail) head)))
-

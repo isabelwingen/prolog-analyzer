@@ -15,6 +15,7 @@
 (defn- get-definition-of-alias [env user-defined-alias]
   (get (uber/attr env :ENVIRONMENT :user-defined-specs) user-defined-alias))
 
+
 (defn- resolve-definition-with-parameters
   "User-defined specs can have parameters and when in use in spec annotations,
   there are values assigned to these parameters. To get the correct definition,
@@ -44,7 +45,7 @@
                                    (update :history #(concat % mod-doms))
                                    (update :dom distinct)
                                    (update :history distinct)
-                                   (update :dom #(vector (reduce r/intersect %)))
+                                   (update :dom #(vector (reduce (fn [spec1 spec2] (r/intersect spec1 spec2 (utils/get-user-defined-specs env))) %)))
                                    ))
       (uber/add-nodes-with-attrs env [node {:dom mod-doms :history mod-doms}]))))
 
@@ -99,8 +100,8 @@
   true)
 
 (defmethod fill-env :default [env term spec initial?]
-  (let [suitable-spec (r/copy-mark spec (if (and initial? (= r/VAR (r/spec-type spec))) (r/initial-spec term) (r/intersect spec (r/initial-spec term))))
-        next-steps (r/next-steps spec term)]
+  (let [suitable-spec (r/copy-mark spec (if (and initial? (= r/VAR (r/spec-type spec))) (r/initial-spec term) (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env))))
+        next-steps (r/next-steps spec term (utils/get-user-defined-specs env))]
     (if (r/error-spec? suitable-spec)
       (add-doms-to-node env term (r/copy-mark spec (WRONG-TYPE term spec)))
       (if (check-if-valid term spec)

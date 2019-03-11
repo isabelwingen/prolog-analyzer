@@ -35,7 +35,7 @@
     (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) [(sut/->IntegerSpec) (sut/->AtomSpec)]))
 
 (deftest intersect
-  (do-template [left right result] (is (= result (sut/intersect left right)) (str "Intersect of " (sut/spec-type left) " " (sut/spec-type right)))
+  (do-template [left right result] (is (= result (sut/intersect left right nil)) (str "Intersect of " (sut/spec-type left) " " (sut/spec-type right)))
                (sut/->IntegerSpec) (sut/->IntegerSpec) (sut/->IntegerSpec)
                (sut/->IntegerSpec) (sut/->FloatSpec) sut/DISJOINT
                (sut/->IntegerSpec) (sut/->NumberSpec) (sut/->IntegerSpec)
