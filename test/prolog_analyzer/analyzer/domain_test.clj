@@ -262,7 +262,7 @@
                [(r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])]
                )
   (are [term]
-      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/make-spec:tuple [(r/->IntegerSpec) (r/->AtomSpec)])) term))
+      (some r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])) term))
     (r/->EmptyListTerm)
     (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
@@ -349,28 +349,28 @@
 
       (r/->IntegerTerm 3)
       (r/->OneOfSpec [(r/->IntegerSpec) (r/->SpecvarSpec 0)])
-      (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/->OneOfSpec [(r/->IntegerSpec) (r/make-spec:and [(r/->SpecvarSpec 0) (r/->IntegerSpec)])]))
+      (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/->OneOfSpec [(r/->IntegerSpec) (r/->AndSpec [(r/->SpecvarSpec 0) (r/->IntegerSpec)])]))
 
       (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-      (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/make-spec:tuple [(r/->AtomicSpec)])])
+      (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/->TupleSpec [(r/->AtomicSpec)])])
       (sut/add-doms-to-node test-env
                             (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-                            (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/make-spec:tuple [(r/->AtomicSpec)])]))
+                            (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/->TupleSpec [(r/->AtomicSpec)])]))
       ))
 
   (deftest fill-env-for-term-with-spec-test-and
     (are [term spec expected-env]
         (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
       (r/->AtomTerm "hallohallo")
-      (r/make-spec:and [(r/->AtomSpec) (r/->AtomicSpec)])
+      (r/->AndSpec [(r/->AtomSpec) (r/->AtomicSpec)])
       (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
 
       (r/->AtomTerm "hallohallo")
-      (r/make-spec:and [(r/->AnySpec) (r/->AtomicSpec)])
+      (r/->AndSpec [(r/->AnySpec) (r/->AtomicSpec)])
       (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
 
       (r/->IntegerTerm 3)
-      (r/make-spec:and [(r/->GroundSpec) (r/->SpecvarSpec 0)])
+      (r/->AndSpec [(r/->GroundSpec) (r/->SpecvarSpec 0)])
       (-> test-env
           (sut/add-doms-to-node (r/->SpecvarSpec 0) (r/->IntegerSpec))
           (sut/add-doms-to-node (r/->IntegerTerm 3) (r/->IntegerSpec) (r/->SpecvarSpec 0)))

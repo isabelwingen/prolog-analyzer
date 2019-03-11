@@ -122,7 +122,7 @@
              :module "self"
              :arity 2
              :arglist [{:term "a" :type :atom} {:term "b" :type :atom}]}]}
-    "foo(a/b) :- !, bar(a,X), c(b)." 
+    "foo(a/b) :- !, bar(a,X), c(b)."
     {:name "foo"
      :module "tmp"
      :arity 1
@@ -206,7 +206,7 @@
     ":- declare_spec(skip)."
     :declare_spec
     {:goal "declare_spec", :module "self" :arity 1, :arglist [{:term "skip" :type :atom}]}
-    
+
     ":- define_spec(skip,atom(skip))."
     :define_spec
     {:goal "define_spec", :module "self" :arity 2, :arglist [{:term "skip" :type :atom}
@@ -269,33 +269,33 @@
 
 (deftest process-files:spec_def
     (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-      (is (= {(r/make-spec:user-defined "foo") (r/make-spec:compound "foo" [(r/make-spec:integer) (r/make-spec:integer)])
-              (r/make-spec:user-defined "intOrVar") (r/make-spec:one-of [(r/make-spec:integer) (r/make-spec:var)])
-              (r/make-spec:user-defined "a") (r/make-spec:and [(r/make-spec:integer) (r/make-spec:atom)])
-              (r/make-spec:user-defined "b") (r/make-spec:tuple [(r/make-spec:integer) (r/make-spec:var)])
-              (r/make-spec:user-defined "c") (r/make-spec:exact "empty")
-              (r/make-spec:user-defined "tree" [(r/make-spec:specvar "X")]) (r/make-spec:one-of
-                                                                             [(r/make-spec:compound
+      (is (= {(r/make-spec:user-defined "foo") (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->IntegerSpec)])
+              (r/make-spec:user-defined "intOrVar") (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
+              (r/make-spec:user-defined "a") (r/->AndSpec [(r/->IntegerSpec) (r/->AtomSpec)])
+              (r/make-spec:user-defined "b") (r/->TupleSpec [(r/->IntegerSpec) (r/->VarSpec)])
+              (r/make-spec:user-defined "c") (r/->ExactSpec "empty")
+              (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")]) (r/->OneOfSpec
+                                                                             [(r/->CompoundSpec
                                                                                "node"
-                                                                               [(r/make-spec:user-defined "tree" [(r/make-spec:specvar "X")])
-                                                                                (r/make-spec:specvar "X")
-                                                                                (r/make-spec:user-defined "tree" [(r/make-spec:specvar "X")])])
-                                                                              (r/make-spec:exact "empty")])}
+                                                                               [(r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])
+                                                                                (r/->SpecvarSpec "X")
+                                                                                (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])])
+                                                                              (r/->ExactSpec "empty")])}
              (:specs result)))
       (is
        (= {"spec_test" {"member_int"
-                        {2 [[(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]
-                            [(r/make-spec:var) (r/make-spec:list (r/make-spec:integer))]]}
+                        {2 [[(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]
+                            [(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))]]}
                         "foo"
                         {3 [[(r/make-spec:user-defined "foo") (r/make-spec:user-defined "intOrVar") (r/make-spec:user-defined "intOrVar")]]}}}
           (:pre-specs result)))
       (is
-       (= {"spec_test" {"member_int" {2 [[[(r/make-spec:var) (r/make-spec:list (r/make-spec:integer))] [(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]]]}
-                        "foo" {3 [[[(r/make-spec:user-defined "foo") (r/make-spec:user-defined "intOrVar") (r/make-spec:user-defined "intOrVar")] [(r/make-spec:user-defined "foo") (r/make-spec:integer) (r/make-spec:integer)]]
-                                  [[(r/make-spec:nonvar) (r/make-spec:integer) (r/make-spec:integer)] [(r/make-spec:user-defined "foo") (r/make-spec:integer) (r/make-spec:integer)]]]}}}
+       (= {"spec_test" {"member_int" {2 [[[(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))] [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]]]}
+                        "foo" {3 [[[(r/make-spec:user-defined "foo") (r/make-spec:user-defined "intOrVar") (r/make-spec:user-defined "intOrVar")] [(r/make-spec:user-defined "foo") (r/->IntegerSpec) (r/->IntegerSpec)]]
+                                  [[(r/->NonvarSpec) (r/->IntegerSpec) (r/->IntegerSpec)] [(r/make-spec:user-defined "foo") (r/->IntegerSpec) (r/->IntegerSpec)]]]}}}
           (:post-specs result)))
       (is
-       (= {"spec_test" {"member_int" {2 [[(r/make-spec:any) (r/make-spec:ground)]]}}}
+       (= {"spec_test" {"member_int" {2 [[(r/->AnySpec) (r/->GroundSpec)]]}}}
           (:inv-specs result)))
       )
     )

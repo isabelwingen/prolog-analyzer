@@ -537,61 +537,10 @@
     (log/error "No case for" m "in map-to-term")))
 
 
-(defn make-spec:var []
-  (VarSpec.))
-
-(defn make-spec:atom []
-  (AtomSpec.))
-
-(defn make-spec:atomic []
-  (AtomicSpec.))
-
-(defn make-spec:integer []
-  (IntegerSpec.))
-
-(defn make-spec:float []
-  (FloatSpec.))
-
-(defn make-spec:number []
-  (NumberSpec.))
-
-(defn make-spec:ground []
-  (GroundSpec.))
-
-(defn make-spec:nonvar []
-  (NonvarSpec.))
-
-(defn make-spec:any []
-  (AnySpec.))
-
-(defn make-spec:list [type]
-  (ListSpec. type))
-
-(defn make-spec:tuple [arglist]
-  (TupleSpec. arglist))
-
-(defn make-spec:exact [value]
-  (ExactSpec. value))
-
-(defn make-spec:specvar [name]
-  (SpecvarSpec. name))
-
-(defn make-spec:compound [functor arglist]
-  (CompoundSpec. functor arglist))
-
-(defn make-spec:one-of [arglist]
-  (OneOfSpec. arglist))
-
-(defn make-spec:and [arglist]
-  (AndSpec. arglist))
-
 (defn make-spec:user-defined
-  ([name] (UserDefinedSpec. name))
-  ([name arglist] (-> (UserDefinedSpec. name)
+  ([name] (->UserDefinedSpec name))
+  ([name arglist] (-> (->UserDefinedSpec name)
                       (assoc :arglist arglist))))
-
-(defn make-spec:error [reason]
-  (ErrorSpec. reason))
 
 
 (defn empty-list?

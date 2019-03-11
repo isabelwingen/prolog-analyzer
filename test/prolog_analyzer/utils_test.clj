@@ -15,11 +15,11 @@
 (def data (parser/process-prolog-file "resources/spec-test.pl"))
 
 (deftest get-specs-of-pred-test
-  (is (= {:pre-specs [[(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]
-                      [(r/make-spec:var) (r/make-spec:list (r/make-spec:integer))]]
-          :post-specs [[[(r/make-spec:var)  (r/make-spec:list (r/make-spec:integer))]
-                        [(r/make-spec:integer) (r/make-spec:list (r/make-spec:integer))]]]
-          :inv-specs [[(r/make-spec:any) (r/make-spec:ground)]]}
+  (is (= {:pre-specs [[(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]
+                      [(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))]]
+          :post-specs [[[(r/->VarSpec)  (r/->ListSpec (r/->IntegerSpec))]
+                        [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]]]
+          :inv-specs [[(r/->AnySpec) (r/->GroundSpec)]]}
          (sut/get-specs-of-pred ["spec_test" "member_int" 2] data))))
 
 (deftest get-pred-identities-test

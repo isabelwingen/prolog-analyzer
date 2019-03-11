@@ -24,15 +24,15 @@
 
 (deftest to-tuple-spec-test
   (are [x y] (= x (apply sut/to-tuple-spec y))
-    (sut/make-spec:tuple []) []
-    (sut/make-spec:tuple [(sut/make-spec:integer)]) [(sut/make-spec:integer)]
-    (sut/make-spec:tuple [(sut/make-spec:integer) (sut/make-spec:atom)]) [(sut/make-spec:integer) (sut/make-spec:atom)]))
+    (sut/->TupleSpec []) []
+    (sut/->TupleSpec [(sut/->IntegerSpec)]) [(sut/->IntegerSpec)]
+    (sut/->TupleSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) [(sut/->IntegerSpec) (sut/->AtomSpec)]))
 
 (deftest to-or-spec-test
   (are [x y] (= x (apply sut/to-or-spec y))
-    (sut/make-spec:error "Cannot build empty one-of") []
-    (sut/make-spec:integer) [(sut/make-spec:integer)]
-    (sut/make-spec:one-of [(sut/make-spec:integer) (sut/make-spec:atom)]) [(sut/make-spec:integer) (sut/make-spec:atom)]))
+    (sut/->ErrorSpec "Cannot build empty one-of") []
+    (sut/->IntegerSpec) [(sut/->IntegerSpec)]
+    (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) [(sut/->IntegerSpec) (sut/->AtomSpec)]))
 
 (deftest intersect
   (do-template [left right result] (is (= result (sut/intersect left right)) (str "Intersect of " (sut/spec-type left) " " (sut/spec-type right)))
