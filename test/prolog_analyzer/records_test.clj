@@ -64,7 +64,7 @@
     (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) [(sut/->IntegerSpec) (sut/->AtomSpec)]))
 
 (deftest intersect
-  (do-template [left right result] (is (= result (sut/intersect left right test-defs)) (str "Intersect of " (sut/spec-type left) " " (sut/spec-type right)))
+  (do-template [left right result] (is (= result (sut/intersect left right test-defs)) (str "Intersect of " (sut/to-string left) " " (sut/to-string right)))
                (sut/->IntegerSpec) (sut/->IntegerSpec) (sut/->IntegerSpec)
                (sut/->IntegerSpec) (sut/->FloatSpec) sut/DISJOINT
                (sut/->IntegerSpec) (sut/->NumberSpec) (sut/->IntegerSpec)
@@ -323,4 +323,13 @@
 
 
                (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+               (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->NumberSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+               (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->IntegerSpec) (sut/->IntegerSpec)
+
+               (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) sut/DISJOINT
+
+
+
+               (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
+               (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->OneOfSpec [(sut/->EmptyListSpec) (sut/->AtomSpec)]) (sut/->EmptyListSpec)
                ))
