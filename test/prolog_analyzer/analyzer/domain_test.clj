@@ -23,17 +23,6 @@
 
 
 
-(deftest add-doms-to-node-test
-  (is (= [(r/->IntegerSpec) (r/->AtomSpec) (r/->FloatSpec)]
-         (-> (uber/digraph)
-             (uber/add-nodes-with-attrs [:x {:dom [(r/->IntegerSpec)]}])
-             (sut/add-doms-to-node :x (r/->AtomSpec) (r/->FloatSpec))
-             (uber/attr :x :dom))))
-  (is (= [(r/->FloatSpec) (r/->IntegerSpec)]
-         (-> (uber/digraph)
-             (sut/add-doms-to-node :x (r/->FloatSpec) (r/->IntegerSpec))
-             (uber/attr :x :dom)))))
-
 
 (def test-env (-> (uber/digraph) (uber/add-nodes-with-attrs
                                   [:ENVIRONMENT
@@ -67,6 +56,17 @@
   (r/->OneOfSpec
    [(r/->CompoundSpec "node" [spec-tree-int (r/->IntegerSpec) spec-tree-int])
     (r/->ExactSpec "empty")]))
+
+(deftest add-doms-to-node-test
+  (is (= [(r/->IntegerSpec)]
+         (-> test-env
+             (uber/add-nodes-with-attrs [:x {:dom [(r/->AtomicSpec)]}])
+             (sut/add-doms-to-node :x (r/->NumberSpec) (r/->IntegerSpec))
+             (uber/attr :x :dom))))
+  (is (= [(r/->FloatSpec) (r/->IntegerSpec)]
+         (-> test-env
+             (sut/add-doms-to-node :x (r/->FloatSpec) (r/->IntegerSpec))
+             (uber/attr :x :dom)))))
 
 
 (defn- remove-origin [spec]
@@ -272,11 +272,6 @@
     (r/->AnonVarTerm "_0410")
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
-
-(let [term (r/->ListTerm (r/->IntegerTerm 1) (r/->ListTerm (r/->AtomTerm "cake") (r/->EmptyListTerm)))
-        spec (r/->TupleSpec [(r/->NumberSpec) (r/->AtomSpec)])]
-    (calculate-and-get-dom term spec)
-    )
 
 (deftest fill-env-test:compound
   (are [term]
