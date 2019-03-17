@@ -10,6 +10,33 @@
             [clojure.test :refer [deftest are is]]
             [clojure.template :refer [do-template]]))
 
+(def test-defs
+  {(sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")])
+   (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")]) (sut/->SpecvarSpec "X") (sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")])]) (sut/->ExactSpec "empty")])
+
+   (sut/make-spec:user-defined "atomOrInt")
+   (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+
+   (sut/make-spec:user-defined "blob")
+   (sut/->ExactSpec "blob")})
+
+(def user-def-tree-int (sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)]))
+(defn user-def-tree [value]
+  (sut/make-spec:user-defined "tree" [value]))
+
+(deftest resolve-definition
+  (are [in expected] (= expected (sut/resolve-definition-with-parameters in test-defs))
+    user-def-tree-int (sut/->OneOfSpec [(sut/->CompoundSpec "node" [user-def-tree-int (sut/->IntegerSpec) user-def-tree-int]) (sut/->ExactSpec "empty")])
+    (user-def-tree (sut/->SpecvarSpec "Y")) (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(user-def-tree (sut/->SpecvarSpec "Y")) (sut/->SpecvarSpec "Y") (user-def-tree (sut/->SpecvarSpec "Y"))]) (sut/->ExactSpec "empty")])
+    (user-def-tree (sut/->SpecvarSpec "A")) (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(user-def-tree (sut/->SpecvarSpec "A")) (sut/->SpecvarSpec "A") (user-def-tree (sut/->SpecvarSpec "A"))]) (sut/->ExactSpec "empty")])
+    (user-def-tree (sut/make-spec:user-defined "blob")) (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(user-def-tree (sut/make-spec:user-defined "blob")) (sut/make-spec:user-defined "blob") (user-def-tree (sut/make-spec:user-defined "blob"))]) (sut/->ExactSpec "empty")])
+
+    (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+    (sut/make-spec:user-defined "blob") (sut/->ExactSpec "blob")
+
+    ))
+
+
 (deftest to-head-tail-list
   (are [x y] (= x (apply sut/to-head-tail-list y))
     (sut/->EmptyListTerm) []

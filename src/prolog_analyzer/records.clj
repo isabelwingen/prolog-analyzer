@@ -1,5 +1,5 @@
 (ns prolog-analyzer.records
-  (:require [prolog-analyzer.utils :refer [case+ get-elements-of-list]]
+  (:require [prolog-analyzer.utils :refer [case+ get-elements-of-list] :as utils]
             [clojure.tools.logging :as log]
             [clojure.tools.namespace.repl :refer [refresh]]
             [clojure.string]))
@@ -412,7 +412,8 @@
   (next-steps [spec term defs] [])
   (intersect [spec other-spec defs] other-spec)
   printable
-  (to-string [x] (str "Specvar(" (apply str (drop 3 (str name))) ")")))
+  (to-string [x] (str "Specvar(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
+
 
 (apply str (take 2 "hallo"))
 
@@ -609,3 +610,22 @@
     USERDEFINED (if (contains? spec :arglist) (distinct (reduce concat (map find-specvars (:arglist spec)))) [])
     LIST (find-specvars (.type spec))
     []))
+
+(defn get-definition-of-alias [defs user-defined-alias]
+  (get defs user-defined-alias))
+
+(defn resolve-definition-with-parameters
+  "User-defined specs can have parameters and when in use in spec annotations,
+  there are values assigned to these parameters. To get the correct definition,
+  we have to replace the parameter with their value."
+  [{n :name arglist :arglist :as user-def-spec} defs]
+  (if (nil? arglist)
+    (get-definition-of-alias defs user-def-spec)
+    (let [alias (->> defs
+                     keys
+                     (filter #(= (:name %) n))
+                     (filter #(= (count (:arglist %)) (count arglist)))
+                     first)
+          definition (get-definition-of-alias defs alias)
+          replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))]
+      (reduce-kv replace-specvars-with-spec definition replace-map))))
