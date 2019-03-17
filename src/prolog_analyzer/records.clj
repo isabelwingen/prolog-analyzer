@@ -33,6 +33,7 @@
 (declare spec-type)
 (declare term-type)
 (declare simplify-or)
+(declare resolve-definition-with-parameters)
 
 (defn mark-spec [spec origin]
   (assoc spec :origin origin))
@@ -63,7 +64,10 @@
     (if (contains? #{LIST, COMPOUND} (term-type term))
       [term (intersect spec (initial-spec term) defs)]
       []))
-  (intersect [spec other-spec defs] other-spec)
+  (intersect [spec other-spec defs]
+    (case+ (spec-type other-spec)
+           USERDEFINED (resolve-definition-with-parameters other-spec defs)
+           other-spec))
   printable
   (to-string [x] "Any"))
 
@@ -97,7 +101,7 @@
     (case+ (spec-type other-spec)
            (VAR, ANY) spec
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] "Var"))
@@ -111,7 +115,7 @@
            (EMPTYLIST, LIST, GROUND, NONVAR, ANY, ATOMIC) spec
            TUPLE (if (empty? (.arglist other-spec)) spec DISJOINT)
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] "EmptyList"))
@@ -126,7 +130,7 @@
            (ATOM, ATOMIC, GROUND, NONVAR, ANY) spec
            EXACT other-spec
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] "Atom"))
@@ -139,7 +143,7 @@
     (case+ (spec-type other-spec)
            (ATOMIC, INTEGER, NUMBER, GROUND, NONVAR, ANY) spec
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT
            ))
   printable
@@ -153,7 +157,7 @@
     (case+ (spec-type other-spec)
            (ATOMIC, FLOAT, NUMBER, GROUND, NONVAR, ANY) spec
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT
            ))
   printable
@@ -168,7 +172,7 @@
            (ATOMIC, NUMBER, GROUND, NONVAR, ANY) spec
            (INTEGER, FLOAT) other-spec
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] "Number"))
@@ -183,7 +187,7 @@
            (INTEGER, FLOAT, ATOM, NUMBER, EMPTYLIST, EXACT) other-spec
            LIST (->EmptyListSpec)
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] "Atomic"))
@@ -198,7 +202,7 @@
            (GROUND, NONVAR, ANY, ATOM, ATOMIC) spec
            EXACT (if (= value (.value other-spec)) spec DISJOINT)
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] (str "Exact(" value ")")))
@@ -227,7 +231,7 @@
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :type #(intersect other-spec % defs)))
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
@@ -257,7 +261,7 @@
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs))))
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
@@ -281,7 +285,7 @@
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs))))
            (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            DISJOINT))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
@@ -296,7 +300,7 @@
   (intersect [spec other-spec defs]
     (case+ (spec-type other-spec)
      (ANY, NONVAR, GROUND) spec
-     USERDEFINED spec
+     USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
      (intersect other-spec spec defs)))
   printable
   (to-string [x] "Ground"))
@@ -360,6 +364,7 @@
                      [x y])
                    (map ->AndSpec)
                    (map #(simplify-and % defs))
+                   (remove error-spec?)
                    (apply vector)
                    ->OneOfSpec
                    simplify-or
@@ -377,12 +382,16 @@
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
-
 (defrecord UserDefinedSpec [name]
   spec
   (spec-type [spec] USERDEFINED)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs] other-spec)
+  (intersect [spec other-spec defs]
+    (case+ (spec-type other-spec)
+           ANY (resolve-definition-with-parameters spec defs)
+           USERDEFINED (intersect (resolve-definition-with-parameters spec defs) (resolve-definition-with-parameters other-spec defs) defs)
+           (AND, OR) (intersect other-spec (resolve-definition-with-parameters spec defs) defs)
+           (intersect (resolve-definition-with-parameters spec defs) other-spec defs)))
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
@@ -401,7 +410,7 @@
     (case+ (spec-type other-spec)
            (NONVAR, ANY) spec
            GROUND other-spec
-           USERDEFINED spec
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            (intersect other-spec spec defs)))
   printable
   (to-string [x] "Nonvar"))
@@ -414,8 +423,6 @@
   printable
   (to-string [x] (str "Specvar(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
-
-(apply str (take 2 "hallo"))
 
 (defrecord VarTerm [name]
   term
