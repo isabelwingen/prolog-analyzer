@@ -353,10 +353,19 @@
 
   )
 
-(let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->VarSpec))
-      spec (r/->SpecvarSpec "Y")
-      term (r/->VarTerm "X")]
-  (-> test-env
-      (sut/fill-env-for-term-with-spec true term spec)
-      (sut/fill-env-for-term-with-spec false term (r/->IntegerSpec))
-      (utils/get-dom-of-term term)))
+(deftest pre-filled-doms-when-initializing
+  (do-template [term first-spec second-spec expected-dom]
+               (is (= expected-dom
+                      (map #(dissoc % :origin) (-> test-env
+                                                   (sut/fill-env-for-term-with-spec true term first-spec)
+                                                   (sut/fill-env-for-term-with-spec true term second-spec)
+                                                   (utils/get-dom-of-term term))))
+                   (str (r/to-string term) " " (r/to-string first-spec) " " (r/to-string second-spec)))
+
+               (r/->VarTerm "X") (r/->VarSpec) (r/->IntegerSpec) [(r/->IntegerSpec)]
+               (r/->VarTerm "X") (r/->IntegerSpec) (r/->VarSpec) [(r/->IntegerSpec)]
+               (r/->VarTerm "X") (r/->VarSpec) (r/->VarSpec) [(r/->VarSpec)]
+
+               (r/->AtomTerm "a") (r/->VarSpec) (r/->AtomSpec) [(r/->AtomSpec)]
+               (r/->AtomTerm "a") (r/->VarSpec) (r/->VarSpec) [(r/->AtomSpec)]
+               ))

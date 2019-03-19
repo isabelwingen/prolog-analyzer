@@ -102,8 +102,13 @@
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec initial? term transformed-definition))))
 
+(defmethod fill-env r/VAR [env term spec initial?]
+  (if initial?
+    (fill-env-for-term-with-spec env initial? term (r/initial-spec term))
+    (add-doms-to-node env term (ALREADY-NONVAR))))
+
 (defmethod fill-env :default [env term spec initial?]
-  (let [suitable-spec (r/copy-mark spec (if (and initial? (= r/VAR (r/spec-type spec))) (r/initial-spec term) (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env))))
+  (let [suitable-spec (r/copy-mark spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env)))
         next-steps (r/next-steps spec term (utils/get-user-defined-specs env))]
     (if (r/error-spec? suitable-spec)
       (add-doms-to-node env term (r/copy-mark spec (WRONG-TYPE term spec)))
@@ -122,16 +127,28 @@
                  r/SPECVAR :specvar
                  :other)))
 
+(defn- remove-vars-from-dom [env term]
+  (if (uber/has-node? env term)
+    (let [new-attrs (-> (uber/attrs env term)
+                        (update :dom (partial remove #(= r/VAR (r/spec-type %)))))]
+      (uber/set-attrs env term new-attrs))
+    env))
+
+
 (defmulti fill-env-for-var fill-env-chooser)
 
 (defmethod fill-env-for-var [:initial :var] [env term spec initial?]
-  (add-doms-to-node env term spec))
+  (if (every? var-or-any? (utils/get-dom-of-term env term))
+    (add-doms-to-node env term spec)
+    env))
 
 (defmethod fill-env-for-var [:initial :any] [env term spec initial?]
   (add-doms-to-node env term spec))
 
 (defmethod fill-env-for-var [:initial :other] [env term spec initial?]
-  (fill-env env term spec initial?))
+  (-> env
+      (remove-vars-from-dom term)
+      (fill-env term spec initial?)))
 
 (defmethod fill-env-for-var [:initial :specvar] [env term spec initial?]
   (fill-env env term spec initial?))
