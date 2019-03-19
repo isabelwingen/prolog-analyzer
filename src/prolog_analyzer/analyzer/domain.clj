@@ -13,7 +13,7 @@
     (every? #{r/VAR r/ANY} dom-types)))
 
 (defn- get-definition-of-alias [env user-defined-alias]
-  (get (uber/attr env :ENVIRONMENT :user-defined-specs) user-defined-alias))
+  (get (uber/attr env :ENVIRONMENT :user-defined-specs) (dissoc user-defined-alias :origin)))
 
 
 (defn- resolve-definition-with-parameters
@@ -64,6 +64,24 @@
 (defn ALREADY-NONVAR []
   (r/->ErrorSpec (str "Term cannot be var, because its already nonvar")))
 
+(defn CANNOT-GROUND []
+  (r/->ErrorSpec (str "Var term cannot be grounded here")))
+
+
+(defmulti check-if-valid (fn [term spec] [(r/term-type term) (r/spec-type spec)]))
+
+(defmethod check-if-valid [r/ATOM r/EXACT] [term spec]
+  (= (:term term) (:value spec)))
+
+(defmethod check-if-valid [r/NUMBER r/INTEGER] [term spec]
+  (int? (:value term)))
+
+(defmethod check-if-valid [r/NUMBER r/FLOAT] [term spec]
+  (float? (:value term)))
+
+(defmethod check-if-valid :default [term spec]
+  true)
+
 
 (defmulti fill-env (fn [env term spec initial?] (r/spec-type spec)))
 
@@ -84,21 +102,6 @@
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec initial? term transformed-definition))))
 
-
-(defmulti check-if-valid (fn [term spec] [(r/term-type term) (r/spec-type spec)]))
-
-(defmethod check-if-valid [r/ATOM r/EXACT] [term spec]
-  (= (:term term) (:value spec)))
-
-(defmethod check-if-valid [r/NUMBER r/INTEGER] [term spec]
-  (int? (:value term)))
-
-(defmethod check-if-valid [r/NUMBER r/FLOAT] [term spec]
-  (float? (:value term)))
-
-(defmethod check-if-valid :default [term spec]
-  true)
-
 (defmethod fill-env :default [env term spec initial?]
   (let [suitable-spec (r/copy-mark spec (if (and initial? (= r/VAR (r/spec-type spec))) (r/initial-spec term) (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env))))
         next-steps (r/next-steps spec term (utils/get-user-defined-specs env))]
@@ -111,15 +114,21 @@
 (defn- var-or-any? [spec]
   (contains? #{r/VAR r/ANY} (r/spec-type spec)))
 
+(defn- var? [spec]
+  (= r/VAR (r/spec-type spec)))
+
+
 (defn fill-env-for-var [env term spec initial?]
   (if initial?
     (if (var-or-any? spec)
       (add-doms-to-node env term spec)
       (fill-env env term spec initial?))
     (if (var-or-any? spec)
-      (add-doms-to-node env term spec)
       (if (every? var-or-any? (utils/get-dom-of-term env term))
-        (add-doms-to-node env term (r/mark-spec (ALREADY-NONVAR) :fill-env-for-var))
+        (add-doms-to-node env term spec)
+        (add-doms-to-node env term (ALREADY-NONVAR)))
+      (if (every? var-or-any? (utils/get-dom-of-term env term))
+        (add-doms-to-node env term (CANNOT-GROUND))
         (fill-env env term spec initial?)))
     ))
 

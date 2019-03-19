@@ -623,7 +623,7 @@
     []))
 
 (defn get-definition-of-alias [defs user-defined-alias]
-  (get defs user-defined-alias))
+  (get defs (dissoc user-defined-alias :origin)))
 
 (defn resolve-definition-with-parameters
   "User-defined specs can have parameters and when in use in spec annotations,
