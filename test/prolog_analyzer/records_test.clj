@@ -321,15 +321,25 @@
                (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "blob") (sut/->ExactSpec "blob")
                (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
 
-
+               ;; intersect One-of with One-of
                (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
                (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->NumberSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
                (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->IntegerSpec) (sut/->IntegerSpec)
+               (sut/->OneOfSpec [(sut/->NumberSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->EmptyListSpec) (sut/->FloatSpec)]) (sut/->FloatSpec)
 
+               ;; intersect One-of with And
                (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) sut/DISJOINT
+               (sut/->OneOfSpec [(sut/->ListSpec (sut/->AtomSpec)) (sut/->IntegerSpec)]) (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->EmptyListSpec)
 
+               ;; intersect And with One-of
+               (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) sut/DISJOINT
+               (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->OneOfSpec [(sut/->ListSpec (sut/->AtomSpec)) (sut/->IntegerSpec)]) (sut/->EmptyListSpec)
+               (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->OneOfSpec [(sut/->EmptyListSpec) (sut/->AtomSpec)]) (sut/->EmptyListSpec)
+
+               ;; intersect And with And
+               (sut/->AndSpec [(sut/->IntegerSpec) (sut/->GroundSpec)]) (sut/->AndSpec [(sut/->IntegerSpec) (sut/->GroundSpec)]) (sut/->IntegerSpec)
+               (sut/->AndSpec [(sut/->IntegerSpec) (sut/->GroundSpec)]) (sut/->AndSpec [(sut/->NumberSpec)]) (sut/->IntegerSpec)
 
 
                (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
-               (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->OneOfSpec [(sut/->EmptyListSpec) (sut/->AtomSpec)]) (sut/->EmptyListSpec)
                ))

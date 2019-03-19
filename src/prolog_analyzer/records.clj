@@ -338,7 +338,9 @@
                    (simplify-and defs)
                    replace-error-spec-with-intersect-error)
            OR (-> other-spec
-                  (update :arglist (partial map #(simplify-and (->AndSpec (conj arglist %)) defs)))
+                  (update :arglist (partial map #(->AndSpec (conj arglist %))))
+                  (update :arglist (partial map #(simplify-and % defs)))
+                  (update :arglist (partial remove error-spec?))
                   simplify-or
                   replace-error-spec-with-intersect-error)
            (-> spec
@@ -370,7 +372,9 @@
                    simplify-or
                    replace-error-spec-with-intersect-error)
            AND (-> spec
-                   (update :arglist (partial map #(simplify-and (->AndSpec (conj (.arglist other-spec) %)) defs)))
+                   (update :arglist (partial map #(->AndSpec (conj (.arglist other-spec) %))))
+                   (update :arglist (partial map #(simplify-and % defs)))
+                   (update :arglist (partial remove error-spec?))
                    simplify-or
                    replace-error-spec-with-intersect-error)
            (-> spec
