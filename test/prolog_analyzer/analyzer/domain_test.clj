@@ -27,25 +27,22 @@
 (def test-env (-> (uber/digraph) (uber/add-nodes-with-attrs
                                   [:ENVIRONMENT
                                    {:user-defined-specs
-                                    {(r/make-spec:user-defined
-                                      "tree"
-                                      [(r/->SpecvarSpec "X")])
+                                    {(r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])
                                      (r/->OneOfSpec
-                                      [(r/->CompoundSpec
-                                        "node"
-                                        [(r/make-spec:user-defined
-                                          "tree"
-                                          [(r/->SpecvarSpec "X")])
-                                         (r/->SpecvarSpec "X")
-                                         (r/make-spec:user-defined
-                                          "tree"
-                                          [(r/->SpecvarSpec "X")])])
+                                      [(r/->CompoundSpec "node" [(r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])
+                                                                 (r/->SpecvarSpec "X")
+                                                                 (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])])
                                        (r/->ExactSpec "empty")])
 
                                      (r/make-spec:user-defined "atomOrInt")
-                                     (r/->OneOfSpec [(r/->IntegerSpec) (r/->AtomSpec)])}
-                                    (r/make-spec:user-defined "blob")
-                                    (r/->ExactSpec "blob")}])))
+                                     (r/->OneOfSpec [(r/->IntegerSpec) (r/->AtomSpec)])
+
+                                     (r/make-spec:user-defined "blob")
+                                     (r/->ExactSpec "blob")
+
+                                     (r/make-spec:user-defined "varOrInt")
+                                     (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
+                                     }}])))
 
 
 (def spec-simple (r/make-spec:user-defined "atomOrInt"))
@@ -303,101 +300,63 @@
 
     ))
 
-(comment
-  (deftest fill-env-for-term-with-spec-test-specvar
-    (let [term (r/->IntegerTerm 42)
-          specvar (r/->SpecvarSpec 0)
-          expected-env (-> test-env
-                           (sut/add-doms-to-node term specvar (r/->IntegerSpec))
-                           (sut/add-doms-to-node specvar (r/->IntegerSpec)))]
-      (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
-    (let [term (r/->AtomTerm "nevegonnagiveyouup")
-          specvar (r/->SpecvarSpec 0)
-          expected-env (-> test-env
-                           (sut/add-doms-to-node term specvar (r/->AtomSpec))
-                           (sut/add-doms-to-node specvar (r/->AtomSpec)))]
-      (is (= expected-env (sut/fill-env-for-term-with-spec test-env term specvar))))
-    (let [term (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-          specvar (r/->SpecvarSpec 0)
-          spec-to-be-filled (r/->ListSpec specvar)
-          expected-env (-> test-env
-                           (sut/add-doms-to-node term spec-to-be-filled)
-                           (sut/add-doms-to-node (r/->IntegerTerm 1) specvar (r/->IntegerSpec))
-                           (sut/add-doms-to-node specvar (r/->IntegerSpec))
-                           )
-          actual-env (sut/fill-env-for-term-with-spec test-env term spec-to-be-filled)]
-      (is (= expected-env actual-env))))
 
-  (deftest fill-env-for-term-with-spec-test-one-of
-    (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
-      (r/->AtomTerm "hallohallo")
-      (r/->OneOfSpec [(r/->IntegerSpec) (r/->AtomicSpec)])
-      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
+(deftest fill-env-test:var:initial-and-dom-empty
 
-      (r/->AtomTerm "hallohallo")
-      (r/->OneOfSpec [(r/->AtomSpec) (r/->AtomicSpec)])
-      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
+  ;; initial and dom empty
+  (do-template [term spec expected-dom] (is (= expected-dom (calculate-and-get-dom true term spec)) (str "initial and empty: " (r/to-string term) " " (r/to-string spec)))
+    (r/->VarTerm "X") (r/->VarSpec) [(r/->VarSpec)]
+    (r/->VarTerm "X") (r/->IntegerSpec) [(r/->IntegerSpec)]
+    (r/->VarTerm "X") (r/->AnySpec) [(r/->AnySpec)]
+    (r/->VarTerm "X") (r/make-spec:user-defined "blob") [(r/->ExactSpec "blob")]
+    (r/->VarTerm "X") (r/->SpecvarSpec "X") [(r/->AnySpec)]
+    ))
 
-      (r/->IntegerTerm 3)
-      (r/->OneOfSpec [(r/->NumberSpec) (r/->IntegerSpec) (r/->AtomSpec)])
-      (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/->IntegerSpec))
+(deftest fill-env-test:var:non-initial-and-dom-empty
+  ;; non initial and dom empty
+  (do-template [term spec expected-dom] (is (= expected-dom (calculate-and-get-dom false term spec)) (str "not initial and empty: " (r/to-string term) " " (r/to-string spec)))
+    (r/->VarTerm "X") (r/->VarSpec) [(r/->VarSpec)]
+    (r/->VarTerm "X") (r/->IntegerSpec) [(sut/CANNOT-GROUND)]
+    (r/->VarTerm "X") (r/->AnySpec) [(r/->AnySpec)]
+    (r/->VarTerm "X") (r/make-spec:user-defined "blob") [(sut/CANNOT-GROUND)]
+    (r/->VarTerm "X") (r/->SpecvarSpec "X") [(r/->AnySpec)]
+    ))
 
-      (r/->IntegerTerm 3)
-      (r/->OneOfSpec [(r/->IntegerSpec) (r/->SpecvarSpec 0)])
-      (sut/add-doms-to-node test-env (r/->IntegerTerm 3) (r/->OneOfSpec [(r/->IntegerSpec) (r/->AndSpec [(r/->SpecvarSpec 0) (r/->IntegerSpec)])]))
+(deftest fill-env-test:var:non-initial-and-dom-already-nonvar
 
-      (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-      (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/->TupleSpec [(r/->AtomicSpec)])])
-      (sut/add-doms-to-node test-env
-                            (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
-                            (r/->OneOfSpec [(r/->ListSpec (r/->NumberSpec)) (r/->TupleSpec [(r/->AtomicSpec)])]))
-      ))
+  ;; non initial and dom already nonvar
+  (do-template [term spec expected-dom]
+               (let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->GroundSpec))]
+                 (is (= expected-dom
+                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env false term spec) term)) (str "not initial and already nonvar: " (r/to-string term) " " (r/to-string spec))))
+               (r/->VarTerm "X") (r/->VarSpec) [(sut/ALREADY-NONVAR)]
+               (r/->VarTerm "X") (r/->IntegerSpec) [(assoc (r/->IntegerSpec) :origin nil)]
+               (r/->VarTerm "X") (r/->AnySpec) [(r/->GroundSpec)]
+               (r/->VarTerm "X") (r/make-spec:user-defined "blob") [(r/->ExactSpec "blob")]
+               (r/->VarTerm "X") (r/->SpecvarSpec "X") [(r/->GroundSpec)]
+               ))
 
-  (deftest fill-env-for-term-with-spec-test-and
-    (are [term spec expected-env]
-        (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
-      (r/->AtomTerm "hallohallo")
-      (r/->AndSpec [(r/->AtomSpec) (r/->AtomicSpec)])
-      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
+(deftest fill-env-test:var:non-initial-and-dom-is-var
 
-      (r/->AtomTerm "hallohallo")
-      (r/->AndSpec [(r/->AnySpec) (r/->AtomicSpec)])
-      (sut/add-doms-to-node test-env (r/->AtomTerm "hallohallo") (r/->AtomSpec))
-
-      (r/->IntegerTerm 3)
-      (r/->AndSpec [(r/->GroundSpec) (r/->SpecvarSpec 0)])
-      (-> test-env
-          (sut/add-doms-to-node (r/->SpecvarSpec 0) (r/->IntegerSpec))
-          (sut/add-doms-to-node (r/->IntegerTerm 3) (r/->IntegerSpec) (r/->SpecvarSpec 0)))
-      ))
-
-  (deftest fill-env-for-term-with-spec-test-user-defined
-    (are [term spec expected-env] (= expected-env (sut/fill-env-for-term-with-spec test-env term spec))
-      (r/->AtomTerm "empty")
-      (r/make-spec:user-defined
-       "tree" [(r/->IntegerSpec)])
-      (sut/add-doms-to-node
-       test-env
-       (r/->AtomTerm "empty")
-       (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]) (r/->ExactSpec "empty"))
-
-      (r/->AtomTerm "empty")
-      (r/make-spec:user-defined "tree" [(r/->SpecvarSpec 0)])
-      (-> test-env
-          (sut/add-doms-to-node
-           (r/->AtomTerm "empty")
-           (r/make-spec:user-defined "tree" [(r/->SpecvarSpec 0)])
-           (r/->ExactSpec "empty")))))
+  ;; non initial and dom is var
+  (do-template [term spec expected-dom]
+               (let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->VarSpec))]
+                 (is (= expected-dom
+                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env false term spec) term)) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
+               (r/->VarTerm "X") (r/->VarSpec) [(r/->VarSpec)]
+               (r/->VarTerm "X") (r/->IntegerSpec) [(sut/CANNOT-GROUND)]
+               (r/->VarTerm "X") (r/->AnySpec) [(r/->VarSpec)]
+               (r/->VarTerm "X") (r/make-spec:user-defined "blob") [(sut/CANNOT-GROUND)]
+               (r/->VarTerm "X") (r/->SpecvarSpec "X") [(r/->VarSpec)]
+               )
 
 
-  (deftest fill-env-for-term-with-spec-test-empty-list
-    (are [term spec expected-dom] (= expected-dom (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec) term))
-      (r/->EmptyListTerm) (r/->TupleSpec []) [(r/->EmptyListSpec)]
+  )
 
-      (r/->EmptyListTerm) (r/->ListSpec (r/->IntegerSpec)) [(r/->EmptyListSpec)]
-
-      (r/->EmptyListTerm) (r/->EmptyListSpec) [(r/->EmptyListSpec)]
-
-      (r/->VarTerm "X") (r/->EmptyListSpec) [(r/->EmptyListSpec)]
-
-      )))
+(let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->VarSpec))
+      spec (r/->SpecvarSpec "Y")
+      term (r/->VarTerm "X")]
+  (-> test-env
+      (sut/fill-env-for-term-with-spec true term spec)
+      (sut/fill-env-for-term-with-spec false term (r/->IntegerSpec))
+      (utils/get-dom-of-term term)))

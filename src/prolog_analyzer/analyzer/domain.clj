@@ -114,23 +114,48 @@
 (defn- var-or-any? [spec]
   (contains? #{r/VAR r/ANY} (r/spec-type spec)))
 
-(defn- var? [spec]
-  (= r/VAR (r/spec-type spec)))
+(defn- fill-env-chooser [env term spec initial?]
+  (vector (if initial? :initial :non-initial)
+          (case+ (r/spec-type spec)
+                 r/VAR :var
+                 r/ANY :any
+                 r/SPECVAR :specvar
+                 :other)))
+
+(defmulti fill-env-for-var fill-env-chooser)
+
+(defmethod fill-env-for-var [:initial :var] [env term spec initial?]
+  (add-doms-to-node env term spec))
+
+(defmethod fill-env-for-var [:initial :any] [env term spec initial?]
+  (add-doms-to-node env term spec))
+
+(defmethod fill-env-for-var [:initial :other] [env term spec initial?]
+  (fill-env env term spec initial?))
+
+(defmethod fill-env-for-var [:initial :specvar] [env term spec initial?]
+  (fill-env env term spec initial?))
 
 
-(defn fill-env-for-var [env term spec initial?]
-  (if initial?
-    (if (var-or-any? spec)
-      (add-doms-to-node env term spec)
-      (fill-env env term spec initial?))
-    (if (var-or-any? spec)
-      (if (every? var-or-any? (utils/get-dom-of-term env term))
-        (add-doms-to-node env term spec)
-        (add-doms-to-node env term (ALREADY-NONVAR)))
-      (if (every? var-or-any? (utils/get-dom-of-term env term))
-        (add-doms-to-node env term (CANNOT-GROUND))
-        (fill-env env term spec initial?)))
-    ))
+
+(defmethod fill-env-for-var [:non-initial :var] [env term spec initial?]
+  (if (every? var-or-any? (utils/get-dom-of-term env term))
+    (add-doms-to-node env term spec)
+    (add-doms-to-node env term (ALREADY-NONVAR))))
+
+(defmethod fill-env-for-var [:non-initial :any] [env term spec initial?]
+  (add-doms-to-node env term spec))
+
+(defmethod fill-env-for-var [:non-initial :other] [env term spec initial?]
+  (if (every? var-or-any? (utils/get-dom-of-term env term))
+    (add-doms-to-node env term (CANNOT-GROUND))
+    (fill-env env term spec initial?)))
+
+(defmethod fill-env-for-var [:non-initial :specvar] [env term spec initial?]
+  (fill-env env term spec initial?))
+
+
+
 
 (defn fill-env-for-term-with-spec
   ([env initial? term spec]
