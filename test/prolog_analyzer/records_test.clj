@@ -18,7 +18,11 @@
    (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
 
    (sut/make-spec:user-defined "blob")
-   (sut/->ExactSpec "blob")})
+   (sut/->ExactSpec "blob")
+
+   (sut/make-spec:user-defined "a")
+   (sut/->OneOfSpec [(sut/->TupleSpec [(sut/make-spec:user-defined "a")]) (sut/->ExactSpec "a")])
+   })
 
 (def user-def-tree-int (sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)]))
 (def user-def-atomOrInt (sut/make-spec:user-defined "atomOrInt"))
@@ -286,7 +290,7 @@
                (sut/->AnySpec) (sut/->NonvarSpec) (sut/->NonvarSpec)
                (sut/->AnySpec) (sut/->AnySpec) (sut/->AnySpec)
                (sut/->AnySpec) (sut/->VarSpec) (sut/->VarSpec)
-               (sut/->AnySpec) (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+               (sut/->AnySpec) (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") ;;TODO: clarify behaviour
 
                (sut/make-spec:user-defined "blob") (sut/->IntegerSpec) sut/DISJOINT
                (sut/make-spec:user-defined "blob") (sut/->FloatSpec) sut/DISJOINT
@@ -301,7 +305,7 @@
                (sut/make-spec:user-defined "blob") (sut/->TupleSpec [(sut/make-spec:user-defined "blob")]) sut/DISJOINT
                (sut/make-spec:user-defined "blob") (sut/->GroundSpec) (sut/->ExactSpec "blob")
                (sut/make-spec:user-defined "blob") (sut/->NonvarSpec) (sut/->ExactSpec "blob")
-               (sut/make-spec:user-defined "blob") (sut/->AnySpec) (sut/->ExactSpec "blob")
+               (sut/make-spec:user-defined "blob") (sut/->AnySpec) (sut/make-spec:user-defined "blob") ;;TODO: clarify behaviour
                (sut/make-spec:user-defined "blob") (sut/->VarSpec) sut/DISJOINT
 
                (sut/make-spec:user-defined "atomOrInt") (sut/->IntegerSpec) (sut/->IntegerSpec)
@@ -316,10 +320,10 @@
                (sut/make-spec:user-defined "atomOrInt") (sut/->TupleSpec [(sut/make-spec:user-defined "atomOrInt")]) sut/DISJOINT
                (sut/make-spec:user-defined "atomOrInt") (sut/->GroundSpec) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
                (sut/make-spec:user-defined "atomOrInt") (sut/->NonvarSpec) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
-               (sut/make-spec:user-defined "atomOrInt") (sut/->AnySpec) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+               (sut/make-spec:user-defined "atomOrInt") (sut/->AnySpec) (sut/make-spec:user-defined "atomOrInt") ;;TODO: clarify behaviour
                (sut/make-spec:user-defined "atomOrInt") (sut/->VarSpec) sut/DISJOINT
                (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "blob") (sut/->ExactSpec "blob")
-               (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+               (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) ;;TODO: clarify behaviour
 
                ;; intersect One-of with One-of
                (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
@@ -343,3 +347,10 @@
 
                (sut/->AndSpec [(sut/->ListSpec (sut/->IntegerSpec)) (sut/->AtomicSpec)]) (sut/->EmptyListSpec) (sut/->EmptyListSpec)
                ))
+
+(def tree-x (sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")]))
+(deftest intersecting-user-defs
+  (do-template [spec1 spec2 result] (is (= result (sut/intersect spec1 spec2 test-defs)) (clojure.string/join " " (map sut/to-string [spec1 spec2])))
+               tree-x tree-x (sut/->OneOfSpec [(sut/->CompoundSpec "node" [tree-x (sut/->SpecvarSpec "X") tree-x]) (sut/->ExactSpec "empty")])
+               (sut/make-spec:user-defined "a") (sut/make-spec:user-defined "a") (sut/->OneOfSpec [(sut/->TupleSpec [(sut/make-spec:user-defined "a")]) (sut/->ExactSpec "a")])
+               tree-x ))
