@@ -66,7 +66,7 @@
       []))
   (intersect [spec other-spec defs]
     (case+ (spec-type other-spec)
-           USERDEFINED (resolve-definition-with-parameters other-spec defs)
+           USERDEFINED other-spec
            other-spec))
   printable
   (to-string [x] "Any"))
@@ -320,11 +320,16 @@
   printable
   (to-string [x] "Ground"))
 
-(defn- simplify-and [{arglist :arglist} defs]
-  (let [p (reduce #(intersect %1 %2 defs) arglist)]
+(defn simplify-and [{arglist :arglist} defs]
+  (let [mod-arglist (distinct arglist)
+        p (case (count mod-arglist)
+            0 DISJOINT
+            1 (first mod-arglist)
+            (reduce #(intersect %1 %2 defs) mod-arglist))]
     (if (error-spec? p)
       DISJOINT
       p)))
+
 
 (defn- simplify-or [spec]
   (let [simplified-or (-> spec
@@ -403,14 +408,22 @@
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
+(defn intersect-userdef-with-userdef [userdef1 userdef2 defs]
+  (if (and (= (:name userdef1) (:name userdef2))
+           (= (count (:arglist userdef1)) (count (:arglist userdef2))))
+    (resolve-definition-with-parameters userdef1 defs)
+    (let [def1 (resolve-definition-with-parameters userdef1 defs)
+          def2 (resolve-definition-with-parameters userdef2 defs)]
+      (intersect def1 def2 defs))))
+
 (defrecord UserDefinedSpec [name]
   spec
   (spec-type [spec] USERDEFINED)
   (next-steps [spec term defs] [])
   (intersect [spec other-spec defs]
     (case+ (spec-type other-spec)
-           ANY (resolve-definition-with-parameters spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters spec defs) (resolve-definition-with-parameters other-spec defs) defs)
+           ANY spec
+           USERDEFINED (intersect-userdef-with-userdef spec other-spec defs)
            (AND, OR) (intersect other-spec (resolve-definition-with-parameters spec defs) defs)
            ERROR other-spec
            (intersect (resolve-definition-with-parameters spec defs) other-spec defs)))

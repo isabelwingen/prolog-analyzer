@@ -8,30 +8,12 @@
             [ubergraph.protocols]
             ))
 
+(defn- get-defs-from-env [env]
+  (uber/attr env :ENVIRONMENT :user-defined-specs))
+
 (defn- var-domain [env term]
   (let [dom-types (map r/spec-type (utils/get-dom-of-term env term))]
     (every? #{r/VAR r/ANY} dom-types)))
-
-(defn- get-definition-of-alias [env user-defined-alias]
-  (get (uber/attr env :ENVIRONMENT :user-defined-specs) (dissoc user-defined-alias :origin)))
-
-
-(defn- resolve-definition-with-parameters
-  "User-defined specs can have parameters and when in use in spec annotations,
-  there are values assigned to these parameters. To get the correct definition,
-  we have to replace the parameter with their value."
-  [{n :name arglist :arglist :as user-def-spec} env]
-  (if (nil? arglist)
-    (get-definition-of-alias env user-def-spec)
-    (let [alias (->> (uber/attr env :ENVIRONMENT :user-defined-specs)
-                     keys
-                     (filter #(= (:name %) n))
-                     (filter #(= (count (:arglist %)) (count arglist)))
-                     first)
-          definition (get-definition-of-alias env alias)
-          replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))]
-      (reduce-kv r/replace-specvars-with-spec definition replace-map))))
-
 
 (declare fill-env-for-term-with-spec)
 
@@ -97,7 +79,7 @@
     step3))
 
 (defmethod fill-env r/USERDEFINED [env term spec initial?]
-  (let [transformed-definition (r/copy-mark spec (resolve-definition-with-parameters spec env))]
+  (let [transformed-definition (r/copy-mark spec (r/resolve-definition-with-parameters spec (get-defs-from-env env)))]
     (-> env
         (add-doms-to-node term spec)
         (fill-env-for-term-with-spec initial? term transformed-definition))))
@@ -152,7 +134,6 @@
 
 (defmethod fill-env-for-var [:initial :specvar] [env term spec initial?]
   (fill-env env term spec initial?))
-
 
 
 (defmethod fill-env-for-var [:non-initial :var] [env term spec initial?]
