@@ -323,7 +323,7 @@
                (sut/make-spec:user-defined "atomOrInt") (sut/->AnySpec) (sut/make-spec:user-defined "atomOrInt") ;;TODO: clarify behaviour
                (sut/make-spec:user-defined "atomOrInt") (sut/->VarSpec) sut/DISJOINT
                (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "blob") (sut/->ExactSpec "blob")
-               (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) ;;TODO: clarify behaviour
+               (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") ;;TODO: clarify behaviour
 
                ;; intersect One-of with One-of
                (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
@@ -351,6 +351,5 @@
 (def tree-x (sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")]))
 (deftest intersecting-user-defs
   (do-template [spec1 spec2 result] (is (= result (sut/intersect spec1 spec2 test-defs)) (clojure.string/join " " (map sut/to-string [spec1 spec2])))
-               tree-x tree-x (sut/->OneOfSpec [(sut/->CompoundSpec "node" [tree-x (sut/->SpecvarSpec "X") tree-x]) (sut/->ExactSpec "empty")])
-               (sut/make-spec:user-defined "a") (sut/make-spec:user-defined "a") (sut/->OneOfSpec [(sut/->TupleSpec [(sut/make-spec:user-defined "a")]) (sut/->ExactSpec "a")])
-               tree-x ))
+               tree-x tree-x tree-x
+               (sut/make-spec:user-defined "a") (sut/make-spec:user-defined "a") (sut/make-spec:user-defined "a")))
