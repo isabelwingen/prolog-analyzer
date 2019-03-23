@@ -50,8 +50,12 @@
 
 (defprotocol spec
   (spec-type [spec])
-  (next-steps [spec term defs])
-  (intersect [spec other-spec defs]))
+  (next-steps
+    [spec term defs]
+    [spec term defs overwrite?])
+  (intersect
+    [spec other-spec defs]
+    [spec other-spec defs overwrite?]))
 
 (defprotocol term
   (term-type [term])
@@ -60,14 +64,13 @@
 (defrecord AnySpec []
   spec
   (spec-type [spec] ANY)
-  (next-steps [spec term defs]
+  (next-steps [spec term defs overwrite?]
     (if (contains? #{LIST, COMPOUND} (term-type term))
       [term (intersect spec (initial-spec term) defs)]
       []))
-  (intersect [spec other-spec defs]
-    (case+ (spec-type other-spec)
-           USERDEFINED other-spec
-           other-spec))
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs] other-spec)
+  (intersect [spec other-spec defs overwrite?] other-spec)
   printable
   (to-string [x] "Any"))
 
@@ -76,7 +79,9 @@
   spec
   (spec-type [spec] ERROR)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
+  (intersect [spec other-spec defs _]
     (if (= ERROR (spec-type other-spec))
       (update spec :reason #(str % " and " (.reason other-spec)))
       spec))
@@ -100,6 +105,7 @@
   spec
   (spec-type [spec] VAR)
   (next-steps [spec term defs] [])
+  (next-steps [spec term defs overwrite?] [])
   (intersect [spec other-spec defs]
     (case+ (spec-type other-spec)
            (VAR, ANY) spec
@@ -107,6 +113,10 @@
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            ERROR other-spec
            DISJOINT))
+  (intersect [spec other-spec defs overwrite?]
+    (if overwrite?
+      (intersect (->AnySpec) other-spec defs overwrite?)
+      (intersect spec other-spec defs)))
   printable
   (to-string [x] "Var"))
 
@@ -114,14 +124,17 @@
   spec
   (spec-type [spec] EMPTYLIST)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (EMPTYLIST, LIST, GROUND, NONVAR, ANY, ATOMIC) spec
            TUPLE (if (empty? (.arglist other-spec)) spec DISJOINT)
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            ERROR other-spec
+           VAR (if overwrite? spec DISJOINT)
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "EmptyList"))
 
@@ -130,14 +143,17 @@
   spec
   (spec-type [spec] ATOM)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (ATOM, ATOMIC, GROUND, NONVAR, ANY) spec
            EXACT other-spec
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            ERROR other-spec
+           VAR (if overwrite? spec DISJOINT)
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "Atom"))
 
@@ -145,14 +161,17 @@
   spec
   (spec-type [spec] INTEGER)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (ATOMIC, INTEGER, NUMBER, GROUND, NONVAR, ANY) spec
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            ERROR other-spec
+           VAR (if overwrite? spec DISJOINT)
            DISJOINT
            ))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "Integer"))
 
@@ -160,14 +179,17 @@
   spec
   (spec-type [spec] FLOAT)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (ATOMIC, FLOAT, NUMBER, GROUND, NONVAR, ANY) spec
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            ERROR other-spec
+           VAR (if overwrite? spec DISJOINT)
            DISJOINT
            ))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "Float"))
 
@@ -175,14 +197,17 @@
   spec
   (spec-type [spec] NUMBER)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (ATOMIC, NUMBER, GROUND, NONVAR, ANY) spec
            (INTEGER, FLOAT) other-spec
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            ERROR other-spec
+           VAR (if overwrite? spec DISJOINT)
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "Number"))
 
@@ -190,15 +215,18 @@
   spec
   (spec-type [spec] ATOMIC)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (ATOMIC, GROUND, NONVAR, ANY) spec
            (INTEGER, FLOAT, ATOM, NUMBER, EMPTYLIST, EXACT) other-spec
            LIST (->EmptyListSpec)
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "Atomic"))
 
@@ -207,14 +235,17 @@
   spec
   (spec-type [spec] EXACT)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (GROUND, NONVAR, ANY, ATOM, ATOMIC) spec
            EXACT (if (= value (.value other-spec)) spec DISJOINT)
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "Exact(" value ")")))
 
@@ -222,60 +253,66 @@
 (defrecord ListSpec [type]
   spec
   (spec-type [spec] LIST)
-  (next-steps [spec term defs]
+  (next-steps [spec term defs _]
     (if (= LIST (term-type term))
       (if (empty-list? (:tail term))
         [(.head term) type]
         [(.head term) type
          (.tail term) spec])
       []))
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            LIST (-> other-spec
-                    (update :type #(intersect type % defs))
+                    (update :type #(intersect type % defs overwrite?))
                     replace-error-spec-with-intersect-error)
            TUPLE (-> other-spec
-                     (update :arglist (partial map #(intersect type % defs)))
+                     (update :arglist (partial map #(intersect type % defs overwrite?)))
                      replace-error-spec-with-intersect-error)
            EMPTYLIST other-spec
            ATOMIC (->EmptyListSpec)
            (ANY, NONVAR) spec
-           GROUND (replace-error-spec-with-intersect-error (update spec :type #(intersect other-spec % defs)))
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           GROUND (replace-error-spec-with-intersect-error (update spec :type #(intersect other-spec % defs overwrite?)))
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
 
 (defrecord TupleSpec [arglist]
   spec
   (spec-type [spec] TUPLE)
-  (next-steps [spec term defs]
+  (next-steps [spec term defs _]
     (if (= LIST (term-type term))
       (if (empty-list? (:tail term))
         [(.head term) (first (.arglist spec))]
         [(.head term) (first (.arglist spec))
          (.tail term) (update spec :arglist rest)])
       []))
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            EMPTYLIST (if (empty? arglist) other-spec DISJOINT)
            LIST (-> spec
-                    (update :arglist (partial map #(intersect (.type other-spec) % defs)))
+                    (update :arglist (partial map #(intersect (.type other-spec) % defs overwrite?)))
                     replace-error-spec-with-intersect-error)
            TUPLE (if (= (count arglist) (count (.arglist other-spec)))
                    (-> other-spec
-                       (update :arglist (partial map #(intersect %1 %2 defs) arglist))
+                       (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
                        replace-error-spec-with-intersect-error)
                    DISJOINT)
            ATOMIC (if (empty? arglist) (->EmptyListSpec) DISJOINT)
            (ANY, NONVAR) spec
-           GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs))))
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
@@ -283,49 +320,55 @@
 (defrecord CompoundSpec [functor arglist]
   spec
   (spec-type [spec] COMPOUND)
-  (next-steps [spec term defs]
+  (next-steps [spec term defs _]
     (if (= COMPOUND (term-type term))
       (interleave (.arglist term) arglist)
       []))
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            COMPOUND (if (and (= functor (.functor other-spec))
                              (= (count arglist) (count (.arglist other-spec))))
                       (-> other-spec
-                          (update :arglist (partial map #(intersect %1 %2 defs) arglist))
+                          (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
                           replace-error-spec-with-intersect-error)
                       DISJOINT)
            (ANY, NONVAR) spec
-           GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs))))
-           (AND, OR) (intersect other-spec spec defs)
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
 (defrecord GroundSpec []
   spec
   (spec-type [spec] GROUND)
-  (next-steps [spec term defs]
+  (next-steps [spec term defs overwrite?]
     (if (contains? #{LIST, COMPOUND} (term-type term))
-      [term (intersect spec (initial-spec term) defs)]
+      [term (intersect spec (initial-spec term) defs overwrite?)]
       []))
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
      (ANY, NONVAR, GROUND) spec
-     USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+     USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+     VAR (if overwrite? spec DISJOINT)
      ERROR other-spec
-     (intersect other-spec spec defs)))
+     (intersect other-spec spec defs overwrite?)))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "Ground"))
 
-(defn simplify-and [{arglist :arglist} defs]
+(defn simplify-and [{arglist :arglist} defs overwrite?]
   (let [mod-arglist (distinct arglist)
         p (case (count mod-arglist)
             0 DISJOINT
             1 (first mod-arglist)
-            (reduce #(intersect %1 %2 defs) mod-arglist))]
+            (reduce #(intersect %1 %2 defs overwrite?) mod-arglist))]
     (if (error-spec? p)
       DISJOINT
       p)))
@@ -345,48 +388,51 @@
 (defrecord AndSpec [arglist]
   spec
   (spec-type [spec] AND)
-  (next-steps [spec term defs]
-    (if-let [suitable-spec (intersect spec (initial-spec term) defs)]
+  (next-steps [spec term defs overwrite?]
+    (if-let [suitable-spec (intersect spec (initial-spec term) defs overwrite?)]
       (if (= AND (spec-type suitable-spec))
         (interleave (repeat (count (.arglist suitable-spec)) term) (.arglist suitable-spec))
         [term suitable-spec])
       []))
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            AND (-> other-spec
                    (update :arglist (partial concat arglist))
-                   (simplify-and defs)
+                   (simplify-and defs overwrite?)
                    replace-error-spec-with-intersect-error)
            OR (-> other-spec
                   (update :arglist (partial map #(->AndSpec (conj arglist %))))
-                  (update :arglist (partial map #(simplify-and % defs)))
+                  (update :arglist (partial map #(simplify-and % defs overwrite?)))
                   (update :arglist (partial remove error-spec?))
                   simplify-or
                   replace-error-spec-with-intersect-error)
            ERROR other-spec
            (-> spec
                (update :arglist #(conj % other-spec))
-               (simplify-and defs)
+               (simplify-and defs overwrite?)
                replace-error-spec-with-intersect-error)))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
 (defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
-  (next-steps [spec term defs]
-    (if-let [suitable-spec (intersect spec (initial-spec term) defs)]
+  (next-steps [spec term defs overwrite?]
+    (if-let [suitable-spec (intersect spec (initial-spec term) defs overwrite?)]
       (if (= OR (spec-type suitable-spec))
         []
         [term suitable-spec])
       []))
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            OR (->> (for [x arglist
                          y (.arglist other-spec)]
                      [x y])
                    (map ->AndSpec)
-                   (map #(simplify-and % defs))
+                   (map #(simplify-and % defs overwrite?))
                    (remove error-spec?)
                    (apply vector)
                    ->OneOfSpec
@@ -394,60 +440,67 @@
                    replace-error-spec-with-intersect-error)
            AND (-> spec
                    (update :arglist (partial map #(->AndSpec (conj (.arglist other-spec) %))))
-                   (update :arglist (partial map #(simplify-and % defs)))
+                   (update :arglist (partial map #(simplify-and % defs overwrite?)))
                    (update :arglist (partial remove error-spec?))
                    simplify-or
                    replace-error-spec-with-intersect-error)
            ERROR other-spec
            (-> spec
-               (update :arglist (partial map #(intersect other-spec % defs)))
+               (update :arglist (partial map #(intersect other-spec % defs overwrite?)))
                (update :arglist (partial remove error-spec?))
                simplify-or
                replace-error-spec-with-intersect-error
                )))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
-(defn intersect-userdef-with-userdef [userdef1 userdef2 defs]
+(defn- intersect-userdef-with-userdef [userdef1 userdef2 defs overwrite?]
   (if (and (= (:name userdef1) (:name userdef2))
            (= (count (:arglist userdef1)) (count (:arglist userdef2))))
-    (update userdef1 :arglist (partial map #(intersect %1 %2 defs) (:arglist userdef2)))
+    (if (nil? (:arglist userdef1))
+      userdef1
+      (update userdef1 :arglist (partial map #(intersect %1 %2 defs overwrite?) (:arglist userdef2))))
     (let [def1 (resolve-definition-with-parameters userdef1 defs)
           def2 (resolve-definition-with-parameters userdef2 defs)]
-      (intersect def1 def2 defs))))
+      (intersect def1 def2 defs overwrite?))))
 
 (defrecord UserDefinedSpec [name]
   spec
   (spec-type [spec] USERDEFINED)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            ANY spec
-           USERDEFINED (intersect-userdef-with-userdef spec other-spec defs)
-           (AND, OR) (intersect other-spec (resolve-definition-with-parameters spec defs) defs)
+           USERDEFINED (intersect-userdef-with-userdef spec other-spec defs overwrite?)
+           (AND, OR) (intersect other-spec (resolve-definition-with-parameters spec defs) defs overwrite?)
+           VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
-           (intersect (resolve-definition-with-parameters spec defs) other-spec defs)))
+           (intersect (resolve-definition-with-parameters spec defs) other-spec defs overwrite?)))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
                    (str name))))
 
-(declare ->NonvarSpec)
-
 (defrecord NonvarSpec []
   spec
   (spec-type [spec] NONVAR)
-  (next-steps [spec term defs]
+  (next-steps [spec term defs overwrite?]
     (if (contains? #{LIST, COMPOUND} (term-type term))
-      [term (intersect spec (initial-spec term) defs)]
+      [term (intersect spec (initial-spec term) defs overwrite?)]
       []))
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs] (next-steps spec term defs false))
+  (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
            (NONVAR, ANY) spec
            GROUND other-spec
-           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
-           (intersect other-spec spec defs)))
+           (intersect other-spec spec defs overwrite?)))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] "Nonvar"))
 
@@ -455,10 +508,12 @@
   spec
   (spec-type [spec] SPECVAR)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs]
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
     (if (= ANY (spec-type other-spec))
       spec
       other-spec))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "Specvar(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
