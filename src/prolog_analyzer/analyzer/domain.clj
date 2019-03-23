@@ -170,7 +170,10 @@
    (multiple-fills env false terms specs)))
 
 (defn spec-valid? [env term spec]
-  (let [dom (utils/get-dom-of-term env term)]
+  (let [dom (utils/get-dom-of-term env term)
+        reduced-dom (reduce #(intersect %1 %2 (get-defs-from-env env)) env dom)]
     (if (empty? dom)
       (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))
-      (not (r/error-spec? (reduce #(intersect %1 %2 (get-defs-from-env env)) (conj dom spec)))))))
+      (if (contains? #{r/OR, r/ERROR} (r/spec-type reduced-dom))
+        false
+        (not (r/error-spec? (r/intersect spec reduced-dom (get-defs-from-env env))))))))
