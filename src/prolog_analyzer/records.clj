@@ -331,7 +331,7 @@
       p)))
 
 
-(defn- simplify-or [spec]
+(defn simplify-or [spec]
   (let [simplified-or (-> spec
                           (update :arglist distinct)
                           (update :arglist (partial apply vector)))]
@@ -411,7 +411,7 @@
 (defn intersect-userdef-with-userdef [userdef1 userdef2 defs]
   (if (and (= (:name userdef1) (:name userdef2))
            (= (count (:arglist userdef1)) (count (:arglist userdef2))))
-    (resolve-definition-with-parameters userdef1 defs)
+    (update userdef1 :arglist (partial map #(intersect %1 %2 defs) (:arglist userdef2)))
     (let [def1 (resolve-definition-with-parameters userdef1 defs)
           def2 (resolve-definition-with-parameters userdef2 defs)]
       (intersect def1 def2 defs))))
@@ -455,7 +455,10 @@
   spec
   (spec-type [spec] SPECVAR)
   (next-steps [spec term defs] [])
-  (intersect [spec other-spec defs] other-spec)
+  (intersect [spec other-spec defs]
+    (if (= ANY (spec-type other-spec))
+      spec
+      other-spec))
   printable
   (to-string [x] (str "Specvar(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
