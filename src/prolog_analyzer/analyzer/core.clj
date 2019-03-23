@@ -62,7 +62,7 @@
 (defn- goal-specs->tuples [goal-specs]
   (map (partial apply r/to-tuple-spec) goal-specs))
 
-(defn evaluate-goal [data env {goal-name :goal module :module arity :arity arglist :arglist :as goal}]
+(defn evaluate-goal-pre-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
                             (:pre-specs)
@@ -73,6 +73,36 @@
     (if (and (> arity 0) goal-specs)
       (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec goal-specs-as-tuples) :goal))
       env)))
+
+(defn condition-fullfilled? [env {arglist :arglist :as tuple-term} [condition _]]
+  (every? true? (map #(dom/spec-valid? env %1 %2) arglist condition)))
+
+
+(defn apply-valid-post-spec [env {arglist :arglist :as tuple-term} [condition promise :as post-spec]]
+  (if (condition-fullfilled? env tuple-term post-spec)
+    (dom/fill-env-for-term-with-spec env true tuple-term (r/mark-spec (apply r/to-tuple-spec promise) :promise))
+    env))
+
+(defn evaluate-goal-post-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
+  (let [goal-specs (some->> data
+                            (utils/get-specs-of-pred [module goal-name arity])
+                            (:post-specs))
+        term (goal-args->tuple arglist)
+        ]
+    (if (empty? goal-specs)
+      env
+      (reduce #(apply-valid-post-spec %1 term %2) env goal-specs))))
+
+(defmulti evaluate-goal-relationships (fn [env goal data] (:goal goal)))
+
+(defmethod evaluate-goal-relationships :default [env goal data]
+  env)
+
+(defn evaluate-goal [data env goal]
+  (-> env
+      (evaluate-goal-pre-specs goal data)
+      (evaluate-goal-post-specs goal data)
+      (evaluate-goal-relationships goal data)))
 
 (defn evaluate-body [env data body]
   (reduce (partial evaluate-goal data) env body))
@@ -123,6 +153,3 @@
        complete-analysis
        my-pp/pretty-print-analysis-result
        ))
-
-(playground)
-(example)

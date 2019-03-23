@@ -7,7 +7,6 @@
             [loom.attr]
             [ubergraph.protocols]
             ))
-
 (defn- get-defs-from-env [env]
   (uber/attr env :ENVIRONMENT :user-defined-specs))
 
@@ -169,3 +168,9 @@
    (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) env (map vector terms specs)))
   ([env terms specs]
    (multiple-fills env false terms specs)))
+
+(defn spec-valid? [env term spec]
+  (let [dom (utils/get-dom-of-term env term)]
+    (if (empty? dom)
+      (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))
+      (not (r/error-spec? (reduce #(intersect %1 %2 (get-defs-from-env env)) (conj dom spec)))))))
