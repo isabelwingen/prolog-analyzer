@@ -2,6 +2,7 @@
   (:require
    [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets process-prolog-files]] ;; used only during development
    [prolog-analyzer.analyzer.domain :as dom]
+   [prolog-analyzer.analyzer.relationship-analyzer :as rel]
    [prolog-analyzer.records :as r]
    [prolog-analyzer.utils :as utils]
    [prolog-analyzer.analyzer.pretty-printer :as my-pp]
@@ -122,6 +123,7 @@
   (-> (initial-env data arglist pre-spec)
       (evaluate-body data body)
       (add-relationships)
+      rel/fixpoint-analysis
       ))
 
 (defn complete-analysis [data]
