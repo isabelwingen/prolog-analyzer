@@ -62,7 +62,7 @@
     (uber/attr env term :dom)
     (do
       (log/debug (str "Term " term " could not be found, returning empty dom"))
-      [])))
+      nil)))
 
 (defn get-goals [data]
   (->> (get-clause-identities data)
