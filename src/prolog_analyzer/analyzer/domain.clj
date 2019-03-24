@@ -74,9 +74,9 @@
     (add-type-to-dom env term (r/copy-mark spec (r/initial-spec term)))
     env))
 
-(defmethod fill-env r/SPECVAR [env term spec options]
+(defmethod fill-env r/SPECVAR [env term spec {overwrite? :overwrite :as options}]
   (let [step1 (fill-env-for-term-with-spec env term (r/copy-mark spec (r/initial-spec term)) options)
-        step2 (add-type-to-dom step1 spec (utils/get-dom-of-term step1 term))
+        step2 (add-type-to-dom step1 spec (utils/get-dom-of-term step1 term) overwrite?)
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
     step3))
 
@@ -91,14 +91,14 @@
     (fill-env-for-term-with-spec env term (r/initial-spec term) options)
     (add-type-to-dom env term (ALREADY-NONVAR))))
 
-(defmethod fill-env :default [env term spec options]
+(defmethod fill-env :default [env term spec {overwrite? :overwrite :as options}]
   (let [suitable-spec (r/copy-mark spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env)))
         next-steps (r/next-steps spec term (utils/get-user-defined-specs env))]
     (if (r/error-spec? suitable-spec)
       (add-type-to-dom env term (r/copy-mark spec (WRONG-TYPE term spec)))
       (if (check-if-valid term spec)
-        (reduce (fn [e [t s]] (fill-env-for-term-with-spec e t s options)) (add-type-to-dom env term suitable-spec) (map (fn [[t s]] [t (r/copy-mark spec s)]) (partition 2 next-steps)))
-        (add-type-to-dom env term (r/copy-mark spec (WRONG-TYPE term spec)))))))
+        (reduce (fn [e [t s]] (fill-env-for-term-with-spec e t s options)) (add-type-to-dom env term suitable-spec overwrite?) (map (fn [[t s]] [t (r/copy-mark spec s)]) (partition 2 next-steps)))
+        (add-type-to-dom env term (r/copy-mark spec (WRONG-TYPE term spec)) true)))))
 
 
 (defn- var-or-any? [spec]
@@ -142,6 +142,7 @@
 
 
 (defmethod fill-env-for-var [:non-initial :var] [env term spec options]
+
   (if (var-or-any? (utils/get-dom-of-term env term))
     (add-type-to-dom env term spec)
     (add-type-to-dom env term (ALREADY-NONVAR))))
@@ -149,10 +150,12 @@
 (defmethod fill-env-for-var [:non-initial :any] [env term spec options]
   (add-type-to-dom env term spec))
 
-(defmethod fill-env-for-var [:non-initial :other] [env term spec options]
-  (if (var-or-any? (utils/get-dom-of-term env term))
-    (add-type-to-dom env term (CANNOT-GROUND))
-    (fill-env env term spec options)))
+(defmethod fill-env-for-var [:non-initial :other] [env term spec {overwrite? :overwrite :as options}]
+  (if overwrite?
+    (add-type-to-dom env term spec overwrite?)
+    (if (var-or-any? (utils/get-dom-of-term env term))
+      (add-type-to-dom env term (CANNOT-GROUND))
+      (fill-env env term spec options))))
 
 (defmethod fill-env-for-var [:non-initial :specvar] [env term spec options]
   (fill-env env term spec options))

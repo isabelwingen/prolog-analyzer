@@ -80,7 +80,7 @@
 
 (defn apply-valid-post-spec [env {arglist :arglist :as tuple-term} [condition promise :as post-spec]]
   (if (condition-fullfilled? env tuple-term post-spec)
-    (dom/fill-env-for-term-with-spec env tuple-term (r/mark-spec (apply r/to-tuple-spec promise) :promise) {:initial true})
+    (dom/fill-env-for-term-with-spec env tuple-term (r/mark-spec (apply r/to-tuple-spec promise) :promise) {:initial false :overwrite true})
     env))
 
 (defn evaluate-goal-post-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
