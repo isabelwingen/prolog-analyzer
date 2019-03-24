@@ -16,20 +16,22 @@
 
 (declare fill-env-for-term-with-spec)
 
-(defn add-type-to-dom [env node dom]
-  (let [mod-doms (->> [dom]
-                      (map #(if (= r/AND (r/spec-type %)) (:arglist %) %))
-                      flatten
-                      distinct)]
-    (if (uber/has-node? env node)
-      (uber/set-attrs env node (-> (uber/attrs env node)
-                                   (update :history #(concat % mod-doms))
-                                   (update :history distinct)
-                                   (update :dom #(conj mod-doms %))
-                                   (update :dom distinct)
-                                   (update :dom #(reduce (fn [spec1 spec2] (r/intersect spec1 spec2 (utils/get-user-defined-specs env))) %))
-                                   ))
-      (uber/add-nodes-with-attrs env [node {:dom (reduce #(r/intersect %1 %2 (utils/get-user-defined-specs env)) mod-doms) :history mod-doms}]))))
+(defn add-type-to-dom
+  ([env term type overwrite?]
+   (let [types-to-be-added (->> [type]
+                                (map #(if (= r/AND (r/spec-type %)) (:arglist %) %))
+                                flatten
+                                distinct)]
+     (if (uber/has-node? env term)
+       (uber/set-attrs env term (-> (uber/attrs env term)
+                                    (update :history #(concat % types-to-be-added))
+                                    (update :history distinct)
+                                    (update :dom #(conj types-to-be-added %))
+                                    (update :dom distinct)
+                                    (update :dom #(reduce (fn [spec1 spec2] (r/intersect spec1 spec2 (utils/get-user-defined-specs env) overwrite?)) %))
+                                    ))
+       (uber/add-nodes-with-attrs env [term {:dom (reduce #(r/intersect %1 %2 (utils/get-user-defined-specs env) overwrite?) types-to-be-added) :history types-to-be-added}]))))
+  ([env term type] (add-type-to-dom env term type false)))
 
 (defn mark-as-was-var [env term]
   (let [attrs (uber/attrs env term)]
