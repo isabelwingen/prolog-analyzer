@@ -169,10 +169,10 @@
    (fill-env-for-term-with-spec env false term spec)))
 
 (defn multiple-fills
-  ([env initial? terms specs]
-   (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) env (map vector terms specs)))
+  ([env terms specs initial?]
+   (reduce (fn [e [term spec]] (fill-env-for-term-with-spec e initial? term spec)) env (map vector terms specs)))
   ([env terms specs]
-   (multiple-fills env false terms specs)))
+   (multiple-fills env terms specs false)))
 
 (defn spec-valid? [env term spec]
   (let [dom (utils/get-dom-of-term env term)]
