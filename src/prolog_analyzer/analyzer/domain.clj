@@ -16,8 +16,8 @@
 
 (declare fill-env-for-term-with-spec)
 
-(defn add-doms-to-node [env node & doms]
-  (let [mod-doms (->> doms
+(defn add-doms-to-node [env node dom]
+  (let [mod-doms (->> [dom]
                       (map #(if (= r/AND (r/spec-type %)) (:arglist %) %))
                       flatten
                       distinct)]

@@ -60,11 +60,13 @@
   (is (= (r/->IntegerSpec)
          (-> test-env
              (uber/add-nodes-with-attrs [:x {:dom (r/->AtomicSpec)}])
-             (sut/add-doms-to-node :x (r/->NumberSpec) (r/->IntegerSpec))
+             (sut/add-doms-to-node :x (r/->NumberSpec))
+             (sut/add-doms-to-node :x (r/->IntegerSpec))
              (uber/attr :x :dom))))
   (is (r/error-spec?
          (-> test-env
-             (sut/add-doms-to-node :x (r/->FloatSpec) (r/->IntegerSpec))
+             (sut/add-doms-to-node :x (r/->FloatSpec))
+             (sut/add-doms-to-node :x (r/->IntegerSpec))
              (uber/attr :x :dom)))))
 
 
