@@ -73,7 +73,7 @@
     env))
 
 (defmethod fill-env r/SPECVAR [env term spec initial?]
-  (let [step1 (fill-env-for-term-with-spec env initial? term (r/copy-mark spec (r/initial-spec term)))
+  (let [step1 (fill-env-for-term-with-spec env term (r/copy-mark spec (r/initial-spec term)) initial?)
         step2 (add-doms-to-node step1 spec (utils/get-dom-of-term step1 term))
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
     step3))
@@ -82,11 +82,11 @@
   (let [transformed-definition (r/copy-mark spec (r/resolve-definition-with-parameters spec (get-defs-from-env env)))]
     (-> env
         (add-doms-to-node term spec)
-        (fill-env-for-term-with-spec initial? term transformed-definition))))
+        (fill-env-for-term-with-spec term transformed-definition initial?))))
 
 (defmethod fill-env r/VAR [env term spec initial?]
   (if initial?
-    (fill-env-for-term-with-spec env initial? term (r/initial-spec term))
+    (fill-env-for-term-with-spec env term (r/initial-spec term) initial?)
     (add-doms-to-node env term (ALREADY-NONVAR))))
 
 (defmethod fill-env :default [env term spec initial?]
@@ -95,7 +95,7 @@
     (if (r/error-spec? suitable-spec)
       (add-doms-to-node env term (r/copy-mark spec (WRONG-TYPE term spec)))
       (if (check-if-valid term spec)
-        (reduce #(apply fill-env-for-term-with-spec %1 initial? %2) (add-doms-to-node env term suitable-spec) (map (fn [[t s]] [t (r/copy-mark spec s)]) (partition 2 next-steps)))
+        (reduce (fn [e [t s]] (fill-env-for-term-with-spec e t s initial?)) (add-doms-to-node env term suitable-spec) (map (fn [[t s]] [t (r/copy-mark spec s)]) (partition 2 next-steps)))
         (add-doms-to-node env term (r/copy-mark spec (WRONG-TYPE term spec)))))))
 
 
@@ -157,20 +157,18 @@
   (fill-env env term spec initial?))
 
 
-
-
 (defn fill-env-for-term-with-spec
-  ([env initial? term spec]
+  ([env term spec initial?]
    (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
    (if (contains? #{r/VAR, r/ANY} (r/term-type term))
      (fill-env-for-var env term spec initial?)
      (fill-env env term spec initial?)))
   ([env term spec]
-   (fill-env-for-term-with-spec env false term spec)))
+   (fill-env-for-term-with-spec env term spec false)))
 
 (defn multiple-fills
   ([env terms specs initial?]
-   (reduce (fn [e [term spec]] (fill-env-for-term-with-spec e initial? term spec)) env (map vector terms specs)))
+   (reduce (fn [e [term spec]] (fill-env-for-term-with-spec e term spec initial?)) env (map vector terms specs)))
   ([env terms specs]
    (multiple-fills env terms specs false)))
 
