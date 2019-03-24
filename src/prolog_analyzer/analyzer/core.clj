@@ -86,7 +86,8 @@
 (defn evaluate-goal-post-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
-                            (:post-specs))
+                            (:post-specs)
+                            (map (partial apply replace-specvars-with-uuid)))
         term (goal-args->tuple arglist)
         ]
     (if (empty? goal-specs)
