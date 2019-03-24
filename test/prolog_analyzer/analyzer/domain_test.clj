@@ -79,7 +79,7 @@
 
 (defn calculate-and-get-dom
   ([initial? term spec]
-   (remove-origin (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/mark-spec spec :test) initial?) term)))
+   (remove-origin (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/mark-spec spec :test) {:initial initial?}) term)))
   ([term spec]
    (calculate-and-get-dom false term spec)))
 
@@ -331,7 +331,7 @@
   (do-template [term spec expected-dom]
                (let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->GroundSpec))]
                  (is (= expected-dom
-                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec false) term)) (str "not initial and already nonvar: " (r/to-string term) " " (r/to-string spec))))
+                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and already nonvar: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (sut/ALREADY-NONVAR)
                (r/->VarTerm "X") (r/->IntegerSpec) (assoc (r/->IntegerSpec) :origin nil)
                (r/->VarTerm "X") (r/->AnySpec) (r/->GroundSpec)
@@ -345,7 +345,7 @@
   (do-template [term spec expected-dom]
                (let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->VarSpec))]
                  (is (= expected-dom
-                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec false) term)) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
+                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (r/->VarSpec)
                (r/->VarTerm "X") (r/->IntegerSpec) (sut/CANNOT-GROUND)
                (r/->VarTerm "X") (r/->AnySpec) (r/->VarSpec)
@@ -361,8 +361,8 @@
                (is (= expected-dom
                       (dissoc
                        (-> test-env
-                           (sut/fill-env-for-term-with-spec term first-spec true)
-                           (sut/fill-env-for-term-with-spec term second-spec true)
+                           (sut/fill-env-for-term-with-spec term first-spec {:initial true})
+                           (sut/fill-env-for-term-with-spec term second-spec {:initial true})
                            (utils/get-dom-of-term term))
                        :origin))
                    (str (r/to-string term) " " (r/to-string first-spec) " " (r/to-string second-spec)))
