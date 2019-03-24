@@ -56,17 +56,17 @@
    [(r/->CompoundSpec "node" [spec-tree-int (r/->IntegerSpec) spec-tree-int])
     (r/->ExactSpec "empty")]))
 
-(deftest add-doms-to-node-test
+(deftest add-type-to-dom-test
   (is (= (r/->IntegerSpec)
          (-> test-env
              (uber/add-nodes-with-attrs [:x {:dom (r/->AtomicSpec)}])
-             (sut/add-doms-to-node :x (r/->NumberSpec))
-             (sut/add-doms-to-node :x (r/->IntegerSpec))
+             (sut/add-type-to-dom :x (r/->NumberSpec))
+             (sut/add-type-to-dom :x (r/->IntegerSpec))
              (uber/attr :x :dom))))
   (is (r/error-spec?
          (-> test-env
-             (sut/add-doms-to-node :x (r/->FloatSpec))
-             (sut/add-doms-to-node :x (r/->IntegerSpec))
+             (sut/add-type-to-dom :x (r/->FloatSpec))
+             (sut/add-type-to-dom :x (r/->IntegerSpec))
              (uber/attr :x :dom)))))
 
 
@@ -329,7 +329,7 @@
 
   ;; non initial and dom already nonvar
   (do-template [term spec expected-dom]
-               (let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->GroundSpec))]
+               (let [mod-env (sut/add-type-to-dom test-env (r/->VarTerm "X") (r/->GroundSpec))]
                  (is (= expected-dom
                         (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and already nonvar: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (sut/ALREADY-NONVAR)
@@ -343,7 +343,7 @@
 
   ;; non initial and dom is var
   (do-template [term spec expected-dom]
-               (let [mod-env (sut/add-doms-to-node test-env (r/->VarTerm "X") (r/->VarSpec))]
+               (let [mod-env (sut/add-type-to-dom test-env (r/->VarTerm "X") (r/->VarSpec))]
                  (is (= expected-dom
                         (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (r/->VarSpec)
