@@ -333,12 +333,11 @@
                  (is (= expected-dom
                         (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and already nonvar: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (sut/ALREADY-NONVAR)
-               (r/->VarTerm "X") (r/->IntegerSpec) (assoc (r/->IntegerSpec) :origin nil)
+               (r/->VarTerm "X") (r/->IntegerSpec) (r/->IntegerSpec)
                (r/->VarTerm "X") (r/->AnySpec) (r/->GroundSpec)
                (r/->VarTerm "X") (r/make-spec:user-defined "blob") (r/->ExactSpec "blob")
                (r/->VarTerm "X") (r/->SpecvarSpec "X") (r/->GroundSpec)
                ))
-
 (deftest fill-env-test:var:non-initial-and-dom-is-var
 
   ;; non initial and dom is var
