@@ -142,22 +142,22 @@
 
 (defmethod fill-dom [:var :default] [env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [intersection (r/intersect (r/->VarSpec) spec (get-defs-from-env env))]
-    (if (r/error-spec? intersection)
-      (if initial?
+    (if initial?
+      (-> env
+          (remove-vars-from-dom term)
+          (add-type-to-dom term spec options)
+          (fill-dom-of-next-steps term spec options))
+      (if overwrite?
         (-> env
-            (remove-vars-from-dom term)
             (add-type-to-dom term spec options)
             (fill-dom-of-next-steps term spec options))
-        (if overwrite?
+        (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
+          (if (r/error-spec? intersection)
+            (add-type-to-dom env term (CANNOT-GROUND))
+            (add-type-to-dom env term intersection))
           (-> env
               (add-type-to-dom term spec options)
-              (fill-dom-of-next-steps term spec options))
-          (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
-            (add-type-to-dom env term (CANNOT-GROUND))
-            (-> env
-                (add-type-to-dom term spec options)
-                (fill-dom-of-next-steps term spec options)))))
-      (fill-dom env term intersection options))))
+              (fill-dom-of-next-steps term spec options)))))))
 
 
 (defmethod fill-dom [:var :error] [env term spec options]
@@ -179,7 +179,7 @@
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
     step3))
 
-(defmethod fill-dom [:nonvar :var] [env term spec {initial? :initial :as options}]
+(defmethod fill-dom [:nonvar :var] [env term spec {initial? :initial overwrite? :overwrite :as options}]
   (if initial?
     (fill-dom env term (r/initial-spec term) options)
     (add-type-to-dom env term (ALREADY-NONVAR))))

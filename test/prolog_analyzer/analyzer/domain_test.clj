@@ -373,3 +373,79 @@
                (r/->AtomTerm "a") (r/->VarSpec) (r/->AtomSpec) (r/->AtomSpec)
                (r/->AtomTerm "a") (r/->VarSpec) (r/->VarSpec) (r/->AtomSpec)
                ))
+
+(deftest flags-empty-dom
+  (do-template [term spec options expected-dom]
+               (is (= expected-dom
+                      (dissoc
+                       (-> test-env
+                           (sut/fill-env-for-term-with-spec term spec options)
+                           (utils/get-dom-of-term term))
+                       :origin))
+                   (str (clojure.string/join " " [(r/to-string term) (r/to-string spec) (str options)])))
+
+               (r/->VarTerm "Y") (r/->IntegerSpec) {:initial false :overwrite false} (sut/CANNOT-GROUND)
+               (r/->VarTerm "Y") (r/->IntegerSpec) {:initial false :overwrite true} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
+
+               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite false} (r/->VarSpec)
+               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite true} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
+               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite false} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
+               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite true} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
+
+
+               (r/->IntegerTerm 1) (r/->VarSpec) {:initial false :overwrite false} (sut/ALREADY-NONVAR)
+               (r/->IntegerTerm 1) (r/->VarSpec) {:initial false :overwrite true} (sut/ALREADY-NONVAR)
+               (r/->IntegerTerm 1) (r/->VarSpec) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->VarSpec) {:initial true :overwrite true} (r/->IntegerSpec)
+
+               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite false} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite true} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite true} (r/->IntegerSpec)
+
+
+               ))
+
+(let [term (r/->VarTerm "Y")
+      spec (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
+      options {:initial true :overwrite false}]
+  (-> test-env
+      (sut/fill-env-for-term-with-spec term spec options)
+      (utils/get-dom-of-term term)))
+
+(deftest flags-non-empty-dom
+  (do-template [term spec1 spec2 options expected-dom]
+               (is (= expected-dom
+                      (dissoc
+                       (-> test-env
+                           (sut/add-type-to-dom term spec1)
+                           (sut/fill-env-for-term-with-spec term spec2 options)
+                           (utils/get-dom-of-term term))
+                       :origin))
+                   (str (clojure.string/join " " [(r/to-string term) (r/to-string spec1) (r/to-string spec2) (str options)])))
+
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial false :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial false :overwrite true} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
+
+
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite false} (sut/CANNOT-GROUND)
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite true} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
+
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite false} (r/->VarSpec)
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite true} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite false} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite true} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
+
+               (r/->IntegerTerm "1") (r/->GroundSpec) (r/->VarSpec) {:initial false :overwrite false} (sut/ALREADY-NONVAR)
+               (r/->IntegerTerm "1") (r/->GroundSpec) (r/->VarSpec) {:initial false :overwrite true} (sut/ALREADY-NONVAR)
+               (r/->IntegerTerm "1") (r/->GroundSpec) (r/->VarSpec) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->IntegerTerm "1") (r/->GroundSpec) (r/->VarSpec) {:initial true :overwrite true} (r/->IntegerSpec)
+
+
+               ))
