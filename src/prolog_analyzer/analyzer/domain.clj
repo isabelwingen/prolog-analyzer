@@ -33,7 +33,10 @@
                                     (update :dom #(reduce (fn [spec1 spec2] (r/intersect spec1 spec2 (utils/get-user-defined-specs env) overwrite?)) %))
                                     ))
        (uber/add-nodes-with-attrs env [term {:dom (reduce #(r/intersect %1 %2 (utils/get-user-defined-specs env) overwrite?) types-to-be-added) :history types-to-be-added}]))))
-  ([env term type] (add-type-to-dom env term type {:overwrite false})))
+  ([env term type]
+   (if (r/error-spec? type)
+     (add-type-to-dom env term type {:overwrite true})
+     (add-type-to-dom env term type {:overwrite false}))))
 
 (defn mark-as-was-var [env term]
   (let [attrs (uber/attrs env term)]
@@ -161,7 +164,7 @@
 
 
 (defmethod fill-dom [:var :error] [env term spec options]
-  (add-type-to-dom env term spec (assoc options :overwrite true)))
+  (add-type-to-dom env term spec))
 
 (defmethod fill-dom [:nonvar :any] [env term spec options]
   (if (nil? (utils/get-dom-of-term env term))
