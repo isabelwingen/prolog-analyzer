@@ -72,7 +72,7 @@
         goal-specs-as-tuples (goal-specs->tuples goal-specs)
         ]
     (if (and (> arity 0) goal-specs)
-      (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec goal-specs-as-tuples) :goal))
+      (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec (:specs data) goal-specs-as-tuples) :goal))
       env)))
 
 (defn condition-fullfilled? [env {arglist :arglist :as tuple-term} [condition _]]

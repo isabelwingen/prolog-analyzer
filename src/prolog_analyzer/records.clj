@@ -34,6 +34,7 @@
 (declare term-type)
 (declare simplify-or)
 (declare resolve-definition-with-parameters)
+(declare supertype?)
 
 (defn mark-spec [spec origin]
   (assoc spec :origin origin))
@@ -374,9 +375,16 @@
       p)))
 
 
-(defn simplify-or [spec]
+(defn- add-to-one-of [defs so-far e]
+  (let [one-direction (apply vector (distinct (remove (partial supertype? defs e) so-far)))]
+    (if (every? #(not (supertype? defs % e)) one-direction)
+      (apply vector (distinct (conj one-direction e)))
+      one-direction)))
+
+(defn simplify-or [spec defs]
   (let [simplified-or (-> spec
                           (update :arglist distinct)
+                          (update :arglist #(reduce (partial add-to-one-of defs) [(first %)] (rest %)))
                           (update :arglist (partial apply vector)))]
     (case (count (:arglist simplified-or))
       0 DISJOINT
@@ -405,7 +413,7 @@
                   (update :arglist (partial map #(->AndSpec (conj arglist %))))
                   (update :arglist (partial map #(simplify-and % defs overwrite?)))
                   (update :arglist (partial remove error-spec?))
-                  simplify-or
+                  (simplify-or defs)
                   replace-error-spec-with-intersect-error)
            ERROR other-spec
            (-> spec
@@ -436,19 +444,19 @@
                    (remove error-spec?)
                    (apply vector)
                    ->OneOfSpec
-                   simplify-or
+                   (#(simplify-or % defs))
                    replace-error-spec-with-intersect-error)
            AND (-> spec
                    (update :arglist (partial map #(->AndSpec (conj (.arglist other-spec) %))))
                    (update :arglist (partial map #(simplify-and % defs overwrite?)))
                    (update :arglist (partial remove error-spec?))
-                   simplify-or
+                   (simplify-or defs)
                    replace-error-spec-with-intersect-error)
            ERROR other-spec
            (-> spec
                (update :arglist (partial map #(intersect other-spec % defs overwrite?)))
                (update :arglist (partial remove error-spec?))
-               simplify-or
+               (simplify-or defs)
                replace-error-spec-with-intersect-error
                )))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
@@ -574,7 +582,7 @@
   (initial-spec [term] (if (empty-list? tail)
                          (->ListSpec (initial-spec head))
                          (if (contains? tail :head)
-                           (->ListSpec (simplify-or (->OneOfSpec [(initial-spec head) (:type (initial-spec tail))])))
+                           (->ListSpec (simplify-or (->OneOfSpec [(initial-spec head) (:type (initial-spec tail))]) nil))
                            (->ListSpec (->AnySpec)))))
   printable
   (to-string [x]
@@ -667,11 +675,11 @@
 
 (defn to-or-spec
   "Transforms a bunch of `specs` to a one-of spec."
-  [& specs]
+  [defs & specs]
   (case (count specs)
     0 (->ErrorSpec "Cannot build empty one-of")
     1 (first specs)
-    (simplify-or (->OneOfSpec specs))))
+    (simplify-or (->OneOfSpec specs) defs)))
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
@@ -730,3 +738,7 @@
           definition (get-definition-of-alias defs alias)
           replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))]
       (reduce-kv replace-specvars-with-spec definition replace-map))))
+
+
+(defn supertype? [defs parent child]
+  (= child (intersect parent child defs)))

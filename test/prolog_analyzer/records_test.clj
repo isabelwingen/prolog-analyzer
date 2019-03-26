@@ -62,7 +62,7 @@
     (sut/->TupleSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) [(sut/->IntegerSpec) (sut/->AtomSpec)]))
 
 (deftest to-or-spec-test
-  (are [x y] (= x (apply sut/to-or-spec y))
+  (are [x y] (= x (apply sut/to-or-spec nil y))
     (sut/->ErrorSpec "Cannot build empty one-of") []
     (sut/->IntegerSpec) [(sut/->IntegerSpec)]
     (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) [(sut/->IntegerSpec) (sut/->AtomSpec)]))

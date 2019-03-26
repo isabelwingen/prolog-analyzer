@@ -408,13 +408,6 @@
 
                ))
 
-(let [term (r/->VarTerm "Y")
-      spec (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
-      options {:initial true :overwrite false}]
-  (-> test-env
-      (sut/fill-env-for-term-with-spec term spec options)
-      (utils/get-dom-of-term term)))
-
 (deftest flags-non-empty-dom
   (do-template [term spec1 spec2 options expected-dom]
                (is (= expected-dom
@@ -441,6 +434,13 @@
                (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite true} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
                (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite false} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
                (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite true} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
+
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite true} (r/->GroundSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite true} (r/->GroundSpec)
+
+
 
                (r/->IntegerTerm "1") (r/->GroundSpec) (r/->VarSpec) {:initial false :overwrite false} (sut/ALREADY-NONVAR)
                (r/->IntegerTerm "1") (r/->GroundSpec) (r/->VarSpec) {:initial false :overwrite true} (sut/ALREADY-NONVAR)
