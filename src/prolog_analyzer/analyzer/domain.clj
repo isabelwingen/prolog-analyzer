@@ -161,7 +161,7 @@
 
 (defmethod fill-dom [:var :var] [env term spec {initial? :initial :as options}]
   (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
-    (add-type-to-dom env term spec)
+    (add-type-to-dom env term spec options)
     (if initial?
       env
       (add-type-to-dom env term (ALREADY-NONVAR)))))
@@ -192,7 +192,7 @@
             )))))
 
 (defmethod fill-dom [:var :default] [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [intersection (r/intersect (r/->VarSpec) spec (get-defs-from-env env))]
+  (let [intersection (r/intersect (r/->VarSpec) spec (get-defs-from-env env) overwrite?)]
     (if initial?
       (-> env
           (remove-vars-from-dom term)
@@ -221,7 +221,7 @@
 
 (defmethod fill-dom [:nonvar :any] [env term spec options]
   (if (nil? (utils/get-dom-of-term env term))
-    (add-type-to-dom env term (r/initial-spec term))
+    (add-type-to-dom env term (r/initial-spec term) options)
     env))
 
 (defmethod fill-dom [:nonvar :userdefined] [env term spec options]
@@ -240,21 +240,20 @@
     (fill-dom env term (r/initial-spec term) options)
     (add-type-to-dom env term (ALREADY-NONVAR))))
 
-(defmethod fill-dom [:nonvar :compound-or-list] [env term spec options]
-  (let [suitable-spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env))
-        next-steps (r/next-steps spec term (utils/get-user-defined-specs env))]
+(defmethod fill-dom [:nonvar :compound-or-list] [env term spec {overwrite? :overwrite :as options}]
+  (let [suitable-spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env) overwrite?)]
     (if (r/error-spec? suitable-spec)
       (add-type-to-dom env term (WRONG-TYPE term spec))
       (-> env
           (add-type-to-dom term suitable-spec options)
           (fill-dom-of-next-steps term spec options)))))
 
-(defmethod fill-dom [:nonvar :default] [env term spec options]
-  (let [suitable-spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env))]
+(defmethod fill-dom [:nonvar :default] [env term spec {overwrite? :overwrite :as options}]
+  (let [suitable-spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env) overwrite?)]
     (if (or (r/error-spec? suitable-spec) (not (check-if-valid term spec)))
       (add-type-to-dom env term (WRONG-TYPE term spec))
       (-> env
-          (add-type-to-dom term suitable-spec)
+          (add-type-to-dom term suitable-spec options)
           (fill-dom-of-next-steps term spec options)))))
 
 
