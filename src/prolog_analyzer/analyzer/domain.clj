@@ -1,6 +1,7 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
             [prolog-analyzer.records :as r :refer [intersect]]
+            [prolog-analyzer.analyzer.pretty-printer :as pp]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [loom.graph]
@@ -91,7 +92,6 @@
 
 
 
-
 (defmulti fill-dom (fn [env term spec options] [(if (= r/VAR (r/term-type term)) :var :nonvar) (case+ (r/spec-type spec)
                                                                                                      r/ANY :any
                                                                                                      r/USERDEFINED :userdefined
@@ -103,9 +103,36 @@
                                                                                                      r/ERROR :error
                                                                                                      :default)]))
 
+(def ART_PREFIX "A__")
+
+(defn- art-term? [{n :name}]
+  (.startsWith (str n) ART_PREFIX))
+
+(defn- get-artificial-term [env term]
+  (let [artificial-term (some->> term
+                                 (uber/out-edges env)
+                                 (filter #(= :artificial (uber/attr env % :relation)))
+                                 first
+                                 uber/dest)]
+    artificial-term))
+
+(defn- add-to-artifical-term [env term {type :type functor :functor arglist :arglist :as spec} options]
+  (if (art-term? term)
+    env
+    (if (get-artificial-term env term)
+      (fill-dom env (get-artificial-term env term) spec options)
+      (let [artificial-term (case+ (r/spec-type spec)
+                                   r/LIST (r/->ListTerm (r/->VarTerm (str (gensym ART_PREFIX))) (r/->VarTerm (str (gensym ART_PREFIX))))
+                                   r/COMPOUND (r/->CompoundTerm functor (repeatedly (count arglist) (fn [] (r/->VarTerm (str (gensym ART_PREFIX))))))
+                                   r/TUPLE (apply r/to-head-tail-list (repeatedly (count arglist) (fn [] (r/->VarTerm (str (gensym ART_PREFIX))))))
+                                   )]
+        (-> env
+            (fill-dom artificial-term spec options)
+            (uber/add-edges [term artificial-term {:relation :artificial}]))))))
+
+
 (defn- fill-dom-of-next-steps [env term spec options]
   (reduce (fn [e [t s]] (fill-dom e t s options)) env (partition 2 (r/next-steps spec term (utils/get-user-defined-specs env)))))
-
 
 
 (defmethod fill-dom [:var :any] [env term spec options]
@@ -133,16 +160,19 @@
     (-> env
         (remove-vars-from-dom term)
         (add-type-to-dom term spec options)
-        (fill-dom-of-next-steps term spec options))
+        (fill-dom-of-next-steps term spec options)
+        (add-to-artifical-term term spec options))
     (if overwrite?
       (-> env
           (add-type-to-dom term spec options)
-          (fill-dom-of-next-steps term spec options))
+          (fill-dom-of-next-steps term spec options)
+          (add-to-artifical-term term spec options))
       (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
         (add-type-to-dom env term (CANNOT-GROUND))
         (-> env
             (add-type-to-dom term spec options)
-            (fill-dom-of-next-steps term spec options))))))
+            (fill-dom-of-next-steps term spec options)
+            (add-to-artifical-term term spec options))))))
 
 (defmethod fill-dom [:var :default] [env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [intersection (r/intersect (r/->VarSpec) spec (get-defs-from-env env))]
