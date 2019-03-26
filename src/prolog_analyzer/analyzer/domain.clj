@@ -99,6 +99,7 @@
                                                                                                      r/VAR :var
                                                                                                      r/LIST :compound-or-list
                                                                                                      r/COMPOUND :compound-or-list
+                                                                                                     r/TUPLE :compound-or-list
                                                                                                      r/ERROR :error
                                                                                                      :default)]))
 
@@ -193,7 +194,7 @@
     (if (r/error-spec? suitable-spec)
       (add-type-to-dom env term (WRONG-TYPE term spec))
       (-> env
-          (add-type-to-dom term suitable-spec)
+          (add-type-to-dom term suitable-spec options)
           (fill-dom-of-next-steps term spec options)))))
 
 (defmethod fill-dom [:nonvar :default] [env term spec options]
