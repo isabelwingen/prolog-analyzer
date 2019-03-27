@@ -608,21 +608,25 @@
   (to-string [x] (str "ERROR: " term)))
 
 (defn map-to-term [input-m]
-  (let [m (dissoc input-m :type)]
-    (case (:type input-m)
-      :anon_var (map->AnonVarTerm m)
-      :var (map->VarTerm m)
-      :atom (map->AtomTerm m)
-      :number (map->NumberTerm m)
-      :integer (map->IntegerTerm m)
-      :float (map->FloatTerm m)
-      :list (map->ListTerm (-> m
-                               (update :head map-to-term)
-                               (update :tail map-to-term)))
-      :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
-      :empty-list (->EmptyListTerm)
-      :should-not-happen (map->ShouldNotHappenTerm m)
-      (log/error "No case for" m "in map-to-term"))))
+  (if (not (map? input-m))
+    (log/error (str input-m) " is " (type input-m))
+    (let [m (dissoc input-m :type)]
+      (case (:type input-m)
+        :anon_var (map->AnonVarTerm m)
+        :var (map->VarTerm m)
+        :atom (map->AtomTerm m)
+        :number (map->NumberTerm m)
+        :integer (map->IntegerTerm m)
+        :float (map->FloatTerm m)
+        :list (map->ListTerm (-> m
+                                 (update :head map-to-term)
+                                 (update :tail map-to-term)))
+        :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
+        :empty-list (->EmptyListTerm)
+        :should-not-happen (map->ShouldNotHappenTerm m)
+        (do
+          (log/error "No case for" m "in map-to-term")
+          (->AtomTerm "ERROR"))))))
 
 (defn map-to-spec [m]
   (case (:spec m)
@@ -644,7 +648,7 @@
     :user-defined (map->UserDefinedSpec (update m :arglist (partial map map-to-spec)))
     :error-spec (map->ErrorSpec m)
     :emptylist (->EmptyListSpec)
-    (log/error "No case for" m "in map-to-term")))
+    (log/error "No case for" m "in map-to-spec")))
 
 
 (defn make-spec:user-defined

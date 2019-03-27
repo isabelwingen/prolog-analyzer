@@ -169,7 +169,8 @@
   (-> file-name
       read-prolog-code-as-raw-edn
       format-and-clean-up
-      pre-processor/pre-process))
+      pre-processor/pre-process
+      ))
 
 (def preamble
   ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")

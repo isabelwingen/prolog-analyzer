@@ -66,8 +66,17 @@
 (defn- transform-arglist [args]
   (apply vector (map r/map-to-term args)))
 
+(declare transform-body)
+
+(defn- transform-body-elements [{goal-name :goal arglist :arglist :as goal}]
+  (case goal-name
+    (:or, :if) (-> goal
+                   (update :arglist (partial map transform-body))
+                   (assoc :module :built-in))
+    (update goal :arglist transform-arglist)))
+
 (defn- transform-body [body]
-  (map #(update % :arglist transform-arglist) body))
+  (map transform-body-elements body))
 
 
 (defn transform-args-to-term-records [data]
