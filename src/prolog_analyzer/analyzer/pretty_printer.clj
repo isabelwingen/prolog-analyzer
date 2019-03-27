@@ -107,5 +107,5 @@
         (if (empty? error-terms)
           (println "No errors found")
           (doseq [t error-terms]
-            (println (r/to-string (utils/get-dom-of-term graph t))))))
+            (print-in-columns [20] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t))))))
       (println))))
