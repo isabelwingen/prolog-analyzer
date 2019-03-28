@@ -4,6 +4,8 @@
             [clojure.tools.namespace.repl :refer [refresh]]
             [clojure.string]))
 
+(def pool (atom {}))
+
 (def INTEGER :integer)
 (def FLOAT :float)
 (def NUMBER :number)
@@ -745,4 +747,6 @@
 
 
 (defn supertype? [defs parent child]
-  (= child (intersect parent child defs)))
+  (if (= OR (spec-type parent))
+    (some #(= child (intersect % child defs)) (:arglist parent))
+    (= child (intersect parent child defs))))

@@ -1,6 +1,7 @@
 (ns prolog-analyzer.analyzer.domain-test
   (:require [prolog-analyzer.analyzer.domain :as sut]
             [prolog-analyzer.utils :as utils]
+            [prolog-analyzer.analyzer.pretty-printer :as pp]
             [prolog-analyzer.records :as r]
             [clojure.test :refer [deftest is are]]
             [clojure.spec.alpha :as s]
@@ -449,3 +450,11 @@
 
 
                ))
+
+(defn- get-artificial-term [env term]
+  (let [artificial-term (some->> term
+                                 (uber/out-edges env)
+                                 (filter #(= :artificial (uber/attr env % :relation)))
+                                 first
+                                 uber/dest)]
+    artificial-term))

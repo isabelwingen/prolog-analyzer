@@ -182,7 +182,11 @@
     res))
 
 (defn process-prolog-files [& file-names]
-  (let [results (for [file-name file-names] (process-prolog-file file-name))]
+  (let [results
+        (for [file-name (filter #(.endsWith % ".pl") file-names)]
+          (try
+            (process-prolog-file file-name)
+            (catch Exception e {})))]
     (->> results
          (map #(dissoc % :error-msg))
          (apply merge-with (partial merge-with merge)))))

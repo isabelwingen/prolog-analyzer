@@ -120,10 +120,11 @@
       ))
 
 (defn analyzing [data {arglist :arglist body :body :as clause} pre-spec]
+  (reset! r/pool {})
   (-> (initial-env data arglist pre-spec)
       (evaluate-body data body)
       (add-relationships)
-      rel/fixpoint-analysis
+    ;  rel/fixpoint-analysis
       ))
 
 (defn complete-analysis [data]
@@ -144,7 +145,7 @@
        ))
 
 (defn example []
-  (->> "resources/tree-example.pl"
+  (->> "resources/abs_int.pl"
        process-prolog-file
        complete-analysis
        my-pp/pretty-print-analysis-result
