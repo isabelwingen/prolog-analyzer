@@ -45,10 +45,8 @@
 
 (defn WRONG-TYPE
   ([]
-   (log/error "Wrong type associated")
    (r/->ErrorSpec "Wrong type associated"))
   ([term spec]
-   (log/error "term" (r/to-string term) "cannot be of type " (r/to-string spec))
    (r/->ErrorSpec (str "Term " (r/to-string term) " cannot be of spec " (r/to-string spec)))))
 
 (defn ALREADY-NONVAR []
