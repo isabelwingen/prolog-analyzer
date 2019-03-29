@@ -10,6 +10,10 @@
             [clojure.test :refer [deftest are is]]
             [clojure.template :refer [do-template]]))
 
+(def expr (sut/->UserDefinedSpec "expr"))
+(def op (sut/->UserDefinedSpec "op"))
+(def cst (sut/->UserDefinedSpec "cst"))
+
 (def test-defs
   {(sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")])
    (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")]) (sut/->SpecvarSpec "X") (sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")])]) (sut/->ExactSpec "empty")])
@@ -22,6 +26,14 @@
 
    (sut/make-spec:user-defined "a")
    (sut/->OneOfSpec [(sut/->TupleSpec [(sut/make-spec:user-defined "a")]) (sut/->ExactSpec "a")])
+
+   expr
+   (sut/->OneOfSpec [cst, (sut/->CompoundSpec "expr" [op, expr, expr]), (sut/->CompoundSpec "neg" [expr])])
+
+   op (sut/->ExactSpec "+")
+   cst (sut/->CompoundSpec "cst" [(sut/->IntegerSpec)])
+
+
    })
 
 (def user-def-tree-int (sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)]))
@@ -252,7 +264,7 @@
                (sut/->GroundSpec) (sut/->NonvarSpec) (sut/->GroundSpec)
                (sut/->GroundSpec) (sut/->AnySpec) (sut/->GroundSpec)
                (sut/->GroundSpec) (sut/->VarSpec) sut/DISJOINT
-               (sut/->GroundSpec) (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+               (sut/->GroundSpec) (sut/make-spec:user-defined "atomOrInt") (sut/make-spec:user-defined "atomOrInt") ;;TODO: okay?
 
                (sut/->NonvarSpec) (sut/->GroundSpec) (sut/->GroundSpec)
                (sut/->NonvarSpec) (sut/->NonvarSpec) (sut/->NonvarSpec)
@@ -303,7 +315,7 @@
                (sut/make-spec:user-defined "blob") (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
                (sut/make-spec:user-defined "blob") (sut/->EmptyListSpec) sut/DISJOINT
                (sut/make-spec:user-defined "blob") (sut/->TupleSpec [(sut/make-spec:user-defined "blob")]) sut/DISJOINT
-               (sut/make-spec:user-defined "blob") (sut/->GroundSpec) (sut/->ExactSpec "blob")
+               (sut/make-spec:user-defined "blob") (sut/->GroundSpec) (sut/->UserDefinedSpec "blob") ;;TODO: make consistent with Nonvar
                (sut/make-spec:user-defined "blob") (sut/->NonvarSpec) (sut/->ExactSpec "blob")
                (sut/make-spec:user-defined "blob") (sut/->AnySpec) (sut/make-spec:user-defined "blob") ;;TODO: clarify behaviour
                (sut/make-spec:user-defined "blob") (sut/->VarSpec) sut/DISJOINT
@@ -318,7 +330,7 @@
                (sut/make-spec:user-defined "atomOrInt") (sut/->ListSpec (sut/->AtomicSpec)) sut/DISJOINT
                (sut/make-spec:user-defined "atomOrInt") (sut/->EmptyListSpec) sut/DISJOINT
                (sut/make-spec:user-defined "atomOrInt") (sut/->TupleSpec [(sut/make-spec:user-defined "atomOrInt")]) sut/DISJOINT
-               (sut/make-spec:user-defined "atomOrInt") (sut/->GroundSpec) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+               (sut/make-spec:user-defined "atomOrInt") (sut/->GroundSpec) (sut/make-spec:user-defined "atomOrInt")
                (sut/make-spec:user-defined "atomOrInt") (sut/->NonvarSpec) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
                (sut/make-spec:user-defined "atomOrInt") (sut/->AnySpec) (sut/make-spec:user-defined "atomOrInt") ;;TODO: clarify behaviour
                (sut/make-spec:user-defined "atomOrInt") (sut/->VarSpec) sut/DISJOINT
@@ -353,3 +365,9 @@
   (do-template [spec1 spec2 result] (is (= result (sut/intersect spec1 spec2 test-defs)) (clojure.string/join " " (map sut/to-string [spec1 spec2])))
                tree-x tree-x tree-x
                (sut/make-spec:user-defined "a") (sut/make-spec:user-defined "a") (sut/make-spec:user-defined "a")))
+
+(deftest intersect-ground-with-userdef
+  (do-template [in out] (do (is (= out (sut/intersect (sut/->GroundSpec) in test-defs)))
+                            (is (= out (sut/intersect in (sut/->GroundSpec) test-defs))))
+               expr expr
+               ))

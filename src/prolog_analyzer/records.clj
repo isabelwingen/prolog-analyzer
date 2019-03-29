@@ -97,7 +97,8 @@
   (or (nil? spec)
       (= ERROR (spec-type spec))
       (if (contains? spec :type) (error-spec? (.type spec)))
-      (if (contains? spec :arglist) (some error-spec? (:arglist spec)))))
+      (if (contains? spec :arglist) (some error-spec? (:arglist spec)))
+      ))
 
 (defn replace-error-spec-with-intersect-error [spec]
   (if (error-spec? spec)
@@ -347,6 +348,38 @@
   printable
   (to-string [x] (str functor "(" (to-arglist arglist) ")")))
 
+(declare ->GroundSpec)
+
+
+(defn contains-vars?
+  [spec defs already-resolved]
+  (let [new-resolved (conj already-resolved spec)]
+    (if (= USERDEFINED (spec-type spec))
+      (if (contains? already-resolved spec)
+        false
+        (->> (resolve-definition-with-parameters spec defs)
+             :arglist
+             (remove #(contains? already-resolved %))
+             (remove #(= spec %))
+             (some #(contains-vars? % defs new-resolved))))
+      (or (= VAR (spec-type spec))
+          (some #(contains-vars? % defs new-resolved) (:arglist spec))))))
+
+(defn helper:userdef->ground [spec defs overwrite? alread-done]
+  (let [resolved (if (= USERDEFINED (spec-type spec))
+                   (resolve-definition-with-parameters spec defs)
+                   spec)]
+    (if (contains-vars? spec defs #{})
+      (if (nil? (:arglist resolved))
+        (intersect (->GroundSpec) resolved defs overwrite?)
+        (update spec :arglist (partial reduce (fn [done new] (conj done (helper:userdef->ground new defs overwrite? (set (conj done new))))) [])))
+      spec)))
+
+
+
+(defn userdef->ground [spec defs overwrite?]
+  (helper:userdef->ground spec defs overwrite? #{}))
+
 (defrecord GroundSpec []
   spec
   (spec-type [spec] GROUND)
@@ -358,7 +391,7 @@
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
      (ANY, NONVAR, GROUND) spec
-     USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+     USERDEFINED (userdef->ground other-spec defs overwrite?)
      VAR (if overwrite? spec DISJOINT)
      ERROR other-spec
      (intersect other-spec spec defs overwrite?)))
@@ -465,6 +498,7 @@
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
+
 (defn- intersect-userdef-with-userdef [userdef1 userdef2 defs overwrite?]
   (if (and (= (:name userdef1) (:name userdef2))
            (= (count (:arglist userdef1)) (count (:arglist userdef2))))
@@ -484,6 +518,7 @@
     (case+ (spec-type other-spec)
            ANY spec
            USERDEFINED (intersect-userdef-with-userdef spec other-spec defs overwrite?)
+           GROUND (intersect other-spec spec defs overwrite?)
            (AND, OR) (intersect other-spec (resolve-definition-with-parameters spec defs) defs overwrite?)
            VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
