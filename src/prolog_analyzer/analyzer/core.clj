@@ -27,8 +27,8 @@
      (vector (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) pre-spec))))
   ([pre-spec & pre-specs] (reduce #(concat %1 (replace-specvars-with-uuid %2)) [] (cons pre-spec pre-specs))))
 
-(defmulti add-relationships-aux (comp type second))
-(defmethod add-relationships-aux prolog_analyzer.records.ListTerm [[env {head :head tail :tail :as term}]]
+(defmulti add-relationships-aux (fn [env term] (type r/term-type)))
+(defmethod add-relationships-aux :list [env {head :head tail :tail :as term}]
   (if (r/empty-list? tail)
     (-> env
         (dom/fill-env-for-term-with-spec head (r/mark-spec (r/->AnySpec) :relationship))
@@ -38,18 +38,18 @@
         (dom/fill-env-for-term-with-spec tail (r/mark-spec (r/->ListSpec (r/->AnySpec)) :relationship))
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
-(defmethod add-relationships-aux prolog_analyzer.records.CompoundTerm [[env {functor :functor arglist :arglist :as term}]]
+(defmethod add-relationships-aux :compound [env {functor :functor arglist :arglist :as term}]
   (apply
    uber/add-edges
    (dom/multiple-fills env arglist (repeat (count arglist) (r/mark-spec (r/->AnySpec) :relationship)))
    (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) arglist)))
 
 
-(defmethod add-relationships-aux :default [[env _]]
+(defmethod add-relationships-aux :default [env _]
   env)
 
 (defn add-relationships [env]
-  (reduce #(add-relationships-aux [%1 %2]) env (utils/get-terms env)))
+  (reduce #(add-relationships-aux %1 %2) env (utils/get-terms env)))
 
 (defn- get-pre-specs [goal-id data]
   (some->> data
