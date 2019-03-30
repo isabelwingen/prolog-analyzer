@@ -11,6 +11,7 @@
 (def NUMBER :number)
 (def EXACT :exact)
 (def ATOM :atom)
+(def STRING :string)
 (def ATOMIC :atomic)
 (def COMPOUND :compound)
 (def LIST :list)
@@ -142,6 +143,22 @@
   printable
   (to-string [x] "EmptyList"))
 
+(defrecord StringSpec []
+  spec
+  (spec-type [spec] STRING)
+  (next-steps [spec term defs] [])
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
+    (case+ (spec-type other-spec)
+           (STRING, ATOMIC, GROUND, NONVAR, ANY) spec
+           (AND, OR) (intersect other-spec spec defs overwrite?)
+           USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           ERROR other-spec
+           VAR (if overwrite? spec DISJOINT)
+           DISJOINT))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
+  printable
+  (to-string [x] "String"))
 
 (defrecord AtomSpec []
   spec
@@ -584,6 +601,14 @@
   printable
   (to-string [x] (str term)))
 
+(defrecord StringTerm [term]
+  term
+  (term-type [term] STRING)
+  (initial-spec [term] (->StringSpec))
+  printable
+  (to-string [x] (str "\"" term "\"")))
+
+
 (defrecord EmptyListTerm []
   term
   (term-type [term] EMPTYLIST)
@@ -660,9 +685,10 @@
                                  (update :tail map-to-term)))
         :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
         :empty-list (->EmptyListTerm)
+        :string (map->StringTerm m)
         :should-not-happen (map->ShouldNotHappenTerm m)
         (do
-          (log/error "No case for" m "in map-to-term")
+          (log/error "No case for" input-m "in map-to-term")
           (->AtomTerm "ERROR"))))))
 
 (defn map-to-spec [m]
@@ -677,6 +703,7 @@
     :number (map->NumberSpec m)
     :integer (map->IntegerSpec m)
     :float (map->FloatSpec m)
+    :string (->StringSpec)
     :list (map->ListSpec (update m :type map-to-spec))
     :tuple (map->TupleSpec (update m :arglist (partial map map-to-spec)))
     :compound (map->CompoundSpec (update m :arglist (partial map map-to-spec)))
@@ -685,7 +712,9 @@
     :user-defined (map->UserDefinedSpec (update m :arglist (partial map map-to-spec)))
     :error-spec (map->ErrorSpec m)
     :emptylist (->EmptyListSpec)
-    (log/error "No case for" m "in map-to-spec")))
+    (do
+      (log/error "No case for" m "in map-to-spec")
+      (->AnySpec))))
 
 
 (defn make-spec:user-defined

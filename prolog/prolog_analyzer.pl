@@ -51,6 +51,7 @@ spec(specvar(X)) :- compound(X), \+ ground(X), spec(X).
 % Definition of spec predicates
 spec(atomic).
 spec(atom).
+spec(string).
 spec(atom(X)) :- atom(X).
 spec(integer).
 spec(number).
@@ -310,7 +311,11 @@ arg_to_map(var,Term,Map) :-
     multi_string_concat(["{:name \"", Name, "\" :type :", Type, "}"],Map).
 
 
-arg_to_map(string,_,"{:type :string}") :- !.
+arg_to_map(string,Term,M) :-
+    !,
+    term_string(Term,S),
+    string_concat("{:type :string :term ", S, R1),
+    string_concat(R1,"}",M).
 
 arg_to_map(Type,Term,Map) :-
     (Type = integer; Type = number; Type = float),
@@ -331,7 +336,7 @@ arg_to_map(atomic,[],"{:type :empty-list}") :- !.
 arg_to_map(error,Term,Map) :-
     term_string(Term, String),
     multi_string_concat(["{:type :should-not-happen :term ",String, "}"], Map).
-    
+
 
 split(Module:Term,Name,Arity,Arglist,Module) :-
     !,

@@ -65,6 +65,7 @@
     "any" (r/->AnySpec)
     "ground" (r/->GroundSpec)
     "var" (r/->VarSpec)
+    "string" (r/->StringSpec)
     "nonvar" (r/->NonvarSpec)
     "number" (r/->NumberSpec)
     "float" (r/->FloatSpec)
