@@ -124,7 +124,7 @@
   (-> (initial-env data arglist pre-spec)
       (evaluate-body data body)
       (add-relationships)
-    ;  rel/fixpoint-analysis
+      rel/fixpoint-analysis
       ))
 
 (defn complete-analysis [data]
