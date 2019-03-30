@@ -74,8 +74,11 @@
       (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec (:specs data) goal-specs-as-tuples) :goal))
       env)))
 
-(defn condition-fullfilled? [env {arglist :arglist :as tuple-term} [condition _]]
-  (every? true? (map #(dom/spec-valid? env %1 %2) arglist condition)))
+(defn condition-fullfilled? [env {head :head tail :tail :as head-tail-list} [conditions p]]
+  (if (and (r/empty-list? head-tail-list) (empty? conditions))
+    true
+    (and (dom/spec-valid? env head (first conditions))
+         (condition-fullfilled? env tail [(rest conditions) p]))))
 
 
 (defn apply-valid-post-spec [env {arglist :arglist :as tuple-term} [condition promise :as post-spec]]

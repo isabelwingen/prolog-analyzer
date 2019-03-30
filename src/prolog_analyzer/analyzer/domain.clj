@@ -272,10 +272,38 @@
   ([env terms specs]
    (multiple-fills env terms specs {:initial false})))
 
-(defn spec-valid? [env term spec]
-  (let [dom (utils/get-dom-of-term env term)]
-    (if (nil? dom)
-      (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))
-      (if (contains? #{r/OR, r/ERROR} (r/spec-type dom))
-        false
-        (not (r/error-spec? (r/intersect spec dom (get-defs-from-env env))))))))
+
+(defmulti spec-valid? (fn [env term spec] (case+ (r/term-type term)
+                                                (r/LIST r/EMPTYLIST) :list
+                                                r/COMPOUND :compound
+                                                :other)))
+
+(defmethod spec-valid? :compound [env {functor-term :functor :as term} {functor-spec :functor :as spec}]
+  (if-let [dom (utils/get-dom-of-term env term)]
+    (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
+      false
+      (and
+       (= functor-term functor-spec)
+       (not (r/error-spec? (r/intersect spec dom (get-defs-from-env env))))
+       (every? (partial apply spec-valid? env) (partition 2 (r/next-steps spec term (get-defs-from-env env))))))
+    (and
+     (= functor-term functor-spec)
+     (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))))) ;;TODO: if dom is nil, is the result false?
+
+
+
+(defmethod spec-valid? :list [env term spec]
+  (if-let [dom (utils/get-dom-of-term env term)]
+    (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
+      false
+      (and
+       (not (r/error-spec? (r/intersect spec dom (get-defs-from-env env))))
+       (every? (partial apply spec-valid? env) (partition 2 (r/next-steps spec term (get-defs-from-env env))))))
+    (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env)))))) ;;TODO: if dom is nil, is the result false?
+
+(defmethod spec-valid? :other [env term spec]
+  (if-let [dom (utils/get-dom-of-term env term)]
+    (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
+      false
+      (not (r/error-spec? (r/intersect spec dom (get-defs-from-env env)))))
+    (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))))
