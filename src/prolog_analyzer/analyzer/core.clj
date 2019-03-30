@@ -15,7 +15,6 @@
    [clojure.tools.logging :as log]
    [clojure.tools.namespace.repl :refer [refresh]]
    ))
-
 (defn replace-specvars-with-uuid
   ([pre-spec]
    (let [specvars (->> pre-spec
@@ -145,7 +144,7 @@
        ))
 
 (defn example []
-  (->> "resources/abs_int.pl"
+  (-> "resources/abs_int.pl"
        process-prolog-file
        complete-analysis
        my-pp/pretty-print-analysis-result
@@ -157,3 +156,9 @@
        complete-analysis
        my-pp/pretty-print-analysis-result
        ))
+
+(defn execute [file]
+  (-> file
+      process-prolog-file
+      complete-analysis
+      my-pp/pretty-print-analysis-result))
