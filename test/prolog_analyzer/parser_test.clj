@@ -267,39 +267,6 @@
     ))
 
 
-(deftest process-files:spec_def
-    (let [result (sut/process-prolog-file "resources/spec-test.pl")]
-      (is (= {(r/make-spec:user-defined "foo") (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->IntegerSpec)])
-              (r/make-spec:user-defined "intOrVar") (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
-              (r/make-spec:user-defined "a") (r/->AndSpec [(r/->IntegerSpec) (r/->AtomSpec)])
-              (r/make-spec:user-defined "b") (r/->TupleSpec [(r/->IntegerSpec) (r/->VarSpec)])
-              (r/make-spec:user-defined "c") (r/->ExactSpec "empty")
-              (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")]) (r/->OneOfSpec
-                                                                             [(r/->CompoundSpec
-                                                                               "node"
-                                                                               [(r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])
-                                                                                (r/->SpecvarSpec "X")
-                                                                                (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])])
-                                                                              (r/->ExactSpec "empty")])}
-             (:specs result)))
-      (is
-       (= {"spec_test" {"member_int"
-                        {2 [[(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]
-                            [(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))]]}
-                        "foo"
-                        {3 [[(r/make-spec:user-defined "foo") (r/make-spec:user-defined "intOrVar") (r/make-spec:user-defined "intOrVar")]]}}}
-          (:pre-specs result)))
-      (is
-       (= {"spec_test" {"member_int" {2 [[[(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))] [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]]]}
-                        "foo" {3 [[[(r/make-spec:user-defined "foo") (r/make-spec:user-defined "intOrVar") (r/make-spec:user-defined "intOrVar")] [(r/make-spec:user-defined "foo") (r/->IntegerSpec) (r/->IntegerSpec)]]
-                                  [[(r/->NonvarSpec) (r/->IntegerSpec) (r/->IntegerSpec)] [(r/make-spec:user-defined "foo") (r/->IntegerSpec) (r/->IntegerSpec)]]]}}}
-          (:post-specs result)))
-      (is
-       (= {"spec_test" {"member_int" {2 [[(r/->AnySpec) (r/->GroundSpec)]]}}}
-          (:inv-specs result)))
-      )
-    )
-
 
 
 (deftest process-files:preds

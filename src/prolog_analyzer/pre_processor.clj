@@ -1,16 +1,24 @@
 (ns prolog-analyzer.pre-processor
   (:require [prolog-analyzer.utils :as utils]
             [prolog-analyzer.records :as r]
-            [prolog-analyzer.analyzer.built-in-specs :as built-ins]
             [clojure.tools.logging :as log]
             ))
+
+
+(defn- pred->module-map [data]
+  (reduce-kv
+   (fn [m k v]
+     (merge m (apply hash-map (interleave (keys v) (repeat k)))))
+   {}
+   (:preds data)))
+
+(defn- get-module-of-predicate [data pred]
+  (get (pred->module-map data) pred "user"))
 
 ;; Set correct module when the module is set on "self"
 (defn- get-correct-goal-module [source-module goal-name data goal-module]
   (if (= "self" goal-module)
-    (if (contains? (get-in data [:preds source-module]) goal-name)
-      source-module
-      :built-in)
+    (get-module-of-predicate data goal-name)
     goal-module
     ))
 
@@ -36,19 +44,6 @@
         (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (list (repeat arity (r/->AnySpec)))))
         (recur (rest pred-ids) result))
       result)))
-
-(defn- add-built-in-specs [data]
-  (reduce (fn [data {goal-name :goal arity :arity}]
-            (let [specs (built-ins/get-specs-of-built-in-pred goal-name arity)]
-              (-> data
-                  (assoc-in [:pre-specs :built-in goal-name arity] (:pre-specs specs))
-                  (assoc-in [:post-specs :built-in goal-name arity] (:post-specs specs))
-                  (assoc-in [:inv-specs :built-in goal-name arity] (:inv-specs specs))
-                  )))
-          data
-          (->> (utils/get-goals data)
-               (filter #(= :built-in (:module %)))
-               (filter #(> (:arity %) 0)))))
 
 ;;mark self-calling clauses
 (defn- mark-self-calling-clause [[_ pred-name arity _] {body :body :as clause}]
@@ -88,11 +83,20 @@
           data
           (utils/get-clause-identities data)))
 
-(defn pre-process [data]
+(defn pre-process-single [data]
   (-> data
-      set-correct-modules
       add-any-pre-specs
-      add-built-in-specs
       mark-self-calling-clauses
       transform-args-to-term-records
+      set-correct-modules
       ))
+
+
+(defn pre-process-multiple [& data]
+  (->> data
+       (map add-any-pre-specs)
+       (map mark-self-calling-clauses)
+       (map transform-args-to-term-records)
+       (map #(dissoc % :error-msg))
+       (apply merge-with into)
+       set-correct-modules))

@@ -166,15 +166,25 @@
                     :spec_inv :inv-specs
                     :pred :preds})))
 
+(defn add-built-ins [data]
+  (let [built-in (-> "prolog/builtins.pl"
+                     read-prolog-code-as-raw-edn
+                     format-and-clean-up
+                     pre-processor/pre-process-single
+                     (dissoc :error-msg))]
+    (merge-with into data built-in)
+    ))
+
+(def preamble
+  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
+
 (defn process-prolog-file [file-name]
   (-> file-name
       read-prolog-code-as-raw-edn
       format-and-clean-up
-      pre-processor/pre-process
+      pre-processor/pre-process-single
+      add-built-ins
       ))
-
-(def preamble
-  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
 
 (defn process-prolog-snippets [code]
   (spit "prolog/tmp.pl" (str preamble code))
@@ -183,14 +193,12 @@
     res))
 
 (defn process-prolog-files [& file-names]
-  (let [results
-        (for [file-name (filter #(.endsWith % ".pl") file-names)]
-          (try
-            (process-prolog-file file-name)
-            (catch Exception e {})))]
-    (->> results
-         (map #(dissoc % :error-msg))
-         (apply merge-with (partial merge-with merge)))))
+  (->> file-names
+       (filter #(.endsWith % ".pl"))
+       (map read-prolog-code-as-raw-edn)
+       (map format-and-clean-up)
+       (apply pre-processor/pre-process-multiple)
+       add-built-ins))
 
 (defn process-prolog-directory [dir-name]
   (->> dir-name
