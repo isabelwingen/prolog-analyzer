@@ -150,7 +150,8 @@
   (-> "resources/abs_int.pl"
        process-prolog-file
        complete-analysis
-       my-pp/pretty-print-analysis-result
+      ; my-pp/pretty-print-analysis-result
+       (my-pp/short-result "abs_int")
        ))
 
 (defn example2 []
@@ -164,4 +165,6 @@
   (-> file
       process-prolog-file
       complete-analysis
-      my-pp/pretty-print-analysis-result))
+      my-pp/pretty-print-analysis-result
+      ;(my-pp/short-result nil)
+      ))
