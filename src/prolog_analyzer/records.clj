@@ -445,6 +445,7 @@
         (copy-mark spec (->AnySpec))
         simplified-or))))
 
+
 (defrecord AndSpec [arglist]
   spec
   (spec-type [spec] AND)
@@ -480,9 +481,14 @@
   spec
   (spec-type [spec] OR)
   (next-steps [spec term defs overwrite?]
-    (if-let [suitable-spec (intersect spec (initial-spec term) defs overwrite?)]
+    (if-let [{arglist :arglist :as suitable-spec} (intersect spec (initial-spec term) defs overwrite?)]
       (if (= OR (spec-type suitable-spec))
-        []
+        (->> arglist
+             (map #(next-steps % term defs overwrite?))
+             (map (partial apply hash-map))
+             (map (partial reduce-kv (fn [m k v] (update m k #(set (conj % v)))) {}))
+             (apply merge-with into)
+             (reduce-kv (fn [m k v] (conj m k (simplify-or (->OneOfSpec (apply vector v)) defs))) []))
         [term suitable-spec])
       []))
   (next-steps [spec term defs] (next-steps spec term defs false))

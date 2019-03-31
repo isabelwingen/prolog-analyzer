@@ -371,3 +371,19 @@
                             (is (= out (sut/intersect in (sut/->GroundSpec) test-defs))))
                expr expr
                ))
+
+
+(deftest next-steps
+  (do-template [spec term next-steps] (= next-steps (sut/next-steps spec term test-defs))
+               (sut/->OneOfSpec [(sut/->TupleSpec [(sut/->VarSpec) (sut/->ListSpec (sut/->AtomSpec))])
+                                 (sut/->TupleSpec [(sut/->AtomSpec) (sut/->ListSpec (sut/->AtomSpec))])])
+               (sut/to-head-tail-list (sut/->VarTerm "X") (sut/to-head-tail-list (sut/->AtomTerm "a") (sut/->AtomTerm "b")))
+               (vector (sut/to-head-tail-list (sut/to-head-tail-list (sut/->AtomTerm "a") (sut/->AtomTerm "b"))) (sut/->TupleSpec [(sut/->ListSpec (sut/->AtomSpec))])
+                       (sut/->VarTerm "X") (sut/->OneOfSpec [(sut/->VarSpec) (sut/->AtomSpec)]))
+
+               (sut/->ListSpec (sut/->IntegerSpec))
+               (sut/to-head-tail-list (sut/->IntegerTerm 1) (sut/->IntegerTerm 2) (sut/->IntegerTerm 3))
+               (vector (sut/->IntegerTerm 1) (sut/->IntegerSpec)
+                       (sut/to-head-tail-list (sut/->IntegerTerm 2) (sut/->IntegerTerm 3)) (sut/->ListSpec (sut/->IntegerSpec)))
+
+               ))
