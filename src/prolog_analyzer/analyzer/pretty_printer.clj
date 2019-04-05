@@ -82,7 +82,7 @@
 (defn pretty-print-analysis-result [res]
   (doseq [[[clause-id pre-spec] g] res]
     (do
-      (println "#" clause-id ":" (map r/to-string pre-spec))
+      (println "#" clause-id ":" (r/to-string pre-spec))
       (pretty-print-graph g)
       (println "--------------------------------------------------------------------\n"))))
 

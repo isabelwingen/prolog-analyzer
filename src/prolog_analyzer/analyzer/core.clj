@@ -117,12 +117,11 @@
 (defn initial-env [data arglist pre-spec]
   (-> (uber/digraph)
       (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get data :specs)}])
-      (dom/multiple-fills arglist (map #(r/mark-spec % :initial) pre-spec) {:initial true})
+      (dom/fill-env-for-term-with-spec (apply r/to-head-tail-list arglist) pre-spec {:initial true})
       (add-index-to-input-arguments arglist)
       ))
 
 (defn analyzing [data {arglist :arglist body :body :as clause} pre-spec]
-  (reset! r/pool {})
   (-> (initial-env data arglist pre-spec)
       (evaluate-body data body)
       (add-relationships)
@@ -131,13 +130,15 @@
 
 (defn complete-analysis [data]
   (for [pred-id (utils/get-pred-identities data)
-        clause-id (utils/get-clause-identities-of-pred pred-id data)
-        pre-spec (:pre-specs (utils/get-specs-of-pred pred-id data))]
-    (do
+        clause-id (utils/get-clause-identities-of-pred pred-id data)]
+    (let [pre-spec (->> (utils/get-specs-of-pred pred-id data)
+                         :pre-specs
+                         (apply replace-specvars-with-uuid)
+                         (map r/->TupleSpec)
+                         r/->OneOfSpec)]
       (log/debug (str "Clause: " [clause-id pre-spec]))
-      (let [mod-pre-spec (first (replace-specvars-with-uuid pre-spec))]
-        [[clause-id mod-pre-spec] (analyzing data (utils/get-clause clause-id data) mod-pre-spec)]
-        ))))
+      [[clause-id pre-spec] (analyzing data (utils/get-clause clause-id data) pre-spec)]
+      )))
 
 (defn playground []
   (->> "prolog/playground.pl"
@@ -150,7 +151,7 @@
   (-> "resources/abs_int.pl"
        process-prolog-file
        complete-analysis
-      ; my-pp/pretty-print-analysis-result
+       my-pp/pretty-print-analysis-result
        (my-pp/short-result "abs_int")
        ))
 
@@ -166,5 +167,5 @@
       process-prolog-file
       complete-analysis
       my-pp/pretty-print-analysis-result
-      ;(my-pp/short-result nil)
+      (my-pp/short-result nil)
       ))
