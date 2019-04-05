@@ -35,13 +35,22 @@
         (recur (rest clause-keys) (update-in result body-key (partial map (partial set-correct-goal-module source-module data)))))
    )))
 
+(defn- create-pre-spec [pred-id data]
+  (->> data
+       (utils/get-clauses-of-pred pred-id)
+       (map :arglist)
+       (map (partial map r/initial-spec))
+       ))
+
+
+
 ;; If there are no pre-specs for a predicate, add one
 (defn- add-any-pre-specs [data]
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
       (if (nil? (:pre-specs (utils/get-specs-of-pred pred-id data)))
-        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (list (repeat arity (r/->AnySpec)))))
+        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (create-pre-spec pred-id data)))
         (recur (rest pred-ids) result))
       result)))
 
@@ -85,18 +94,18 @@
 
 (defn pre-process-single [data]
   (-> data
-      add-any-pre-specs
       mark-self-calling-clauses
       transform-args-to-term-records
+      add-any-pre-specs
       set-correct-modules
       ))
 
 
 (defn pre-process-multiple [& data]
   (->> data
-       (map add-any-pre-specs)
        (map mark-self-calling-clauses)
        (map transform-args-to-term-records)
+       (map add-any-pre-specs)
        (map #(dissoc % :error-msg))
        (apply merge-with into)
        set-correct-modules))
