@@ -15,16 +15,15 @@
    [clojure.tools.logging :as log]
    [clojure.tools.namespace.repl :refer [refresh]]
    ))
-(defn replace-specvars-with-uuid
-  ([pre-spec]
-   (let [specvars (->> pre-spec
-                       (reduce #(concat %1 (r/find-specvars %2)) [])
-                       distinct
-                       (map :name))
-         ids (repeatedly (count specvars) gensym)
-         uuid-map (apply hash-map (interleave specvars ids))]
-     (vector (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) pre-spec))))
-  ([pre-spec & pre-specs] (reduce #(concat %1 (replace-specvars-with-uuid %2)) [] (cons pre-spec pre-specs))))
+
+(defn replace-specvars-with-uuid [pre-spec]
+  (let [specvars (->> pre-spec
+                      (reduce #(concat %1 (r/find-specvars %2)) [])
+                      distinct
+                      (map :name))
+        ids (repeatedly (count specvars) gensym)
+        uuid-map (apply hash-map (interleave specvars ids))]
+    (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) pre-spec)))
 
 (defmulti add-relationships-aux (fn [env term] (type r/term-type)))
 (defmethod add-relationships-aux :list [env {head :head tail :tail :as term}]
@@ -50,12 +49,6 @@
 (defn add-relationships [env]
   (reduce #(add-relationships-aux %1 %2) env (utils/get-terms env)))
 
-(defn- get-pre-specs [goal-id data]
-  (some->> data
-           (utils/get-specs-of-pred goal-id)
-           (:pre-specs)
-           (apply replace-specvars-with-uuid)))
-
 (defn- goal-args->tuple [arglist]
   (apply r/to-head-tail-list arglist))
 
@@ -66,7 +59,7 @@
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
                             (:pre-specs)
-                            (apply replace-specvars-with-uuid))
+                            (map replace-specvars-with-uuid))
         term (goal-args->tuple arglist)
         goal-specs-as-tuples (goal-specs->tuples goal-specs)
         ]
@@ -90,7 +83,7 @@
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
                             (:post-specs)
-                            (map (partial apply replace-specvars-with-uuid)))
+                            (map (partial map replace-specvars-with-uuid)))
         term (goal-args->tuple arglist)
         ]
     (if (empty? goal-specs)
@@ -131,11 +124,13 @@
 (defn complete-analysis [data]
   (for [pred-id (utils/get-pred-identities data)
         clause-id (utils/get-clause-identities-of-pred pred-id data)]
-    (let [pre-spec (->> (utils/get-specs-of-pred pred-id data)
+    (let [pre-spec (r/simplify-or
+                    (->> (utils/get-specs-of-pred pred-id data)
                          :pre-specs
-                         (apply replace-specvars-with-uuid)
+                         (map replace-specvars-with-uuid)
                          (map r/->TupleSpec)
-                         r/->OneOfSpec)]
+                         r/->OneOfSpec)
+                    (:specs data))]
       (log/debug (str "Clause: " [clause-id pre-spec]))
       [[clause-id pre-spec] (analyzing data (utils/get-clause clause-id data) pre-spec)]
       )))
