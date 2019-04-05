@@ -372,18 +372,19 @@
                expr expr
                ))
 
+(deftest simplify-or
+  (are [in out] (= out (sut/simplify-or (sut/->OneOfSpec in) test-defs))
+    [(sut/->AtomSpec) (sut/->AtomSpec)] (sut/->AtomSpec)
+    [(sut/->NumberSpec) (sut/->AtomSpec) (sut/->AtomicSpec)] (sut/->AtomicSpec)
+    [(sut/->IntegerSpec) (sut/->AtomSpec)] (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+    [tree-x] tree-x
+    [(sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)]) (sut/make-spec:user-defined "tree" [(sut/->NumberSpec)])] (sut/make-spec:user-defined "tree" [(sut/->NumberSpec)])
+    [(sut/->AtomSpec) (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->FloatSpec)])] (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->IntegerSpec) (sut/->FloatSpec)])
+    ))
 
-(deftest next-steps
-  (do-template [spec term next-steps] (= next-steps (sut/next-steps spec term test-defs))
-               (sut/->OneOfSpec [(sut/->TupleSpec [(sut/->VarSpec) (sut/->ListSpec (sut/->AtomSpec))])
-                                 (sut/->TupleSpec [(sut/->AtomSpec) (sut/->ListSpec (sut/->AtomSpec))])])
-               (sut/to-head-tail-list (sut/->VarTerm "X") (sut/to-head-tail-list (sut/->AtomTerm "a") (sut/->AtomTerm "b")))
-               (vector (sut/to-head-tail-list (sut/to-head-tail-list (sut/->AtomTerm "a") (sut/->AtomTerm "b"))) (sut/->TupleSpec [(sut/->ListSpec (sut/->AtomSpec))])
-                       (sut/->VarTerm "X") (sut/->OneOfSpec [(sut/->VarSpec) (sut/->AtomSpec)]))
+(deftest simplify-and
+  (are [in out] (= out (sut/simplify-and (sut/->AndSpec in) test-defs true))
 
-               (sut/->ListSpec (sut/->IntegerSpec))
-               (sut/to-head-tail-list (sut/->IntegerTerm 1) (sut/->IntegerTerm 2) (sut/->IntegerTerm 3))
-               (vector (sut/->IntegerTerm 1) (sut/->IntegerSpec)
-                       (sut/to-head-tail-list (sut/->IntegerTerm 2) (sut/->IntegerTerm 3)) (sut/->ListSpec (sut/->IntegerSpec)))
-
-               ))
+    [tree-x (sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)])] (sut/make-spec:user-defined "tree" [(sut/->AndSpec [(sut/->IntegerSpec) (sut/->SpecvarSpec "X")])])
+    [(sut/->SpecvarSpec "X") (sut/->IntegerSpec)] (sut/->AndSpec [(sut/->SpecvarSpec "X") (sut/->IntegerSpec)])
+    [(sut/->IntegerSpec)] (sut/->IntegerSpec)))
