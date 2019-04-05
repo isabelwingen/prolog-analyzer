@@ -132,7 +132,7 @@
                                  r/TUPLE (apply r/to-head-tail-list (repeatedly (count arglist) (fn [] (r/->VarTerm (str (gensym ART_PREFIX))))))
                                  )]
       (-> env
-          (fill-dom artificial-term (utils/get-dom-of-term env term) {:initial true :overwrite true})
+          (fill-dom artificial-term (or (utils/get-dom-of-term env term) (r/->AnySpec)) {:initial true :overwrite true})
           (uber/add-edges [term artificial-term {:relation :artificial}])))))
 
 (defn- add-to-artifical-term [env term spec options]
@@ -164,44 +164,40 @@
       env
       (add-type-to-dom env term (ALREADY-NONVAR)))))
 
+(defn- compound-spec-for-var-term [env term spec options]
+  (-> env
+      (add-type-to-dom term spec options)
+      (fill-dom-of-next-steps term spec options)
+      (add-to-artifical-term term spec options)))
+
 (defmethod fill-dom [:var :compound-or-list] [env term spec {overwrite? :overwrite initial? :initial :as options}]
   (if initial?
     (-> env
         (remove-vars-from-dom term)
-        (add-type-to-dom term spec options)
-        (fill-dom-of-next-steps term spec options)
         (create-artifical-term term spec options)
-        (add-to-artifical-term term spec options)
+        (compound-spec-for-var-term term spec options)
         )
     (if overwrite?
       (-> env
-          (add-type-to-dom term spec options)
-          (fill-dom-of-next-steps term spec options)
           (create-artifical-term term spec options)
-          (add-to-artifical-term term spec options)
-          )
+          (compound-spec-for-var-term term spec options))
       (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
         (add-type-to-dom env term (CANNOT-GROUND))
         (-> env
-            (add-type-to-dom term spec options)
-            (fill-dom-of-next-steps term spec options)
             (create-artifical-term term spec options)
-            (add-to-artifical-term term spec options)
-            )))))
+            (compound-spec-for-var-term term spec options))
+        ))))
 
 (defmethod fill-dom [:var :default] [env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [intersection (r/intersect (r/->VarSpec) spec (get-defs-from-env env) overwrite?)]
     (if initial?
       (-> env
           (remove-vars-from-dom term)
-          (add-type-to-dom term spec options)
-          (add-to-artifical-term term spec options)
-          (fill-dom-of-next-steps term spec options))
+          (compound-spec-for-var-term term spec options)
+          )
       (if overwrite?
         (-> env
-            (add-type-to-dom term spec options)
-            (add-to-artifical-term term spec options)
-            (fill-dom-of-next-steps term spec options))
+            (compound-spec-for-var-term term spec options))
         (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
           (if (r/error-spec? intersection)
             (add-type-to-dom env term (CANNOT-GROUND))
@@ -209,9 +205,8 @@
                 (add-type-to-dom term intersection options)
                 (add-to-artifical-term term spec options)))
           (-> env
-              (add-type-to-dom term spec options)
-              (add-to-artifical-term term spec options)
-              (fill-dom-of-next-steps term spec options)))))))
+              (compound-spec-for-var-term term spec options)
+              ))))))
 
 
 (defmethod fill-dom [:var :error] [env term spec options]
