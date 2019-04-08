@@ -18,6 +18,7 @@
     (contains? #{r/VAR r/ANY} dom-type)))
 
 (declare fill-env-for-term-with-spec)
+(declare fill-dom)
 
 (defn add-type-to-dom
   ([env term type {overwrite? :overwrite :as options}]
@@ -90,17 +91,6 @@
 
 
 
-(defmulti fill-dom (fn [env term spec options] [(if (= r/VAR (r/term-type term)) :var :nonvar) (case+ (r/spec-type spec)
-                                                                                                     r/ANY :any
-                                                                                                     r/USERDEFINED :userdefined
-                                                                                                     r/SPECVAR :specvar
-                                                                                                     r/VAR :var
-                                                                                                     r/LIST :compound-or-list
-                                                                                                     r/COMPOUND :compound-or-list
-                                                                                                     r/TUPLE :compound-or-list
-                                                                                                     r/ERROR :error
-                                                                                                     :default)]))
-
 (def ART_PREFIX "A__")
 
 (defn- art-term? [{n :name}]
@@ -143,6 +133,17 @@
 (defn- fill-dom-of-next-steps [env term spec options]
   (reduce (fn [e [t s]] (fill-dom e t s options)) env (partition 2 (r/next-steps spec term (utils/get-user-defined-specs env)))))
 
+
+(defmulti fill-dom (fn [env term spec options] [(if (= r/VAR (r/term-type term)) :var :nonvar) (case+ (r/spec-type spec)
+                                                                                                     r/ANY :any
+                                                                                                     r/USERDEFINED :userdefined
+                                                                                                     r/SPECVAR :specvar
+                                                                                                     r/VAR :var
+                                                                                                     r/LIST :compound-or-list
+                                                                                                     r/COMPOUND :compound-or-list
+                                                                                                     r/TUPLE :compound-or-list
+                                                                                                     r/ERROR :error
+                                                                                                     :default)]))
 
 (defmethod fill-dom [:var :any] [env term spec options]
   (add-type-to-dom env term spec options))
