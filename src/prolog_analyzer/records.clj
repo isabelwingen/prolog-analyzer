@@ -832,4 +832,18 @@
       (some->> (:type spec)
                has-specvars)))
 
-(defn replace-specvar-specs-with-term [spec])
+(defn replace-specvars-with-any [spec]
+  (let [used-specvars (find-specvars spec)
+        replace-map (reduce #(assoc %1 (:name %2) (->AnySpec)) {} used-specvars)]
+    (reduce-kv replace-specvars-with-spec spec replace-map)))
+
+(defn length-of-list-term [{head :head tail :tail :as list}]
+  (cond
+    (nil? head) 0
+    (nil? tail) 1
+    (= VAR (term-type tail)) :inf
+    :default
+    (let [tail-length (length-of-list-term tail)]
+      (if (= :inf tail-length)
+        :inf
+        (inc tail-length)))))
