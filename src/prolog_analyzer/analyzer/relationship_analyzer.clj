@@ -2,7 +2,7 @@
   (:require [ubergraph.core :as uber]
             [prolog-analyzer.analyzer.domain :as dom]
             [prolog-analyzer.records :as r]
-            [prolog-analyzer.utils :as utils]
+            [prolog-analyzer.utils :as utils :refer [case+]]
             [loom.attr]
             [loom.graph]
             ))
@@ -37,7 +37,21 @@
         (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical))
         (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal)))))
 
-
+(defmethod process-edge :is-head [env edge]
+  (let [list (uber/dest edge)
+        head-dom (utils/get-dom-of-term env (uber/src edge))
+        tail-dom (some->> list
+                          (uber/in-edges env)
+                          (filter #(= :is-tail (uber/attr env % :relation)))
+                          first
+                          uber/src
+                          (utils/get-dom-of-term env))]
+    (if (nil? tail-dom)
+      (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]))
+      (case+ (r/spec-type tail-dom)
+             r/TUPLE (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(cons head-dom %)))
+             r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(r/->OneOfSpec [% head-dom])))
+             env))))
 
 (defmethod process-edge :default [env edge]
   env)
