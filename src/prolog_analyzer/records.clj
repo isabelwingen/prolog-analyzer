@@ -825,3 +825,11 @@
   (if (= OR (spec-type parent))
     (some #(= child (intersect % child defs)) (:arglist parent))
     (= child (intersect parent child defs))))
+
+(defn has-specvars [spec]
+  (or (= SPECVAR (spec-type spec))
+      (some has-specvars (:arglist spec))
+      (some->> (:type spec)
+               has-specvars)))
+
+(defn replace-specvar-specs-with-term [spec])

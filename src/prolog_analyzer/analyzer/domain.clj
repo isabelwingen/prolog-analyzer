@@ -82,7 +82,7 @@
     (contains? #{r/VAR r/ANY} (r/spec-type spec))))
 
 (defn- remove-vars-from-dom [env term]
-  (if (uber/has-node? env term)
+  (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
     (let [new-attrs (-> (uber/attrs env term)
 
                         (update :dom #(if (= r/VAR (r/spec-type %)) (r/->AnySpec) %)))]
@@ -149,14 +149,18 @@
   (add-type-to-dom env term spec options))
 
 (defmethod fill-dom [:var :userdefined] [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [transformed-definition (r/resolve-definition-with-parameters spec (get-defs-from-env env))]
-    (fill-dom env term transformed-definition options)))
+  (let [transformed-definition (r/resolve-definition-with-parameters spec (get-defs-from-env env))
+        edges (map #(vector spec % {:relation :uses}) (r/find-specvars spec))
+        rel (if (r/has-specvars spec) (apply uber/add-edges env [term spec {:relation :complex-specvar}] edges) env)]
+    (fill-dom rel term transformed-definition options)
+    ))
 
 (defmethod fill-dom [:var :specvar] [env term spec options]
-  (let [step1 (fill-dom env term (r/initial-spec term) options)
-        step2 (add-type-to-dom step1 spec (utils/get-dom-of-term step1 term) options)
-        step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
-    step3))
+  (let [step1 (-> env
+                  (fill-dom term (r/initial-spec term) options)
+                  (uber/add-edges [term spec {:relation :specvar}])
+                  (add-to-artifical-term term spec options))]
+    (add-type-to-dom step1 spec (utils/get-dom-of-term step1 term))))
 
 (defmethod fill-dom [:var :var] [env term spec {initial? :initial :as options}]
   (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
@@ -219,9 +223,10 @@
     env))
 
 (defmethod fill-dom [:nonvar :userdefined] [env term spec options]
-  (let [transformed-definition (r/resolve-definition-with-parameters spec (get-defs-from-env env))]
-    (-> env
-        (fill-dom term transformed-definition options))))
+  (let [transformed-definition (r/resolve-definition-with-parameters spec (get-defs-from-env env))
+        edges (map #(vector spec % {:relation :uses}) (r/find-specvars spec))
+        rel (if (r/has-specvars spec) (apply uber/add-edges env [term spec {:relation :complex-specvar}] edges) env)]
+    (fill-dom rel term transformed-definition options)))
 
 (defmethod fill-dom [:nonvar :specvar] [env term spec options]
   (let [step1 (fill-dom env term (r/initial-spec term) options)

@@ -33,16 +33,18 @@
       (print "\t")
       (let [attrs (uber/attrs graph node)
             ks (keys attrs)]
-        (doseq [key ks]
-          (if (= key (first ks))
-            (print-in-columns [max-length] (r/to-string node) key)
-            (print-in-columns [(+ 2 max-length)] "" key))
-          (let [value (get attrs key)]
-            (cond
-              (satisfies? prolog-analyzer.records/spec value) (print-in-columns [(+ 4 max-length) 15] "" (str (:origin value)) (r/to-string value))
-              (sequential? value) (doseq [val (get attrs key)]
-                                    (print-in-columns [(+ 4 max-length) 15] "" (str (:origin val)) (r/to-string val)))
-              :else (print-in-columns [(+ 4 max-length)] "" (get attrs key)))))
+        (if (empty? attrs)
+          (print-in-columns [max-length] (r/to-string node) "Nothing")
+          (doseq [key ks]
+            (if (= key (first ks))
+              (print-in-columns [max-length] (r/to-string node) key)
+              (print-in-columns [(+ 2 max-length)] "" key))
+            (let [value (get attrs key)]
+              (cond
+                (satisfies? prolog-analyzer.records/spec value) (print-in-columns [(+ 4 max-length) 15] "" (str (:origin value)) (r/to-string value))
+                (sequential? value) (doseq [val (get attrs key)]
+                                      (print-in-columns [(+ 4 max-length) 15] "" (str (:origin val)) (r/to-string val)))
+                :else (print-in-columns [(+ 4 max-length)] "" (get attrs key))))))
       (println "-------------------------------------------")))))
 
 (defn print-edges [graph]

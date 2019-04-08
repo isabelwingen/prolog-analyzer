@@ -21,11 +21,21 @@
       (dom/add-type-to-dom env dest (utils/get-dom-of-term env src) {:overwrite true})
       (dom/add-type-to-dom env dest (utils/get-dom-of-term env src)))))
 
-(defmethod process-edge :is-head [env edge]
-  env)
+(defmethod process-edge :complex-specvar [env edge]
+  (let [term (uber/src edge)
+        userdef (uber/dest edge)
+        used-specvars (map uber/dest (uber/out-edges env userdef))
+        replace-map (reduce #(assoc %1 (:name %2) (or (utils/get-dom-of-term env %2) %1)) {} used-specvars)
+        new-spec (reduce-kv r/replace-specvars-with-spec userdef replace-map)]
+    (dom/fill-env-for-term-with-spec env term new-spec)
+    ))
 
-(defmethod process-edge :is-tail [env edge]
-  env)
+(defmethod process-edge :artificial [env edge]
+  (let [normal (uber/src edge)
+        artifical (uber/dest edge)]
+    (-> env
+        (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical))
+        (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal)))))
 
 
 
