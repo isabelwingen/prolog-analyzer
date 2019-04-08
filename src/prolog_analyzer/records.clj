@@ -39,15 +39,6 @@
 (declare supertype?)
 (declare ->AndSpec)
 
-(defn mark-spec [spec origin]
-  (assoc spec :origin origin))
-
-(defn copy-mark [from to]
-  (assoc to :origin (:origin from)))
-
-(defn get-mark [spec]
-  (:origin spec))
-
 
 (defprotocol printable
   (to-string [x]))
@@ -459,7 +450,7 @@
       0 DISJOINT
       1 (first (:arglist simplified-or))
       (if (some #{ANY} (map spec-type (:arglist simplified-or)))
-        (copy-mark spec (->AnySpec))
+        (->AnySpec)
         simplified-or))))
 
 (defrecord AndSpec [arglist]

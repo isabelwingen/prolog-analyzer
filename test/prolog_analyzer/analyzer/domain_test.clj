@@ -70,17 +70,9 @@
              (sut/add-type-to-dom :x (r/->IntegerSpec))
              (uber/attr :x :dom)))))
 
-
-(defn- remove-origin [spec]
-  (let [p (dissoc spec :origin)]
-    (cond
-      (contains? p :type) (update p :type remove-origin)
-      (contains? p :arglist) (update p :arglist (partial map remove-origin))
-      :else p)))
-
 (defn calculate-and-get-dom
   ([initial? term spec]
-   (remove-origin (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/mark-spec spec :test) {:initial initial?}) term)))
+   (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec {:initial initial?}) term))
   ([term spec]
    (calculate-and-get-dom false term spec)))
 

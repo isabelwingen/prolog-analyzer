@@ -29,17 +29,17 @@
 (defmethod add-relationships-aux :list [env {head :head tail :tail :as term}]
   (if (r/empty-list? tail)
     (-> env
-        (dom/fill-env-for-term-with-spec head (r/mark-spec (r/->AnySpec) :relationship))
+        (dom/fill-env-for-term-with-spec head (r/->AnySpec))
         (uber/add-edges [head term {:relation :is-head}]))
     (-> env
-        (dom/fill-env-for-term-with-spec head (r/mark-spec (r/->AnySpec) :relationship))
-        (dom/fill-env-for-term-with-spec tail (r/mark-spec (r/->ListSpec (r/->AnySpec)) :relationship))
+        (dom/fill-env-for-term-with-spec head (r/->AnySpec))
+        (dom/fill-env-for-term-with-spec tail (r/->ListSpec (r/->AnySpec)))
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
 (defmethod add-relationships-aux :compound [env {functor :functor arglist :arglist :as term}]
   (apply
    uber/add-edges
-   (dom/multiple-fills env arglist (repeat (count arglist) (r/mark-spec (r/->AnySpec) :relationship)))
+   (dom/multiple-fills env arglist (repeat (count arglist) (r/->AnySpec)))
    (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) arglist)))
 
 
@@ -64,7 +64,7 @@
         goal-specs-as-tuples (goal-specs->tuples goal-specs)
         ]
     (if (and (> arity 0) goal-specs)
-      (dom/fill-env-for-term-with-spec env term (r/mark-spec (apply r/to-or-spec (:specs data) goal-specs-as-tuples) :goal))
+      (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
       env)))
 
 (defn condition-fullfilled? [env {head :head tail :tail :as head-tail-list} [conditions p]]
@@ -76,7 +76,7 @@
 
 (defn apply-valid-post-spec [env {arglist :arglist :as tuple-term} [condition promise :as post-spec]]
   (if (condition-fullfilled? env tuple-term post-spec)
-    (dom/fill-env-for-term-with-spec env tuple-term (r/mark-spec (apply r/to-tuple-spec promise) :promise) {:initial false :overwrite true})
+    (dom/fill-env-for-term-with-spec env tuple-term (apply r/to-tuple-spec promise) {:initial false :overwrite true})
     env))
 
 (defn evaluate-goal-post-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
