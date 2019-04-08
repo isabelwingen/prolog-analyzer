@@ -20,21 +20,24 @@
 (declare fill-env-for-term-with-spec)
 (declare fill-dom)
 
+
+
 (defn add-type-to-dom
   ([env term type {overwrite? :overwrite :as options}]
-   (case+ (r/spec-type type)
-          r/AND (reduce #(add-type-to-dom %1 term %2 options) env (:arglist type))
-          r/SPECVAR (let [dom (or (utils/get-dom-of-term env term) (r/initial-spec term))]
-                      (-> env
-                          (add-type-to-dom type dom options)
-                          (uber/add-edges [term type {:relation :specvar}])))
-          (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
-            (uber/set-attrs env term (-> (uber/attrs env term)
-                                         (update :history #(conj % type))
-                                         (update :history distinct)
-                                         (update :dom #(if (= type %) % (r/intersect type % (utils/get-user-defined-specs env) overwrite?)))
-                                         ))
-            (uber/add-nodes-with-attrs env [term {:dom type :history [type]}]))))
+   (let [new-type (r/replace-specvars-with-any type)]
+     (case+ (r/spec-type type)
+            r/AND (reduce #(add-type-to-dom %1 term %2 options) env (:arglist type))
+            r/SPECVAR (let [dom (or (utils/get-dom-of-term env term) (r/initial-spec term))]
+                        (-> env
+                            (add-type-to-dom type dom options)
+                            (uber/add-edges [term type {:relation :specvar}])))
+            (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
+              (uber/set-attrs env term (-> (uber/attrs env term)
+                                           (update :history #(conj % new-type))
+                                           (update :history distinct)
+                                           (update :dom #(if (= new-type %) % (r/intersect new-type % (utils/get-user-defined-specs env) overwrite?)))
+                                           ))
+              (uber/add-nodes-with-attrs env [term {:dom new-type :history [new-type]}])))))
   ([env term type]
    (if (r/error-spec? type)
      (add-type-to-dom env term type {:overwrite true})
