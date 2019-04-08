@@ -25,8 +25,8 @@
         uuid-map (apply hash-map (interleave specvars ids))]
     (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) pre-spec)))
 
-(defmulti add-relationships-aux (fn [env term] (type r/term-type)))
-(defmethod add-relationships-aux :list [env {head :head tail :tail :as term}]
+(defmulti add-relationships-aux (fn [env term] (type term)))
+(defmethod add-relationships-aux prolog_analyzer.records.ListTerm [env {head :head tail :tail :as term}]
   (if (r/empty-list? tail)
     (-> env
         (dom/fill-env-for-term-with-spec head (r/->AnySpec))
@@ -36,7 +36,7 @@
         (dom/fill-env-for-term-with-spec tail (r/->ListSpec (r/->AnySpec)))
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
-(defmethod add-relationships-aux :compound [env {functor :functor arglist :arglist :as term}]
+(defmethod add-relationships-aux prolog_analyzer.records.CompoundTerm [env {functor :functor arglist :arglist :as term}]
   (apply
    uber/add-edges
    (dom/multiple-fills env arglist (repeat (count arglist) (r/->AnySpec)))
@@ -117,7 +117,7 @@
 (defn analyzing [data {arglist :arglist body :body :as clause} pre-spec]
   (-> (initial-env data arglist pre-spec)
       (evaluate-body data body)
-      (add-relationships)
+      add-relationships
       rel/fixpoint-analysis
       ))
 
@@ -164,3 +164,5 @@
       my-pp/pretty-print-analysis-result
       (my-pp/short-result nil)
       ))
+
+(playground)
