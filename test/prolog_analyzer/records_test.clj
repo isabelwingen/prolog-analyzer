@@ -385,6 +385,32 @@
 (deftest simplify-and
   (are [in out] (= out (sut/simplify-and (sut/->AndSpec in) test-defs true))
 
-    [tree-x (sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)])] (sut/make-spec:user-defined "tree" [(sut/->AndSpec [(sut/->IntegerSpec) (sut/->SpecvarSpec "X")])])
-    [(sut/->SpecvarSpec "X") (sut/->IntegerSpec)] (sut/->AndSpec [(sut/->IntegerSpec) (sut/->SpecvarSpec "X")])
+    [tree-x (sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)])] (sut/make-spec:user-defined "tree" [(sut/->IntegerSpec)])
+    [(sut/->SpecvarSpec "X") (sut/->IntegerSpec)] (sut/->IntegerSpec)
     [(sut/->IntegerSpec)] (sut/->IntegerSpec)))
+
+
+(deftest has-specvars-test
+  (are [in] (true? (sut/has-specvars in))
+    (sut/->SpecvarSpec "X")
+    (sut/->ListSpec (sut/->ListSpec (sut/->ListSpec (sut/->SpecvarSpec "X"))))
+    (sut/make-spec:user-defined "tree" [(sut/->CompoundSpec "foo" [(sut/->SpecvarSpec "A")])]))
+  (are [in] (nil? (sut/has-specvars in))
+    (sut/->VarSpec)
+    (sut/->ListSpec (sut/->AtomSpec))))
+
+(deftest replace-specvars-with-any-test
+  (are [in out] (= out (sut/replace-specvars-with-any in))
+    (sut/->SpecvarSpec "X") (sut/->AnySpec)
+    (sut/->ListSpec (sut/->SpecvarSpec "Y")) (sut/->ListSpec (sut/->AnySpec))
+    (sut/->CompoundSpec "foo" [(sut/->SpecvarSpec "X") (sut/->SpecvarSpec "Y")]) (sut/->CompoundSpec "foo" [(sut/->AnySpec) (sut/->AnySpec)])))
+
+(deftest length-of-list
+  (are [list length] (= length (sut/length-of-list-term list))
+    (sut/->EmptyListTerm) 0
+    (sut/->ListTerm (sut/->IntegerTerm 1) (sut/->EmptyListTerm)) 1
+    (sut/->ListTerm (sut/->IntegerTerm 1) (sut/->ListTerm (sut/->IntegerTerm 2) (sut/->EmptyListTerm))) 2
+    (sut/->ListTerm (sut/->VarTerm "A") (sut/->ListTerm (sut/->VarTerm "B") (sut/->ListTerm (sut/->VarTerm "C") (sut/->EmptyListTerm)))) 3
+    (sut/->ListTerm (sut/->VarTerm "H") (sut/->VarTerm "T")) :inf
+    (sut/->ListTerm (sut/->AnonVarTerm "_123") (sut/->AnonVarTerm "_124")) :inf
+    (sut/->ListTerm (sut/->IntegerTerm 1) (sut/->ListTerm (sut/->VarTerm "H") (sut/->VarTerm "T"))) :inf))

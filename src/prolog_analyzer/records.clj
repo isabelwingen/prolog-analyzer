@@ -38,6 +38,7 @@
 (declare resolve-definition-with-parameters)
 (declare supertype?)
 (declare ->AndSpec)
+(declare has-specvars)
 
 
 (defprotocol printable
@@ -422,16 +423,12 @@
 
 
 (defn simplify-and [{arglist :arglist} defs overwrite?]
-  (let [{specvars true non-specvars false} (group-by #(= SPECVAR (spec-type %)) arglist)
-        intersect-nonspecvars (some->> non-specvars
-                                       distinct
-                                       (reduce #(intersect %1 %2 defs overwrite?)))
-        new-arglist (conj (distinct specvars) intersect-nonspecvars)]
-    (if (error-spec? intersect-nonspecvars)
+  (let [intersect (some->> arglist
+                           distinct
+                           (reduce #(intersect %1 %2 defs overwrite?)))]
+    (if (error-spec? intersect)
       DISJOINT
-      (if (= 1 (count new-arglist))
-        (first new-arglist)
-        (->AndSpec new-arglist)))))
+      intersect)))
 
 
 (defn- add-to-one-of [defs so-far e]
