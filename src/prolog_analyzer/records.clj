@@ -108,7 +108,7 @@
            (AND, OR) (intersect other-spec spec defs)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
            ERROR other-spec
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            DISJOINT))
   (intersect [spec other-spec defs overwrite?]
     (if overwrite?
@@ -130,7 +130,7 @@
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            ERROR other-spec
            VAR (if overwrite? spec DISJOINT)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            DISJOINT))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
@@ -148,7 +148,7 @@
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            ERROR other-spec
            VAR (if overwrite? spec DISJOINT)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            DISJOINT))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
@@ -165,7 +165,7 @@
            EXACT other-spec
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            ERROR other-spec
            VAR (if overwrite? spec DISJOINT)
            DISJOINT))
@@ -183,7 +183,7 @@
            (ATOMIC, INTEGER, NUMBER, GROUND, NONVAR, ANY) spec
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            ERROR other-spec
            VAR (if overwrite? spec DISJOINT)
            DISJOINT
@@ -202,7 +202,7 @@
            (ATOMIC, FLOAT, NUMBER, GROUND, NONVAR, ANY) spec
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            ERROR other-spec
            VAR (if overwrite? spec DISJOINT)
            DISJOINT
@@ -222,7 +222,7 @@
            (INTEGER, FLOAT) other-spec
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            ERROR other-spec
            VAR (if overwrite? spec DISJOINT)
            DISJOINT))
@@ -242,7 +242,7 @@
            LIST (->EmptyListSpec)
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
@@ -262,7 +262,7 @@
            EXACT (if (= value (.value other-spec)) spec DISJOINT)
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
@@ -296,7 +296,7 @@
            GROUND (replace-error-spec-with-intersect-error (update spec :type #(intersect other-spec % defs overwrite?)))
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
@@ -331,7 +331,7 @@
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
@@ -360,7 +360,7 @@
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            DISJOINT))
@@ -412,7 +412,7 @@
     (case+ (spec-type other-spec)
      (ANY, NONVAR, GROUND) spec
      USERDEFINED (userdef->ground other-spec defs overwrite?)
-     SPECVAR (->AndSpec [spec other-spec])
+     SPECVAR spec
      VAR (if overwrite? spec DISJOINT)
      ERROR other-spec
      (intersect other-spec spec defs overwrite?)))
@@ -547,7 +547,7 @@
     (case+ (spec-type other-spec)
            ANY spec
            USERDEFINED (intersect-userdef-with-userdef spec other-spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            GROUND (intersect other-spec spec defs overwrite?)
            (AND, OR) (intersect other-spec (resolve-definition-with-parameters spec defs) defs overwrite?)
            VAR (if overwrite? spec DISJOINT)
@@ -572,7 +572,7 @@
            (NONVAR, ANY) spec
            GROUND other-spec
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
-           SPECVAR (->AndSpec [spec other-spec])
+           SPECVAR spec
            VAR (if overwrite? spec DISJOINT)
            ERROR other-spec
            (intersect other-spec spec defs overwrite?)))
@@ -585,15 +585,8 @@
   (spec-type [spec] SPECVAR)
   (next-steps [spec term defs] [])
   (next-steps [spec term defs overwrite?] [])
-  (intersect [spec other-spec defs overwrite?]
-    (case+ (spec-type other-spec)
-           ANY spec
-           (AND, OR) (intersect other-spec spec defs overwrite?)
-           SPECVAR (if (= spec other-spec)
-                     spec
-                     (->AndSpec [spec other-spec]))
-           (->AndSpec [spec other-spec])))
-  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
+  (intersect [spec other-spec defs overwrite?] other-spec)
+  (intersect [spec other-spec defs] other-spec)
   printable
   (to-string [x] (str "Specvar(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
