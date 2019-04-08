@@ -44,7 +44,7 @@
 
 
 (defn- same [env other-env]
-  (= env env))
+  (= env other-env))
 
 
 (defn- step [env]
