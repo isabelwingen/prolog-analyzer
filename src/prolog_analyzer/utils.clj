@@ -20,26 +20,32 @@
       ))
 
 (defn get-pred-identities
-  "Returns the predicate ids of all predicates loaded in `data`."
   [data]
-  (for [module (keys (:preds data))
-        pred-name (keys (get-in data [:preds module]))
-        arity (keys (get-in data [:preds module pred-name]))]
-    [module pred-name arity]))
+  (let [modules (keys (:preds data))]
+    (reduce-kv
+     (fn [m1 k1 v1]
+       (apply conj m1 (reduce-kv (fn [m2 k2 v2] (apply conj m2 (map #(vector k1 k2 %) (keys v2)))) [] v1)))
+     []
+     (:preds data))))
+
 
 (defn get-clause-identities
   "Returns the clause ids of all clauses loaded in `data`."
   [data]
-  (let [preds (:preds data)]
-    (for [pred-id (get-pred-identities data)
-          clause-number (keys (get-in preds pred-id))]
-      (conj pred-id clause-number))))
+  (let [pred-ids (get-pred-identities data)
+        preds (:preds data)]
+    (->> pred-ids
+         (reduce-kv (fn [m _ pred-id] (assoc m pred-id (keys (get-in preds pred-id)))) {})
+         (reduce-kv (fn [m key value] (reduce #(conj %1 (conj (apply vector key) %2)) m value)) []))))
 
 (defn get-clause-identities-of-pred
   "Returns the clause ids of the predicate with id `pred-id` loaded in `data`."
   [pred-id data]
-  (for [clause-number (keys (get-in (:preds data) pred-id))]
-    (conj pred-id clause-number)))
+  (->> pred-id
+       (get-in (:preds data))
+       keys
+       (map #(conj pred-id %))))
+
 
 (defn get-clause
   "Gets the actual code of a clause in `data` with id `clause-id`."
@@ -60,9 +66,7 @@
 (defn get-dom-of-term [env term]
   (if (uber/has-node? env term)
     (uber/attr env term :dom)
-    (do
-      (log/debug (str "Term " term " could not be found, returning empty dom"))
-      nil)))
+    nil))
 
 (defn get-goals [data]
   (->> (get-clause-identities data)
