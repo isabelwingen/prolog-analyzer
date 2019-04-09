@@ -525,6 +525,7 @@
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
+
 (defn- intersect-userdef-with-userdef [userdef1 userdef2 defs overwrite?]
   (if (and (= (:name userdef1) (:name userdef2))
            (= (count (:arglist userdef1)) (count (:arglist userdef2))))
@@ -819,9 +820,10 @@
 
 
 (defn supertype? [defs parent child]
-  (if (= OR (spec-type parent))
-    (some #(= child (intersect % child defs)) (:arglist parent))
-    (= child (intersect parent child defs))))
+  (cond
+      (= SPECVAR (spec-type parent)) false
+      (= OR (spec-type parent)) (some #(= child (intersect % child defs)) (:arglist parent))
+      :default (= child (intersect parent child defs))))
 
 (defn has-specvars [spec]
   (or (= SPECVAR (spec-type spec))
