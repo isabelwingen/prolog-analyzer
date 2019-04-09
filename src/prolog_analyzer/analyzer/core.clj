@@ -47,6 +47,7 @@
   env)
 
 (defn add-relationships [env]
+  (log/debug "Add Relationships")
   (reduce #(add-relationships-aux %1 %2) env (utils/get-terms env)))
 
 (defn- goal-args->tuple [arglist]
@@ -102,12 +103,14 @@
       (evaluate-goal-relationships goal data)))
 
 (defn evaluate-body [env data body]
+  (log/debug "Evaluate Body")
   (reduce (partial evaluate-goal data) env body))
 
 (defn- add-index-to-input-arguments [env arglist]
   (apply uber/add-nodes-with-attrs env (map-indexed #(vector %2 {:index %1}) arglist)))
 
 (defn initial-env [data arglist pre-spec]
+  (log/debug "Initialize Env")
   (-> (uber/digraph)
       (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get data :specs)}])
       (dom/fill-env-for-term-with-spec (apply r/to-head-tail-list arglist) pre-spec {:initial true})
@@ -122,16 +125,19 @@
       ))
 
 (defn complete-analysis [data]
+  (log/debug "Start complete analysis")
   (for [pred-id (utils/get-pred-identities data)
         clause-id (utils/get-clause-identities-of-pred pred-id data)]
-    (let [pre-spec (r/simplify-or
-                    (->> (utils/get-specs-of-pred pred-id data)
-                         :pre-specs
-                         (map replace-specvars-with-uuid)
-                         (map r/->TupleSpec)
-                         r/->OneOfSpec)
-                    (:specs data))]
-      (log/debug (str "Clause: " [clause-id pre-spec]))
+    (let [pre-spec (do
+                     (log/debug (str pred-id))
+                     (r/simplify-or
+                      (->> (utils/get-specs-of-pred pred-id data)
+                           :pre-specs
+                           (map replace-specvars-with-uuid)
+                           (map r/->TupleSpec)
+                           r/->OneOfSpec)
+                      (:specs data)))]
+      (log/debug (str "Clause: " [clause-id (r/to-string pre-spec)]))
       [[clause-id pre-spec] (analyzing data (utils/get-clause clause-id data) pre-spec)]
       )))
 

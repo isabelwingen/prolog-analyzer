@@ -265,7 +265,6 @@
 
 (defn fill-env-for-term-with-spec
   ([env term spec options]
-   (log/debug "Fill env for term" (r/to-string term) "and spec" (r/to-string spec))
    (fill-dom env term spec options))
   ([env term spec]
    (fill-env-for-term-with-spec env term spec {:initial false})))
