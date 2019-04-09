@@ -14,7 +14,7 @@
 
 (defn test-helper [code]
   (spit "prolog/tmp.pl" (str preamble code))
-  (let [res (sut/read-prolog-code-as-raw-edn "prolog/tmp.pl")]
+  (let [res (sut/read-prolog-code-as-raw-edn "prolog/prolog_analyzer.pl" "prolog/tmp.pl")]
     (io/delete-file "prolog/tmp.pl")
     res))
 
@@ -270,5 +270,5 @@
 
 
 (deftest process-files:preds
-  (let [result (sut/process-prolog-file "resources/spec-test.pl")]
+  (let [result (sut/process-prolog-file "prolog/prolog_analyzer.pl" "resources/spec-test.pl")]
     (is (coll? (get-in result [:preds "spec_test" "member_int" 2])))))

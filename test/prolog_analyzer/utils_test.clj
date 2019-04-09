@@ -12,7 +12,7 @@
 
 
 
-(def data (parser/process-prolog-file "resources/spec-test.pl"))
+(def data (parser/process-prolog-file "prolog/prolog_analyzer.pl" "resources/spec-test.pl"))
 
 (deftest get-specs-of-pred-test
   (is (= {:pre-specs [[(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]
