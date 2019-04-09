@@ -3,6 +3,7 @@
             [prolog-analyzer.analyzer.domain :as dom]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.utils :as utils :refer [case+]]
+            [clojure.tools.logging :as log]
             [loom.attr]
             [loom.graph]
             ))
@@ -66,8 +67,14 @@
 
 
 (defn fixpoint-analysis [env]
-  (loop [in env]
+  (log/debug "Start Fixpoint Analysis")
+  (loop [in env
+         counter 0]
     (let [next (step in)]
       (if (same in next)
         next
-        (recur next)))))
+        (if (> counter 10)
+          (do
+            (log/error "infinite loop?")
+            next)
+          (recur next (inc counter)))))))
