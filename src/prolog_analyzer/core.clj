@@ -8,14 +8,15 @@
 
 (defn -main
   "Start analyzing of source file"
-  [file]
+  [xxx file]
   (if (.isDirectory (io/file file))
-    (-> file
-        parser/process-prolog-directory
-        analyzer/complete-analysis
-        (my-pp/short-result file))
-    (-> file
-        parser/process-prolog-file
-        analyzer/complete-analysis
-        (my-pp/short-result file)
-        )))
+    (->> file
+         (parser/process-prolog-directory xxx)
+         analyzer/complete-analysis
+         my-pp/short-result
+         )
+    (->> file
+         (parser/process-prolog-file xxx)
+         analyzer/complete-analysis
+         my-pp/short-result
+         )))

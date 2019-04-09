@@ -20,8 +20,14 @@
        (map (partial apply str))
        (apply vector)))
 
-(defn- call-swipl [file]
-  (let [{err :err} (sh/sh "swipl" "-f" file "-q" "-t" "halt.")]
+(defn- call-swipl [xxx file]
+  (let [path-to-analyzer (str "'" xxx "'")
+        goal (str "use_module(" path-to-analyzer ", [set_file/1, enable_write_out/0]),"
+                  "set_file('" file "'),"
+                  "enable_write_out,"
+                  "['" file "'],"
+                  "halt.")
+        {err :err} (sh/sh "swipl" "-g" goal "-q")]
     {:type :error-msg
      :content (split-up-error-message err)}))
 
@@ -41,10 +47,11 @@
 (defn read-prolog-code-as-raw-edn
   "Parses a prolog file to edn.
   No additional modification is done on the created data."
-  [file]
-  (let [error-msg (call-swipl file)
+  [xxx file]
+  (let [error-msg (call-swipl xxx file)
         clojure-file (get-clojure-file-name file)
         result (transform-to-edn clojure-file)]
+    (log/debug (str "process file " file))
     (io/delete-file clojure-file)
     (conj result error-msg)))
 
@@ -167,45 +174,50 @@
                     :pred :preds})))
 
 (defn add-built-ins [data]
+  (log/debug "Add built-ins")
   (let [built-in (-> "prolog/builtins.pl"
-                     read-prolog-code-as-raw-edn
+                     (#(read-prolog-code-as-raw-edn "prolog/prolog_analyzer.pl" %))
                      format-and-clean-up
                      pre-processor/pre-process-single
                      (dissoc :error-msg))]
     (merge-with into data built-in)
     ))
 
-(def preamble
-  ":- module(tmp,[]).\n:- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n:- enable_write_out.\n\n")
 
-(defn process-prolog-file [file-name]
-  (-> file-name
-      read-prolog-code-as-raw-edn
-      format-and-clean-up
-      pre-processor/pre-process-single
-      add-built-ins
-      ))
+(def preamble
+  ":- module(tmp,[]).\n
+  :- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n
+  :- enable_write_out.\n\n")
+
+(defn process-prolog-file [xxx file-name]
+  (->> file-name
+       (read-prolog-code-as-raw-edn xxx)
+       format-and-clean-up
+       pre-processor/pre-process-single
+       add-built-ins
+       ))
 
 (defn process-prolog-snippets [code]
   (spit "prolog/tmp.pl" (str preamble code))
-  (let [res (process-prolog-file "prolog/tmp.pl")]
+  (let [res (process-prolog-file "prolog_analyzer" "prolog/tmp.pl")]
     (io/delete-file "prolog/tmp.pl")
     res))
 
-(defn process-prolog-files [& file-names]
+(defn process-prolog-files [xxx & file-names]
   (->> file-names
        (filter #(.endsWith % ".pl"))
-       (map read-prolog-code-as-raw-edn)
+       (map (partial read-prolog-code-as-raw-edn xxx))
        (map format-and-clean-up)
        (apply pre-processor/pre-process-multiple)
        add-built-ins))
 
-(defn process-prolog-directory [dir-name]
+(defn process-prolog-directory [xxx dir-name]
   (->> dir-name
        io/file
        (tree-seq #(.isDirectory %) #(.listFiles %))
        (remove #(.isDirectory %))
        (map #(.getPath %))
        (map str)
-       (apply process-prolog-files)
+       (remove #(.endsWith % ".edn"))
+       (apply process-prolog-files xxx)
        ))

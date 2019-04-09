@@ -1,7 +1,5 @@
 :- module(builtins, []).
-:- use_module(prolog_analyzer,[spec_pre/2, spec_post/3, enable_write_out/0, declare_spec/1, define_spec/2]).
-
-:- enable_write_out.
+:- use_module(annotations,[spec_pre/2, spec_post/3, declare_spec/1, define_spec/2]).
 
 :- spec_pre(user:acyclic_term/1, [any]).
 :- spec_post(user:acyclic_term/1, [any], [any]).
