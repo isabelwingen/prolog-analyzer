@@ -79,7 +79,7 @@
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   (intersect [spec other-spec defs _]
     (if (= ERROR (spec-type other-spec))
-      (update spec :reason #(str % " and " (.reason other-spec)))
+      other-spec
       spec))
   printable
   (to-string [x] (str "ERROR: " reason)))
