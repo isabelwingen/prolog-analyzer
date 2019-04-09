@@ -1,7 +1,5 @@
 :- module(any_and_postspecs,[]).
-:- use_module("../../prolog/prolog_analyzer",[spec_pre/2,spec_post/3,enable_write_out/0,declare_spec/1,define_spec/2]).
-
-:- enable_write_out.
+:- use_module("../prolog/annotations.pl",[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).
 
 
 

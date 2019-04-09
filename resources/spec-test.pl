@@ -1,8 +1,5 @@
 :- module(spec_test,[]).
-:- use_module("../prolog/prolog_analyzer",[enable_write_out/0,spec_pre/2,spec_post/3,spec_invariant/2,define_spec/2,declare_spec/1]).
-
-:- enable_write_out.
-
+:- use_module("../prolog/annotations",[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).
 
 :- declare_spec(intOrVar).
 :- declare_spec(foo).
@@ -33,5 +30,3 @@ member_int(E,[_,T]) :-
 :- spec_post(foo/3,[foo,intOrVar,intOrVar],[foo,int,int]).
 :- spec_post(foo/3,[nonvar,int,int],[foo,int,int]).
 foo(foo(A,B),A,B).
-
-

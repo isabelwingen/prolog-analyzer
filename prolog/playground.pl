@@ -1,7 +1,10 @@
 :- module(tmp,[]).
-:- use_module(prolog_analyzer,[spec_pre/2, spec_post/3, enable_write_out/0]).
+%:- use_module(prolog_analyzer,[spec_pre/2, spec_post/3, declare_spec/1, define_spec/2]).
 
-:- enable_write_out.
+%:- enable_write_out.
+%:- declare_spec(tree(specvar(_))).
+%:- define_spec(tree(specvar(X)),one_of([compound(node(tree(specvar(X)),specvar(X),tree(specvar(X)))),atom(empty)])).
 
-:- spec_pre(foo/1, [tuple([list(atom)])]).
-foo([[a,b,c]]).
+
+%:- spec_pre(f/2, [specvar(X), one_of([specvar(X), atom])]).
+f(A,B).

@@ -1,7 +1,5 @@
 :- module(abs_int,[abs_int/3, abs_int/2]).
-:- use_module("../prolog/prolog_analyzer",[spec_pre/2,spec_post/3,enable_write_out/0,declare_spec/1,define_spec/2]).
-
-:- enable_write_out.
+:- use_module("../prolog/annotations.pl",[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).
 
 :- declare_spec(skip).
 :- declare_spec(op).
@@ -52,13 +50,13 @@ int_expr(neg(A),State,Val,Line) :- !,
     int_expr(A,State,ValA,Line),
     abs_neg(ValA,Val),
     log("%t is abstracted to %t.",[neg(A),Val],info,abs_int,Line).
-int_expr(id(N),State,Val,Line) :- 
+int_expr(id(N),State,Val,Line) :-
   get_assoc(N,State,Val),!,
   log("%t is abstracted to %t.",[id(N),Val],info,abs_int,Line).
 int_expr(id(A),_,X,Line) :-
     undef(X),
     log("%t is undefined",[id(A)],error,abs_int,Line).
-  
+
 
 :- spec_pre(int_pred/5,[pred,state,var,one_of([var,atom]),int]).
 :- spec_post(int_pred/5,[pred,state,var,var,int],[pred,state,state,atom,int]).
@@ -120,36 +118,36 @@ int2(if(Line,Pred,If,Else),StateIn,StateOut) :-
   findall((false,BetterStateIn),int_pred(Pred,StateIn,BetterStateIn,false,Line),Solutions),
   maplist(int_if(If,Else),Solutions,PossibleStates),
   merge_list_of_states(PossibleStates,StateOut).
- 
+
 % Der Else-Block ist nicht erreichbar da es keinen Zustand gibt, der die Bedingung falsch macht
 int2(if(Line,Pred,If,Else),StateIn,StateOut) :-
   findall((false,BetterStateIn),int_pred(Pred,StateIn,BetterStateIn,false,Line),[]),!,
   findall((true,BetterStateIn),int_pred(Pred,StateIn,BetterStateIn,true,Line),Solutions),
   log("Else-Block is unreachable",warning,abs_int,Line),
   maplist(int_if(If,Else),Solutions,PossibleStates),
-  merge_list_of_states(PossibleStates,StateOut). 
-  
+  merge_list_of_states(PossibleStates,StateOut).
+
 % Beide Blöcke sind erreichbar
 int2(if(Line,Pred,If,Else),StateIn,StateOut) :-
   findall((Val,BetterStateIn),int_pred(Pred,StateIn,BetterStateIn,Val,Line),Solutions),
   maplist(int_if(If,Else),Solutions,PossibleStates),
   merge_list_of_states(PossibleStates,StateOut).
-  
+
 int2(while(Line,Pred,Block),StateIn,StateOut) :-
   int_while(Line,Pred,Block,StateIn,StateOut).
-  
+
 int2(for(Line,id(X),From,To,Statements),StateIn,StateOut) :-
   append(Statements,[def(Line,id(X),expr(+,id(X),cst(1)))],WhileBody),
   int([def(Line,id(X),From),while(Line,pred(<,id(X),To),WhileBody)],StateIn,StateOut).
-  
+
 int2(for(Line,def(Line,id(X),Start),EndPred,Change,Statements),StateIn,StateOut) :-
     append(Statements,[Change],WhileBody),
     int([def(Line,id(X),Start),while(Line,EndPred,WhileBody)],StateIn,StateOut).
-    
+
 int2(def(Line,id(VName),Expr),State,StateOut) :-
   int_expr(Expr,State,Val,Line),
-  put_assoc(VName,State,Val,StateOut). 
-  
+  put_assoc(VName,State,Val,StateOut).
+
 int2(print(Line,Expr),State,State) :-
   int_expr(Expr,State,Val,Line),
   log(Val).
@@ -167,7 +165,7 @@ int_if(_,Else,(false,StateIn),StateOut) :-
 int_while(Line,Pred,Block,StateIn,StateOut) :-
   fixpoint_loop_body(Line,Pred,Block,StateIn,LoopState),
   findall(StateOut,int_pred(Pred,LoopState,StateOut,false,Line),StatesWherePredIsFalse),
-  (StatesWherePredIsFalse = [] 
+  (StatesWherePredIsFalse = []
     -> log("found endless loop",error,abs_int,Line),StateOut=StateIn;
    merge_list_of_states(StatesWherePredIsFalse,StateOut)).
 

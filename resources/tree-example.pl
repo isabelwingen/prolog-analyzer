@@ -1,7 +1,5 @@
 :- module(tree_example,[]).
-:- use_module("../prolog/prolog_analyzer",[enable_write_out/0,spec_pre/2,spec_post/3,spec_invariant/2,define_spec/2,declare_spec/1]).
-
-:- enable_write_out.
+:- use_module("../prolog/annotations",[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).
 
 :- declare_spec(tree(specvar(_))).
 :- define_spec(tree(specvar(X)),one_of([compound(node(tree(specvar(X)),specvar(X),tree(specvar(X)))),atom(empty)])).
@@ -45,3 +43,7 @@ add_to_tree(Elem,node(Left,Root,Right),node(NLeft,Root,Right)) :-
 add_to_tree(Elem,node(Left,Root,Right),node(Left,Root,NRight)) :-
     Elem > Root,
     add_to_tree(Elem,Right,NRight).
+
+:- spec_pre(foo/1, [tree(int)]).
+foo(L) :-
+    get_right_tree(L,A).

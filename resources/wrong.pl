@@ -1,7 +1,5 @@
 :- module(test,[]).
-:- use_module("../prolog/prolog_analyzer",[enable_write_out/0,spec_pre/2]).
-
-:- enable_write_out.
+:- use_module("../prolog/annotations",[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).
 
 :- spec_pre(foo/2,[number]).
 foo(X) :-
