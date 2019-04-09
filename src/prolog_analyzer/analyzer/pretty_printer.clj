@@ -97,11 +97,10 @@
       (and (arti-term? (:head term)) (arti-term? (:tail term)))
       (and ((complement nil?) (:arglist term)) (every? #(not (arti-term? %)) (:arglist term)))))
 
-(defn short-result [res file]
+(defn short-result [res]
   (doseq [[[clause-id pre-spec] graph] res]
     (do
-      (println "FILE: " file)
-      (println "#" clause-id ":" (map r/to-string pre-spec))
+      (println "#" clause-id ":" (r/to-string pre-spec))
       (let [error-terms (->> graph
                             (utils/get-terms)
                             (remove contains-arti-term?)
