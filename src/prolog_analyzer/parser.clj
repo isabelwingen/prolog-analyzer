@@ -202,9 +202,10 @@
 
 (defn process-prolog-directory [dir-name]
   (->> dir-name
-      io/file
-      file-seq
-      rest
-      (filter #(clojure.string/ends-with? (str %) ".pl"))
-      (map str)
-      (apply process-prolog-files)))
+       io/file
+       (tree-seq #(.isDirectory %) #(.listFiles %))
+       (remove #(.isDirectory %))
+       (map #(.getPath %))
+       (map str)
+       (apply process-prolog-files)
+       ))
