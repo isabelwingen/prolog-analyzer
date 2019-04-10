@@ -138,6 +138,5 @@
                            r/->OneOfSpec)
                       (:specs data)))]
       (log/debug (str "Clause: " [clause-id (r/to-string pre-spec)]))
-      (println (str clause-id "#" (r/to-string pre-spec)))
-      (printer (analyzing data (utils/get-clause clause-id data) pre-spec))
+      (printer (str clause-id "#" (r/to-string pre-spec)) (analyzing data (utils/get-clause clause-id data) pre-spec))
       )))

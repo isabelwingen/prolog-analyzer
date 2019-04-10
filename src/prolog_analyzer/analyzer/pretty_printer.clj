@@ -69,26 +69,6 @@
                         (r/to-string (uber/dest edge))
                         (str (uber/attrs graph edge))))))
 
-
-(defn pretty-print-graph [graph]
-  (let [nodes (utils/get-terms graph)
-        nd-num (count nodes)
-        edges (uber/edges graph)
-        edg-num (count edges)]
-    (println nd-num "Nodes:")
-    (print-nodes graph)
-    (println edg-num "Edges:")
-    (when (> edg-num 0)
-      (print-edges graph))))
-
-(defn pretty-print-analysis-result [res]
-  (doseq [[[clause-id pre-spec] g] res]
-    (do
-      (println "#" clause-id ":" (r/to-string pre-spec))
-      (pretty-print-graph g)
-      (println "--------------------------------------------------------------------\n"))))
-
-
 (defn- arti-term? [term]
   (.startsWith (str (:name term)) "A__"))
 
@@ -97,16 +77,39 @@
       (and (arti-term? (:head term)) (arti-term? (:tail term)))
       (and ((complement nil?) (:arglist term)) (every? #(not (arti-term? %)) (:arglist term)))))
 
+
+
+(defn pretty-print-graph [title graph]
+  (println title)
+  (println)
+  (let [nodes (utils/get-terms graph)
+        nd-num (count nodes)
+        edges (uber/edges graph)
+        edg-num (count edges)]
+    (println nd-num "Nodes:")
+    (print-nodes graph)
+    (println edg-num "Edges:")
+    (when (> edg-num 0)
+      (print-edges graph))
+    (println "---------------------\n")))
+
+(defn short-print [title graph]
+  (println title)
+  (println)
+  (let [error-terms (->> graph
+                         (utils/get-terms)
+                         (remove contains-arti-term?)
+                         (filter #(r/error-spec? (utils/get-dom-of-term graph %))))]
+    (if (empty? error-terms)
+      (println "No errors found")
+      (doseq [t error-terms]
+        (print-in-columns [20] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t)))))
+    (println "----------------------\n")))
+
+
 (defn short-result [res]
   (doseq [[[clause-id pre-spec] graph] res]
     (do
       (println "#" clause-id ":" (r/to-string pre-spec))
-      (let [error-terms (->> graph
-                            (utils/get-terms)
-                            (remove contains-arti-term?)
-                            (filter #(r/error-spec? (utils/get-dom-of-term graph %))))]
-        (if (empty? error-terms)
-          (println "No errors found")
-          (doseq [t error-terms]
-            (print-in-columns [20] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t))))))
+
       (println))))
