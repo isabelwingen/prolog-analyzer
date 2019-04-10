@@ -45,22 +45,18 @@ mapcat(Goal,List,Sep,Res,Break) :-
          multi_string_concat(["[",Join,"]"],Res)
     ).
 
-indent_elements(_,[],[]) :- !.
-indent_elements(Indent,[H|T],[Indent/H|S]) :-
-    indent_elements(Indent,T,S).
-
 string_concat_direct(String,OtherString,Res) :-
     sub_string(String,X,1,0,P),
     sub_string(String,0,X,1,WithoutNewLine),
     (P == "\n" ->
          string_concat(WithoutNewLine,OtherString,Res); string_concat(String,OtherString,Res)).
 concat_to_last_elem(List,String,Res) :-
-    reverse(List,[Ind/Last|Other]),!,
+    reverse(List,[Last|Other]),!,
     sub_string(Last,X,1,0,P),
     sub_string(Last,0,X,1,WithOutNewLine),
     (P == "\n" ->
          string_concat(WithOutNewLine,String,NewLast); string_concat(Last,String,NewLast)),
-    reverse([Ind/NewLast|Other],Res).
+    reverse([NewLast|Other],Res).
 
 concat_to_last_elem(List,String,Res) :-
     reverse(List,[Last|Other]),!,
@@ -70,98 +66,85 @@ concat_to_last_elem(List,String,Res) :-
          string_concat(WithOutNewLine,String,NewLast); string_concat(Last,String,NewLast)),
     reverse([NewLast|Other],Res).
 
-create_indent(0,"") :- !.
-create_indent(N,Res) :-
-    M is N-1,
-    create_indent(M,Acc),
-    string_concat(Acc," ",Res).
-
 rule_to_map(Head,Body,Module,Map) :-
     split(Head,Name,Arity,Arglist,_),
-    create_arglist(Arglist,13,ResArglist),
-    create_body(25,Body,BodyRes),
+    create_arglist(Arglist,ResArglist),
+    create_body(Body,BodyRes),
     multi_string_concat(["{:name     \"",Name,"\""],Goal_Elem),
     multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
-    append([0/Goal_Elem,13/Module_Elem,13/Arity_Elem],ResArglist,List1),
+    append([Goal_Elem,Module_Elem,Arity_Elem],ResArglist,List1),
     append(List1,BodyRes,List2),
     concat_to_last_elem(List2,"}",List3),
     create_map(List3,Map).
 
-goal_to_map(FirstLineInd,OtherLineInd,if(Cond,Then),Map) :-
+goal_to_map(if(Cond,Then),Map) :-
     !,
     string_concat("{:goal     ",":if",Goal_Elem),
     string_concat(":arity    ",2,Arity_Elem),
-    maplist(create_body_list(26),[Cond,Then],TMP),
+    maplist(create_body_list,[Cond,Then],TMP),
     maplist(create_map,TMP,[H|Maps]),
     string_concat(":arglist  [",H,NewH),
     concat_to_last_elem(Maps,"]}",NewMaps),
-    indent_elements(20,NewMaps,BLABLA),
-    append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem,OtherLineInd/NewH],BLABLA,List),
+    append([Goal_Elem,Arity_Elem,NewH],NewMaps,List),
     create_map(List,Map).
 
-goal_to_map(FirstLineInd,OtherLineInd,or(Arglist),Map) :- !,
+goal_to_map(or(Arglist),Map) :- !,
     length(Arglist,Arity),
     string_concat("{:goal     ",":or",Goal_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
-    maplist(create_body_list(26),Arglist,TMP),
+    maplist(create_body_list,Arglist,TMP),
     maplist(create_map,TMP,[H|Maps]),
     string_concat(":arglist  [",H,NewH),
     concat_to_last_elem(Maps,"]}",NewMaps),
-    indent_elements(20,NewMaps,BLABLA),
-    append([FirstLineInd/Goal_Elem,OtherLineInd/Arity_Elem,OtherLineInd/NewH],BLABLA,List),
+    append([Goal_Elem,Arity_Elem,NewH],NewMaps,List),
     create_map(List,Map).
 
-goal_to_map(FirstLineInd,OtherLineInd,Goal,Map) :-
+goal_to_map(Goal,Map) :-
     split(Goal,Name,Arity,Arglist,Module),
     multi_string_concat(["{:goal     \"",Name,"\""],Goal_Elem),
     multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     string_concat(":arity    ",Arity,Arity_Elem),
-    create_arglist(Arglist,OtherLineInd,ResArglist),
-    append([FirstLineInd/Goal_Elem,OtherLineInd/Module_Elem,OtherLineInd/Arity_Elem],ResArglist,List),
+    create_arglist(Arglist,ResArglist),
+    append([Goal_Elem,Module_Elem,Arity_Elem],ResArglist,List),
     concat_to_last_elem(List,"}",List2),
     create_map(List2,Map).
 
-create_body(Ind,Body,[13/NewH|T]) :-
-    create_body_list(Ind,Body,[0/H|T]),
+create_body(Body,[NewH|T]) :-
+    create_body_list(Body,[H|T]),
     string_concat(":body     ",H,NewH).
 
 
-create_body_list(_,[],[0/"[]"]) :- !.
-create_body_list(Ind,[B],[0/Res]) :-
+create_body_list([],["[]"]) :- !.
+create_body_list([B],[Res]) :-
     !,
-    goal_to_map(0,Ind,B,H),
+    goal_to_map(B,H),
     string_concat("[",H,Tmp1),
     string_concat_direct(Tmp1,"]",Res).
-create_body_list(Ind,[B|Body],Res) :-
-    goal_to_map(0,Ind,B,H),
-    X is Ind-1,
-    maplist(goal_to_map(X,Ind),Body,T),
+create_body_list([B|Body],Res) :-
+    goal_to_map(B,H),
+    maplist(goal_to_map,Body,T),
     string_concat("[",H,Line1),
     concat_to_last_elem(T,"]",Tmp1),
-    indent_elements(0,Tmp1,Tmp2),
-    append([0/Line1],Tmp2,Res).
+    append([Line1],Tmp1,Res).
 
 
-create_arglist([],Indent,[Indent/":arglist  []"]) :- !.
-create_arglist(Arglist,Indent,[Indent/Res]) :-
+create_arglist([],[":arglist  []"]) :- !.
+create_arglist(Arglist,[Res]) :-
     maplist(arg_to_map,Arglist,[T]),!,
     string_concat(":arglist  [",T,Tmp1),
     string_concat_direct(Tmp1,"]",Res).
-create_arglist(Arglist,Indent,Res) :-
+create_arglist(Arglist,Res) :-
     maplist(arg_to_map,Arglist,[H|T]),
     string_concat(":arglist  [",H,Line1),
     concat_to_last_elem(T,"]",Tmp1),
-    X is Indent+11,
-    indent_elements(X,Tmp1,Tmp2),
-    append([Indent/Line1],Tmp2,Res).
+    append([Line1],Tmp1,Res).
 
 create_map(List,Res) :-
     create_map(List,"",Res).
 create_map([],Res,Res) :- !.
-create_map([Indent/H|T],Acc,Res) :-
-    create_indent(Indent,IndentString),
-    multi_string_concat([Acc,IndentString,H,"\n"],NewAcc),
+create_map([H|T],Acc,Res) :-
+    multi_string_concat([Acc,H,"\n"],NewAcc),
     create_map(T,NewAcc,Res).
 
 arg_to_map(Arg,Map) :-
@@ -202,18 +185,18 @@ arg_to_map(compound,Term,Map) :-
     multi_string_concat([":head ",HeadString],HeadPart),
     multi_string_concat([":tail ",TailString,"}"],TailPart),
 
-    create_map([0/TypePart,1/HeadPart,1/TailPart],Map).
+    create_map([TypePart,HeadPart,TailPart],Map).
 
 arg_to_map(compound,Term,Map) :-
     !,
     Term =.. [Functor|Args],
     term_string(Functor,FunctorString),
-    create_arglist(Args,0,Arglist),
+    create_arglist(Args,Arglist),
     multi_string_concat(["{:type :compound"],TypePart),
     multi_string_concat([":functor \"",FunctorString,"\""],FunctorPart),
 
-    append([0/TypePart,1/FunctorPart],Arglist,List1),
-    append(List1,[0/"}"],List2),
+    append([TypePart,FunctorPart],Arglist,List1),
+    append(List1,["}"],List2),
     create_map(List2,Map).
 
 arg_to_map(var,Term,Map) :-
@@ -280,7 +263,7 @@ expand(':-'(A,B),Module,Stream) :-
 expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Stream) :-
     !,
     Start = "{:type :spec_pre\n:content ",
-    goal_to_map(0,13,spec_pre(InternalModule:Functor/Arity,Arglist),Map),
+    goal_to_map(spec_pre(InternalModule:Functor/Arity,Arglist),Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
@@ -292,7 +275,7 @@ expand(':-'(spec_pre(Functor/Arity,Arglist)),Module,Stream) :-
 expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,Stream) :-
     !,
     Start = "{:type :spec_post\n:content ",
-    goal_to_map(0,13,spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2),Map),
+    goal_to_map(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2),Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
@@ -304,7 +287,7 @@ expand(':-'(spec_post(Functor/Arity,Arglist1,Arglist2)),Module,Stream) :-
 expand(':-'(spec_invariant(InternalModule:Functor/Arity,Arglist)),_Module,Stream) :-
     !,
     Start = "{:type :spec_inv\n:content ",
-    goal_to_map(0,13,spec_invariant(InternalModule:Functor/Arity,Arglist),Map),
+    goal_to_map(spec_invariant(InternalModule:Functor/Arity,Arglist),Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
@@ -318,7 +301,7 @@ expand(':-'(A),_Module,Stream) :-
     A = declare_spec(_),
     !,
     Start = "{:type :declare_spec\n:content ",
-    goal_to_map(0,13,A,Map),
+    goal_to_map(A,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
@@ -326,7 +309,7 @@ expand(':-'(A),_Module,Stream) :-
     A  = define_spec(_,_),
     !,
     Start = "{:type :define_spec\n:content ",
-    goal_to_map(0,13,A,Map),
+    goal_to_map(A,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
@@ -336,7 +319,7 @@ expand(':-'(enable_write_out),_,_) :- !.
 expand(':-'(A),_Module,Stream) :-
     !,
     Start = "{:type      :direct\n :content   ",
-    goal_to_map(0,13,A,Map),
+    goal_to_map(A,Map),
     string_concat(Start,Map,Tmp1),
     string_concat(Tmp1,"}",Tmp2),
     write(Stream,Tmp2),nl(Stream).
