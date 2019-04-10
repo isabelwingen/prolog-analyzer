@@ -124,9 +124,9 @@
       rel/fixpoint-analysis
       ))
 
-(defn complete-analysis [data]
+(defn complete-analysis [printer data]
   (log/debug "Start complete analysis")
-  (for [pred-id (utils/get-pred-identities data)
+  (doseq [pred-id (utils/get-pred-identities data)
         clause-id (utils/get-clause-identities-of-pred pred-id data)]
     (let [pre-spec (do
                      (log/debug (str pred-id))
@@ -138,37 +138,6 @@
                            r/->OneOfSpec)
                       (:specs data)))]
       (log/debug (str "Clause: " [clause-id (r/to-string pre-spec)]))
-      [[clause-id pre-spec] (analyzing data (utils/get-clause clause-id data) pre-spec)]
+      (println (str clause-id "#" (r/to-string pre-spec)))
+      (printer (analyzing data (utils/get-clause clause-id data) pre-spec))
       )))
-
-(defn playground []
-  (->> "prolog/playground.pl"
-       process-prolog-file
-       complete-analysis
-       my-pp/pretty-print-analysis-result
-       ))
-
-(defn example []
-  (-> "resources/abs_int.pl"
-       process-prolog-file
-       complete-analysis
-       my-pp/pretty-print-analysis-result
-       (my-pp/short-result "abs_int")
-       ))
-
-(defn example2 []
-  (->> ["resources/module1.pl" "resources/module2.pl"]
-       (apply process-prolog-files)
-       complete-analysis
-       my-pp/pretty-print-analysis-result
-       ))
-
-(defn execute [file]
-  (-> file
-      process-prolog-file
-      complete-analysis
-      my-pp/pretty-print-analysis-result
-      (my-pp/short-result nil)
-      ))
-
-(playground)
