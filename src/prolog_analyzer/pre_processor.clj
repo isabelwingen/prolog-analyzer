@@ -93,6 +93,7 @@
           (utils/get-clause-identities data)))
 
 (defn pre-process-single [data]
+  (log/debug "Start Pre Process Single")
   (-> data
       mark-self-calling-clauses
       transform-args-to-term-records
@@ -102,6 +103,7 @@
 
 
 (defn pre-process-multiple [& data]
+  (log/debug "Start Pre Process multiple")
   (->> data
        (map mark-self-calling-clauses)
        (map transform-args-to-term-records)

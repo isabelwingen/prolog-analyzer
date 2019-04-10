@@ -21,15 +21,21 @@
        (apply vector)))
 
 (defn- call-swipl [xxx file]
-  (let [path-to-analyzer (str "'" xxx "'")
+  (let [current-hash (hash (slurp file))
+        clojure-file (get-clojure-file-name file)
+        path-to-analyzer (str "'" xxx "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1, enable_write_out/0]),"
                   "set_file('" file "'),"
                   "enable_write_out,"
                   "['" file "'],"
                   "halt.")
         {err :err} (sh/sh "swipl" "-g" goal "-q")]
-    {:type :error-msg
-     :content (split-up-error-message err)}))
+    (spit clojure-file
+          (str "\n{:type :error-msg :content " (split-up-error-message err) "}")
+          :append true)
+    (spit clojure-file
+          (str "\n{:hash " current-hash "}")
+          :append true)))
 
 (defn- replace-backslash [clojure-file]
   (spit clojure-file (.replace (slurp clojure-file) "\\" "\\\\")))
@@ -44,16 +50,25 @@
       (printf "Error parsing edn file '%s': '%s\n" clojure-file (.getMessage e)))))
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
 
+
 (defn read-prolog-code-as-raw-edn
   "Parses a prolog file to edn.
   No additional modification is done on the created data."
   [xxx file]
-  (let [error-msg (call-swipl xxx file)
-        clojure-file (get-clojure-file-name file)
-        result (transform-to-edn clojure-file)]
-    (log/debug (str "process file " file))
-    (io/delete-file clojure-file)
-    (conj result error-msg)))
+  (log/debug (str "Start reading of file" file))
+  (when (not (.exists (io/file (get-clojure-file-name file))))
+    (do (log/debug (str "Call swipl on " file " the first time")) (call-swipl xxx file)))
+  (let [pre-result (do (log/debug (str "Transform " file)) (transform-to-edn (get-clojure-file-name file)))
+        current-hash (hash (slurp file))
+        old-hash (:hash (last pre-result))]
+    (if (= old-hash current-hash)
+      pre-result
+      (do
+        (log/debug (str "File " file " changed, call swipl."))
+        (call-swipl xxx file)
+        (log/debug (str "File " file " changed, transform to edn."))
+        (transform-to-edn (get-clojure-file-name file))))))
+
 
 (defn- apply-function-on-values [func in-map]
   (reduce-kv #(assoc %1 %2 (func %3)) {} in-map))
@@ -159,6 +174,7 @@
                   {})))
 
 (defn- format-and-clean-up [data]
+  (log/debug "Start formatting of edn")
   (-> data
       (group-by-and-apply :type (partial map :content))
       (update :declare_spec order-declare-specs)
