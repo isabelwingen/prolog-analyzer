@@ -3,6 +3,7 @@
 
 :- multifile term_expansion/2.
 :- dynamic write_out/0.
+:- dynamic filename/1.
 :- public enable_write_out/0.
 :- public set_file/1.
 
