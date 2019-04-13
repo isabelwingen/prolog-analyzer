@@ -1,5 +1,5 @@
 :- module(prolog_analyzer,[enable_write_out/0,set_file/1]).
-:- use_module(library(error)).
+:- (prolog_load_context(dialect,swi) -> use_module(library(error)); true).
 
 :- multifile term_expansion/2.
 :- dynamic write_out/0.
@@ -9,11 +9,8 @@
 set_file(Filename) :-
     retractall(filename(_)),
     assert(filename(Filename)).
-
 get_file_name(File) :-
     filename(File).
-get_file_name(File) :-
-    prolog_load_context(File).
 get_file_name("tmp.pl").
 
 % Transform to edn
@@ -373,21 +370,37 @@ merge_list(L,R,Res) :-
     append(L,[R],Res).
 merge_list(L,R,[L,R]).
 
+checker :-
+    prolog_load_context(file,File),
+    get_file_name(Rel),
+    absolute_file_name(Rel,Abs),
+    Abs == File.
+
+get_clojure_file_name(File,ClojureFile) :-
+    string_concat(File,".edn",ClojureFile).
+
+
 user:term_expansion(A,A) :-
     !,
     prolog_load_context(module,Module),
-    (write_out, main_file(File) ->
+    (checker ->
          get_clojure_file_name(File,ClojureFile),
          open(ClojureFile,append,Stream),
          expand(A,Module,Stream),
          write(Stream,";; ----------------"),nl(Stream),nl(Stream),
          close(Stream)
+     ; true
     ).
 
-get_clojure_file_name(File,ClojureFile) :-
-    string_concat(File,".edn",ClojureFile).
-
-main_file(File) :-
-    prolog_load_context(file,File),
-    prolog_load_context(source,File),
-    source_file_property(File,module(_)).
+:- multifile user:term_expansion/6.
+user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
+    nonmember(plspec_token, Ids),
+    prolog_load_context(module, Module),
+    (checker ->
+         get_clojure_file_name(File,ClojureFile),
+         open(ClojureFile,append,Stream),
+         expand(Term,Module,Stream),
+         write(Stream,";; ---------------"), nl(Stream),nl(Stream),
+         close(Stream)
+              ; true
+    ).
