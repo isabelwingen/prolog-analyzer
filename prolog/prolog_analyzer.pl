@@ -371,7 +371,7 @@ merge_list(L,R,Res) :-
     append(L,[R],Res).
 merge_list(L,R,[L,R]).
 
-checker :-
+checker(Abs) :-
     prolog_load_context(file,File),
     get_file_name(Rel),
     absolute_file_name(Rel,Abs),
@@ -384,7 +384,7 @@ get_clojure_file_name(File,ClojureFile) :-
 user:term_expansion(A,A) :-
     !,
     prolog_load_context(module,Module),
-    (checker ->
+    (checker(File) ->
          get_clojure_file_name(File,ClojureFile),
          open(ClojureFile,append,Stream),
          expand(A,Module,Stream),
@@ -397,7 +397,7 @@ user:term_expansion(A,A) :-
 user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),
     prolog_load_context(module, Module),
-    (checker ->
+    (checker(File) ->
          get_clojure_file_name(File,ClojureFile),
          open(ClojureFile,append,Stream),
          expand(Term,Module,Stream),
