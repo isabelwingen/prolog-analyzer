@@ -12,9 +12,11 @@
   (if (.isDirectory (io/file file))
     (->> file
          (parser/process-prolog-directory xxx)
-         (analyzer/complete-analysis my-pp/short-result)
+         (analyzer/complete-analysis my-pp/short-print)
          )
     (->> file
          (parser/process-prolog-file xxx)
-         (analyzer/complete-analysis my-pp/short-result)
+         (analyzer/complete-analysis my-pp/short-print)
          )))
+
+(-main "prolog/prolog_analyzer.pl", "resources/demo")

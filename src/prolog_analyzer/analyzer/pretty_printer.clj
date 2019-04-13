@@ -105,11 +105,3 @@
       (doseq [t error-terms]
         (print-in-columns [20] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t)))))
     (println "----------------------\n")))
-
-
-(defn short-result [res]
-  (doseq [[[clause-id pre-spec] graph] res]
-    (do
-      (println "#" clause-id ":" (r/to-string pre-spec))
-
-      (println))))
