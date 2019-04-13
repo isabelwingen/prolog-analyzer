@@ -332,20 +332,20 @@ body_list(Body,List) :-
     (is_list(E) -> List = E; List = [E]).
 
 transform(Body,or(SimpleOr)) :-
-    Body =.. [(;),Left,Right],!,
+    Body =.. [';',Left,Right],!,
     transform(Left,LeftList),
     transform(Right,RightList),
     Res = [LeftList,RightList],
     simplify_or(or(Res),or(SimpleOr)).
 
 transform(Body,Res) :-
-    Body =.. [(,),Left,Right],!,
+    Body =.. [',',Left,Right],!,
     transform(Left,LeftList),
     transform(Right,RightList),
     merge_list(LeftList,RightList,Res).
 
 transform(Body,[if(LeftList,RightList)]) :-
-    Body =.. [(->),Left,Right],!,
+    Body =.. ['->',Left,Right],!,
     transform(Left,LeftList),
     transform(Right,RightList).
 
