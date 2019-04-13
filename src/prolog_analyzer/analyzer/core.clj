@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.core
   (:require
-   [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets process-prolog-files]] ;; used only during development
+   [prolog-analyzer.parser :refer [process-prolog-file]] ;; used only during development
    [prolog-analyzer.analyzer.domain :as dom]
    [prolog-analyzer.analyzer.relationship-analyzer :as rel]
    [prolog-analyzer.records :as r]

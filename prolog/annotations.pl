@@ -1,4 +1,14 @@
 :- module(annotations, [spec_pre/2, spec_post/3, spec_invariant/2, define_spec/2, declare_spec/1]).
+initialize_dialect :-
+    prolog_load_context(dialect,swi),!,
+    use_module(library(error)),
+    use_module(library(apply)),
+    use_module(library(lists)).
+
+initialize_dialect :-
+    use_module(library(file_systems)),
+    use_module(library(lists)).
+:- initialize_dialect.
 
 spec_pre(Pred,SpecPre) :-
     ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),

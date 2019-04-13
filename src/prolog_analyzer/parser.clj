@@ -11,7 +11,8 @@
             [clojure.string]))
 
 (defn- get-clojure-file-name [file]
-  (str file ".edn"))
+  (.getAbsolutePath (io/file "source.edn")))
+
 
 (defn- split-up-error-message [msg]
   (->> msg
@@ -19,23 +20,6 @@
        (partition 2)
        (map (partial apply str))
        (apply vector)))
-
-(defn- call-swipl [xxx file]
-  (let [current-hash (hash (slurp file))
-        clojure-file (get-clojure-file-name file)
-        path-to-analyzer (str "'" xxx "'")
-        goal (str "use_module(" path-to-analyzer ", [set_file/1, enable_write_out/0]),"
-                  "set_file('" file "'),"
-                  "enable_write_out,"
-                  "['" file "'],"
-                  "halt.")
-        {err :err} (sh/sh "swipl" "-g" goal "-q")]
-    (spit clojure-file
-          (str "\n{:type :error-msg :content " (split-up-error-message err) "}")
-          :append true)
-    (spit clojure-file
-          (str "\n{:hash " current-hash "}")
-          :append true)))
 
 (defn- replace-backslash [clojure-file]
   (spit clojure-file (.replace (slurp clojure-file) "\\" "\\\\")))
@@ -50,24 +34,39 @@
       (printf "Error parsing edn file '%s': '%s\n" clojure-file (.getMessage e)))))
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
 
+(defmulti call-prolog (fn [dialect term-expander prolog-exe file] dialect))
+
+(defmethod call-prolog "swipl" [dialect term-expander prolog-exe file]
+  (let [clojure-file (get-clojure-file-name file)
+        path-to-analyzer (str "'" term-expander "'")
+        goal (str "use_module(" path-to-analyzer ", [set_file/1, enable_write_out/0]),"
+                  "set_file('" clojure-file "'),"
+                  "['" file "'],"
+                  "halt.")
+        {err :err} (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv)))]
+    err))
+
+(defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file]
+  (let [current-hash (hash (slurp file))
+        clojure-file (get-clojure-file-name file)
+        path-to-analyzer (str "'" term-expander "'")
+        goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
+                  "set_file('" clojure-file "'),"
+                  "['" file "'],"
+                  "halt.")
+        {err :err} (sh/sh prolog-exe "--goal" goal "--noinfo" :env (into {} (System/getenv)))]
+    err))
+
 
 (defn read-prolog-code-as-raw-edn
   "Parses a prolog file to edn.
   No additional modification is done on the created data."
-  [xxx file]
-  (log/debug (str "Start reading of file" file))
-  (when (not (.exists (io/file (get-clojure-file-name file))))
-    (do (log/debug (str "Call swipl on " file " the first time")) (call-swipl xxx file)))
-  (let [pre-result (do (log/debug (str "Transform " file)) (transform-to-edn (get-clojure-file-name file)))
-        current-hash (hash (slurp file))
-        old-hash (:hash (last pre-result))]
-    (if (= old-hash current-hash)
-      pre-result
-      (do
-        (log/debug (str "File " file " changed, call swipl."))
-        (call-swipl xxx file)
-        (log/debug (str "File " file " changed, transform to edn."))
-        (transform-to-edn (get-clojure-file-name file))))))
+  [dialect term-expander prolog-exe file]
+  (log/debug (str "Dialect: " dialect))
+  (log/debug (str "Start writing of file " file))
+  (call-prolog dialect term-expander prolog-exe file)
+  (log/debug (str "Start reading of edn"))
+  (transform-to-edn (get-clojure-file-name file)))
 
 
 (defn- apply-function-on-values [func in-map]
@@ -189,10 +188,10 @@
                     :spec_inv :inv-specs
                     :pred :preds})))
 
-(defn add-built-ins [data]
+(defn add-built-ins [dialect data]
   (log/debug "Add built-ins")
-  (let [built-in (-> "prolog/builtins.pl"
-                     (#(read-prolog-code-as-raw-edn "prolog/prolog_analyzer.pl" %))
+  (let [built-in (-> "/home/isabel/Studium/prolog-analyzer/prolog/builtins.pl"
+                     (#(read-prolog-code-as-raw-edn "swipl" "prolog/prolog_analyzer.pl" "swipl" %))
                      format-and-clean-up
                      pre-processor/pre-process-single
                      (dissoc :error-msg))]
@@ -205,29 +204,25 @@
   :- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n
   :- enable_write_out.\n\n")
 
-(defn process-prolog-file [xxx file-name]
+(defn process-prolog-file [dialect term-expander prolog-exe file-name]
+  (when (.exists (io/file (get-clojure-file-name file-name)))
+    (io/delete-file (get-clojure-file-name file-name)))
   (->> file-name
-       (read-prolog-code-as-raw-edn xxx)
+       (read-prolog-code-as-raw-edn dialect term-expander prolog-exe)
        format-and-clean-up
        pre-processor/pre-process-single
-       add-built-ins
+       #_(add-built-ins dialect)
        ))
 
-(defn process-prolog-snippets [code]
-  (spit "prolog/tmp.pl" (str preamble code))
-  (let [res (process-prolog-file "prolog_analyzer" "prolog/tmp.pl")]
-    (io/delete-file "prolog/tmp.pl")
-    res))
-
-(defn process-prolog-files [xxx & file-names]
+(defn process-prolog-files [dialect term-expander prolog-exe & file-names]
   (->> file-names
        (filter #(.endsWith % ".pl"))
-       (map (partial read-prolog-code-as-raw-edn xxx))
+       (map (partial read-prolog-code-as-raw-edn dialect term-expander prolog-exe))
        (map format-and-clean-up)
        (apply pre-processor/pre-process-multiple)
-       add-built-ins))
+       (add-built-ins dialect)))
 
-(defn process-prolog-directory [xxx dir-name]
+(defn process-prolog-directory [dialect term-expander prolog-exe dir-name]
   (->> dir-name
        io/file
        (tree-seq #(.isDirectory %) #(.listFiles %))
@@ -235,5 +230,5 @@
        (map #(.getPath %))
        (map str)
        (remove #(.endsWith % ".edn"))
-       (apply process-prolog-files xxx)
+       (apply process-prolog-files dialect term-expander prolog-exe)
        ))

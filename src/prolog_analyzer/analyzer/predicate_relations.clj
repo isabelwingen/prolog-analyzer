@@ -1,5 +1,5 @@
 (ns prolog-analyzer.analyzer.predicate-relations
-  (:require [prolog-analyzer.parser :refer [process-prolog-file process-prolog-snippets]]
+  (:require [prolog-analyzer.parser :refer [process-prolog-file]]
             [prolog-analyzer.utils :as utils]
             [clojure.pprint :refer [pprint]]))
 

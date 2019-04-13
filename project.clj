@@ -9,7 +9,9 @@
                  [org.clojure/tools.namespace "0.2.11"]
                  [lein-githooks "0.1.0"]
                  [org.clojure/tools.logging "0.4.1"]
-                 [ubergraph "0.5.2"]]
+                 [ubergraph "0.5.2"]
+                 [tableflisp "0.1.0"]]
+  :plugins [[jonase/eastwood "0.3.5"]]
   :main ^:skip-aot prolog-analyzer.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}
