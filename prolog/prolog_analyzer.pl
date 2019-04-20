@@ -73,8 +73,9 @@ rule_to_map(Head,Body,Module,Map) :-
     create_body(Body,BodyRes),
     multi_string_concat(["{:name     \"",Name,"\""],Goal_Elem),
     multi_string_concat([":module   \"",Module,"\""],Module_Elem),
+    my_string_concat(":arglist ",ResArglist,Arglist_Elem),
     my_string_concat(":arity    ",Arity,Arity_Elem),
-    List1 = [Goal_Elem,Module_Elem,Arity_Elem|ResArglist],
+    List1 = [Goal_Elem,Module_Elem,Arity_Elem,Arglist_Elem],
     append(List1,BodyRes,List2),
     concat_to_last_elem(List2,"}",List3),
     create_map(List3,Map).
@@ -107,7 +108,8 @@ goal_to_map(Goal,Map) :-
     multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     my_string_concat(":arity    ",Arity,Arity_Elem),
     create_arglist(Arglist,ResArglist),
-    List = [Goal_Elem,Module_Elem,Arity_Elem|ResArglist],
+    my_string_concat(":arglist ",ResArglist,Arglist_Elem),
+    List = [Goal_Elem,Module_Elem,Arity_Elem, Arglist_Elem],
     concat_to_last_elem(List,"}",List2),
     create_map(List2,Map).
 
@@ -130,16 +132,15 @@ create_body_list([B|Body],Res) :-
     append([Line1],Tmp1,Res).
 
 
-create_arglist([],[":arglist  []"]) :- !.
-create_arglist(Arglist,[Res]) :-
+create_arglist([],"[]") :- !.
+create_arglist(Arglist,Res) :-
     maplist(arg_to_map,Arglist,[T]),!,
-    my_string_concat(":arglist  [",T,Tmp1),
+    my_string_concat("[",T,Tmp1),
     my_string_concat(Tmp1,"]",Res).
 create_arglist(Arglist,Res) :-
-    maplist(arg_to_map,Arglist,[H|T]),
-    my_string_concat(":arglist  [",H,Line1),
-    concat_to_last_elem(T,"]",Tmp1),
-    append([Line1],Tmp1,Res).
+    maplist(arg_to_map,Arglist,Maps),
+    join(",",Maps,String),
+    multi_string_concat(["[",String,"]"],Res).
 
 create_map(List,Res) :-
     create_map(List,'',Res).
@@ -195,8 +196,8 @@ arg_to_map(compound,Term,Map) :-
     create_arglist(Args,Arglist),
     multi_string_concat(["{:type :compound"],TypePart),
     multi_string_concat([":functor \"",FunctorString,"\""],FunctorPart),
-
-    List1 = [TypePart,FunctorPart|Arglist],
+    my_string_concat(":arglist ",Arglist,Arglist_Elem),
+    List1 = [TypePart,FunctorPart, Arglist_Elem],
     append(List1,["}"],List2),
     create_map(List2,Map).
 
