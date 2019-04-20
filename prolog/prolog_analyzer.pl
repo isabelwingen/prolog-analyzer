@@ -187,9 +187,8 @@ arg_to_map(compound,Term,Map) :-
     multi_string_concat(["{:type :compound"],TypePart),
     multi_string_concat([":functor \"",FunctorString,"\""],FunctorPart),
     my_string_concat(":arglist ",Arglist,Arglist_Elem),
-    List1 = [TypePart,FunctorPart, Arglist_Elem],
-    append(List1,["}"],List2),
-    create_map(List2,Map).
+    create_map([TypePart,FunctorPart, Arglist_Elem],Map1),
+    my_string_concat(Map1,"}\n",Map).
 
 arg_to_map(var,Term,Map) :-
     prolog_load_context(dialect,swi),!,
