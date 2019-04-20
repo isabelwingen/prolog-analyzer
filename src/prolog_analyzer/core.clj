@@ -9,17 +9,16 @@
 
 (defn -main
   "Start analyzing of source file"
-  [dialect term-expander file prolog-exe]
-  (if (.isDirectory (io/file file))
-    (->> file
-         (parser/process-prolog-directory dialect term-expander prolog-exe)
-         (analyzer/complete-analysis my-pp/short-print)
-         )
-    (->> file
-         (parser/process-prolog-file dialect term-expander prolog-exe)
-         (analyzer/complete-analysis my-pp/short-print)
-         ))
-  (<╯°□°>╯︵┻━┻)
+  ([edn]
+   (->> edn
+        parser/transform-to-edn
+        (analyzer/complete-analysis my-pp/short-print)))
+  ([dialect term-expander file prolog-exe]
+   (->> file
+        (parser/process-prolog-file dialect term-expander prolog-exe)
+        (analyzer/complete-analysis my-pp/short-print)
+        )
+   (<╯°□°>╯︵┻━┻))
   )
 
   (def sic "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1")
