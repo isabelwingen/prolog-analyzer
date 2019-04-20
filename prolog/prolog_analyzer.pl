@@ -418,18 +418,18 @@ user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),
     Term = ':-'(use_module(_)),!.
 user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
-    get_counter(C),
-    print(C), print(' Term expansion: '), print(Term),nl,flush_output,
+    %get_counter(C),
+    %print(C), print(' Term expansion: '), print(Term),nl,flush_output,
     nonmember(plspec_token, Ids),
     prolog_load_context(module, Module),
     filename(ClojureFile),
     expand(Term,Module,Result),
     open(ClojureFile,append,Stream),
-    inc_counter,
-    write(Stream,Result),
-    write(Stream,';; --------------------'), nl(Stream),nl(Stream),
-    close(Stream),
-    dec_counter.
+    %inc_counter,
+    write(Stream,Result),nl(Stream),
+    %write(Stream,';; --------------------'), nl(Stream),nl(Stream),
+    close(Stream).
+    %dec_counter.
 
 % must_fail_clpfd_det takes super long
 
