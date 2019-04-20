@@ -411,16 +411,6 @@ merge_list(L,R,Res) :-
     append(L,[R],Res).
 merge_list(L,R,[L,R]).
 
-user:term_expansion(A,A) :-
-    !,
-    prolog_load_context(module,Module),
-    filename(ClojureFile),
-    expand(A,Module,Result),
-    open(ClojureFile,append,Stream),
-    write(Stream,Result),nl(Stream),
-    write(Stream,";; ----------------"),nl(Stream),nl(Stream),
-    close(Stream).
-
 :- dynamic counter/1.
 inc_counter :-
     retract(counter(D)),!,
@@ -437,23 +427,39 @@ get_counter(C) :-
 get_counter(0) :-
     assert(counter(0)).
 
+
+user:term_expansion(A,A) :-
+    !,
+    prolog_load_context(module,Module),
+    filename(ClojureFile),
+    expand(A,Module,Result),
+    open(ClojureFile,append,Stream),
+    write(Stream,Result),nl(Stream),
+    write(Stream,";; ----------------"),nl(Stream),nl(Stream),
+    close(Stream).
+
+
 :- multifile user:term_expansion/6.
 user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),
     Term = ':-'(use_module(_)),!.
 user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
-    %get_counter(C),
-    %print(C), print(' Term expansion: '), print(Term),nl,flush_output,
+    nonmember(plspec_token, Ids),
+    Term = ':-'(use_module(_,_)),!.
+user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
+    nonmember(plspec_token, Ids),
+    Term = ':-'(module(_)),!.
+user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
+    nonmember(plspec_token, Ids),
+    Term = ':-'(module(_,_)),!.
+user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),
     prolog_load_context(module, Module),
     filename(ClojureFile),
     expand(Term,Module,Result),
     open(ClojureFile,append,Stream),
-    %inc_counter,
     write(Stream,Result),nl(Stream),
-    %write(Stream,';; --------------------'), nl(Stream),nl(Stream),
     close(Stream).
-    %dec_counter.
 
 % must_fail_clpfd_det takes super long
 
