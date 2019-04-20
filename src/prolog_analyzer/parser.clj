@@ -228,3 +228,9 @@
        (remove #(.endsWith % ".edn"))
        (apply process-prolog-files dialect term-expander prolog-exe)
        ))
+
+(defn process-edn [edn]
+  (-> edn
+      transform-to-edn
+      format-and-clean-up
+      pre-processor/pre-process-single))

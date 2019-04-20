@@ -11,7 +11,8 @@
   "Start analyzing of source file"
   ([edn]
    (->> edn
-        parser/transform-to-edn
+        parser/process-edn
+
         (analyzer/complete-analysis my-pp/short-print)))
   ([dialect term-expander file prolog-exe]
    (->> file
