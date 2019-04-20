@@ -23,12 +23,41 @@ set_file(Filename) :-
     retractall(filename(_)),
     assert(filename(Filename)).
 
+escape_ok(92).
+escape_ok(34).
+
+escape(L,Res) :-
+    escape(L,no,Res).
+
+escape([],_,[]) :- !.
+escape([X],_,[X]) :- X \= 92,!.
+escape([92],no,[92,92]) :- !.
+escape([92],yes,[92]) :- !.
+escape([92,P|T],_,[92,P|S]) :-
+    escape_ok(P),
+    !,
+    escape(T,yes,S).
+escape([92,X|T],no,[92,92,X|S]) :-
+    !,
+    escape(T,no,S).
+escape([92,X|T],yes,[92,X|S]) :-
+    !,
+    escape(T,no,S).
+escape([X,92|T],_,[X|S]) :-
+    !,
+    escape([92|T],no,S).
+escape([X,Y|T],_,[X|S]) :-
+    !,
+    escape([Y|T],no,S).
+
+
 sicstus_transform(Term,Res) :-
     number(Term),!,
     number_codes(Term,Res).
-sicstus_transform(Term,Res) :-
+sicstus_transform(Term,ERes) :-
     atom(Term),!,
-    atom_codes(Term,Res).
+    atom_codes(Term,Res),
+    escape(Res,ERes).
 sicstus_transform(Term,Term).
 
 my_string_concat(A,B,C) :-
@@ -233,17 +262,7 @@ arg_to_map(Type,Term,Map) :-
     my_string_concat(R2, Type, R3),
     my_string_concat(R3, "}",Map).
 
-
-arg_to_map(atom,Term,Map) :-
-    prolog_load_context(dialect,swi),!,
-    term_string(Term,String),
-    my_string_concat("{:term \"", String,R1),
-    my_string_concat(R1, "\" :type :atom}", Map).
-
-arg_to_map(atom,Term,Map) :-
-    !,
-    my_string_concat("{:term \"", Term,R1),
-    my_string_concat(R1, "\" :type :atom}", Map).
+arg_to_map(atom,Term,"{:type :atom}") :- !.
 
 arg_to_map(atomic,[],"{:type :empty-list}") :- !.
 arg_to_map(error,Term,Map) :-
