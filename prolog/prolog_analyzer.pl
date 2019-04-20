@@ -75,32 +75,27 @@ rule_to_map(Head,Body,Module,Map) :-
     multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     my_string_concat(":arglist ",ResArglist,Arglist_Elem),
     my_string_concat(":arity    ",Arity,Arity_Elem),
-    List1 = [Goal_Elem,Module_Elem,Arity_Elem,Arglist_Elem],
-    append(List1,BodyRes,List2),
-    concat_to_last_elem(List2,"}",List3),
-    create_map(List3,Map).
+    List2 = [Goal_Elem,Module_Elem,Arity_Elem,Arglist_Elem,BodyRes],
+    create_map(List2,Map2),
+    my_string_concat(Map2,"}\n",Map).
 
 goal_to_map(if(Cond,Then),Map) :-
     !,
     my_string_concat("{:goal     ",":if",Goal_Elem),
     my_string_concat(":arity    2","",Arity_Elem),
-    maplist(create_body_list,[Cond,Then],TMP),
-    maplist(create_map,TMP,[H|Maps]),
-    my_string_concat(":arglist  [",H,NewH),
-    concat_to_last_elem(Maps,"]}",NewMaps),
-    List = [Goal_Elem,Arity_Elem,NewH|NewMaps],
-    create_map(List,Map).
+    create_body_list(Cond,CondBody),
+    create_body_list(Then,ThenBody),
+    multi_string_concat([":arglist [",CondBody,"\n",ThenBody,"]}\n"],Arglist_Elem),
+    create_map([Goal_Elem,Arity_Elem,Arglist_Elem],Map).
 
 goal_to_map(or(Arglist),Map) :- !,
     length(Arglist,Arity),
     my_string_concat("{:goal     ",":or",Goal_Elem),
     my_string_concat(":arity    ",Arity,Arity_Elem),
     maplist(create_body_list,Arglist,TMP),
-    maplist(create_map,TMP,[H|Maps]),
-    my_string_concat(":arglist  [",H,NewH),
-    concat_to_last_elem(Maps,"]}",NewMaps),
-    List = [Goal_Elem,Arity_Elem,NewH|NewMaps],
-    create_map(List,Map).
+    join("\n",TMP,ArglistString),
+    multi_string_concat([":arglist [",ArglistString,"]}\n"],Arglist_Elem),
+    create_map([Goal_Elem,Arity_Elem,Arglist_Elem],Map).
 
 goal_to_map(Goal,Map) :-
     split(Goal,Name,Arity,Arglist,Module),
@@ -109,37 +104,32 @@ goal_to_map(Goal,Map) :-
     my_string_concat(":arity    ",Arity,Arity_Elem),
     create_arglist(Arglist,ResArglist),
     my_string_concat(":arglist ",ResArglist,Arglist_Elem),
-    List = [Goal_Elem,Module_Elem,Arity_Elem, Arglist_Elem],
-    concat_to_last_elem(List,"}",List2),
-    create_map(List2,Map).
+    create_map([Goal_Elem,Module_Elem,Arity_Elem, Arglist_Elem],Map1),
+    my_string_concat(Map1,"}\n",Map).
 
-create_body(Body,[NewH|T]) :-
-    create_body_list(Body,[H|T]),
-    my_string_concat(":body     ",H,NewH).
+create_body(Body,BodyString) :-
+    create_body_list(Body,BodyList),
+    my_string_concat(":body     ",BodyList,BodyString).
 
 
-create_body_list([],["[]"]) :- !.
-create_body_list([B],[Res]) :-
+create_body_list([],"[]") :- !.
+create_body_list([B],Res) :-
     !,
     goal_to_map(B,H),
-    my_string_concat("[",H,Tmp1),
-    my_string_concat(Tmp1,"]",Res).
-create_body_list([B|Body],Res) :-
-    goal_to_map(B,H),
+    multi_string_concat(["[",H,"]"],Res).
+create_body_list(Body,Res) :-
     maplist(goal_to_map,Body,T),
-    my_string_concat("[",H,Line1),
-    concat_to_last_elem(T,"]",Tmp1),
-    append([Line1],Tmp1,Res).
+    join(", ",T,String),
+    multi_string_concat(["[",String,"]"],Res).
 
 
 create_arglist([],"[]") :- !.
-create_arglist(Arglist,Res) :-
-    maplist(arg_to_map,Arglist,[T]),!,
-    my_string_concat("[",T,Tmp1),
-    my_string_concat(Tmp1,"]",Res).
+create_arglist([A],Res) :- !,
+    arg_to_map(A,B),
+    multi_string_concat(["[",B,"]"],Res).
 create_arglist(Arglist,Res) :-
     maplist(arg_to_map,Arglist,Maps),
-    join(",",Maps,String),
+    join(", ",Maps,String),
     multi_string_concat(["[",String,"]"],Res).
 
 create_map(List,Res) :-
