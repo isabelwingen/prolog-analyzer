@@ -21,11 +21,7 @@
        (map (partial apply str))
        (apply vector)))
 
-(defn- replace-backslash [clojure-file]
-  (spit clojure-file (.replace (slurp clojure-file) "\\" "\\\\")))
-
 (defn transform-to-edn [clojure-file]
-  (replace-backslash clojure-file)
   (try
     (with-open [in (java.io.PushbackReader. (clojure.java.io/reader clojure-file))]
       (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
