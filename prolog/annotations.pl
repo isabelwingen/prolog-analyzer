@@ -61,7 +61,7 @@ spec(number).
 spec(float).
 spec(emptylist).
 
-spec(compound(X)) :- compound(X), compound_name_arguments(X,_,Args), maplist(spec_and_nonvar,Args).
+spec(compound(X)) :- compound(X), X=.. [_|Args], maplist(spec_and_nonvar,Args).
 spec(list(X)) :- spec_and_nonvar(X).
 spec(tuple(X)) :- is_list(X),maplist(spec_and_nonvar,X).
 
