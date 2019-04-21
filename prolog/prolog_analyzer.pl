@@ -262,7 +262,7 @@ arg_to_map(Type,Term,Map) :-
     my_string_concat(R2, Type, R3),
     my_string_concat(R3, "}",Map).
 
-arg_to_map(atom,Term,"{:type :atom}") :- !.
+arg_to_map(atom,_,"{:type :atom}") :- !.
 
 arg_to_map(atomic,[],"{:type :empty-list}") :- !.
 arg_to_map(error,Term,Map) :-
@@ -411,33 +411,29 @@ merge_list(L,R,Res) :-
     append(L,[R],Res).
 merge_list(L,R,[L,R]).
 
-:- dynamic counter/1.
-inc_counter :-
-    retract(counter(D)),!,
-    C is D+1,
-    assert(counter(C)).
-inc_counter :-
-    assert(counter(0)).
-dec_counter :-
-    retract(counter(D)),
-    C is D-1,
-    assert(counter(C)).
-get_counter(C) :-
-    counter(C),!.
-get_counter(0) :-
-    assert(counter(0)).
 
+:- dynamic edn_stream/2.
+
+get_stream(_,Stream) :-
+    edn_stream(_,Stream),!.
+get_stream(Module,Stream) :-
+    filename(ClojureFile),
+    open(ClojureFile,append,Stream),
+    assert(edn_stream(Module,Stream)).
+
+term_expander(end_of_file) :-
+    prolog_load_context(module,Module),
+    (retract(edn_stream(Module,Stream)) -> close(Stream); true).
+
+term_expander(Term) :-
+    prolog_load_context(module, Module),
+    expand(Term,Module,Result),
+    get_stream(Module,Stream),
+    write(Stream,Result),nl(Stream),nl(Stream).
 
 user:term_expansion(A,A) :-
     !,
-    prolog_load_context(module,Module),
-    filename(ClojureFile),
-    expand(A,Module,Result),
-    open(ClojureFile,append,Stream),
-    write(Stream,Result),nl(Stream),
-    write(Stream,";; ----------------"),nl(Stream),nl(Stream),
-    close(Stream).
-
+    term_expander(A).
 
 :- multifile user:term_expansion/6.
 user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
@@ -448,18 +444,7 @@ user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
     Term = ':-'(use_module(_,_)),!.
 user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),
-    Term = ':-'(module(_)),!.
-user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
-    nonmember(plspec_token, Ids),
-    Term = ':-'(module(_,_)),!.
-user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
-    nonmember(plspec_token, Ids),
-    prolog_load_context(module, Module),
-    filename(ClojureFile),
-    expand(Term,Module,Result),
-    open(ClojureFile,append,Stream),
-    write(Stream,Result),nl(Stream),
-    close(Stream).
+    term_expander(Term).
 
 % must_fail_clpfd_det takes super long
 
