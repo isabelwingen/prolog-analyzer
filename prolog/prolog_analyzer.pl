@@ -270,7 +270,6 @@ arg_to_map(error,Term,Map) :-
     (prolog_load_context(dialect,swi) -> term_string(Term, String); Term = String),
     multi_string_concat(["{:type :should-not-happen :term ",String, "}"], Map).
 
-
 split(Module:Term,unknown,-1,[],unknown) :-
     var(Module),
     var(Term),!.
@@ -294,24 +293,86 @@ expand(':-'(A,B),Module,Result) :-
     my_string_concat(Start,Map,Tmp1),
     my_string_concat(Tmp1,"}",Result).
 
+spec_to_string(Term,String) :-
+    var(Term),
+    prolog_load_context(dialect,swi),!,
+    (var_property(Term,name(Name)) -> true ; term_string(Term,Name)),
+    multi_string_concat(["{:var \"",Name,"\"}"],String).
+spec_to_string(Term,String) :-
+    var(Term),!,
+    write_to_codes(Term,NameCodes),
+    atom_codes(Name,NameCodes),
+    multi_string_concat(["{:var \"",Name,"\"}"],String).
+spec_to_string(Terms,String) :-
+    is_list(Terms),!,
+    maplist(spec_to_string,Terms,Strings),
+    join(", ",Strings,Inner),
+    multi_string_concat(["[",Inner,"]"],String).
+spec_to_string(Term,String) :-
+    atomic(Term),!,
+    my_string_concat(":",Term,String).
+spec_to_string(same(Atom),String) :-
+    !,
+    multi_string_concat(["{:same ",Atom,"}"],String).
+spec_to_string(one_of(Arglist),String) :-
+    !,
+    spec_to_string(Arglist,Inner),
+    multi_string_concat(["{:one-of ",Inner,"}"],String).
+spec_to_string(and(Arglist),String) :-
+    !,
+    spec_to_string(Arglist,Inner),
+    multi_string_concat(["{:and ",Inner,"}"],String).
+spec_to_string(tuple(Arglist),String) :-
+    !,
+    spec_to_string(Arglist,Inner),
+    multi_string_concat(["{:tuple ",Inner,"}"],String).
+spec_to_string(list(Type),String) :-
+    !,
+    spec_to_string(Type,Inner),
+    multi_string_concat(["{:list ",Inner,"}"],String).
+spec_to_string(compound(Compound),String) :-
+    !,
+    Compound =.. [Functor|Arglist],
+    spec_to_string(Arglist,Inner),
+    multi_string_concat(["{:compound \"",Functor,"\" :arglist ",Inner,"}"],String).
+spec_to_string(specvar(X),String) :-
+    !,
+    spec_to_string(X,Inner),
+    multi_string_concat(["{:specvar ",Inner,"}"],String).
+spec_to_string(Userdefspec,String) :-
+    compound(Userdefspec),
+    Userdefspec =.. [Name|Arglist],
+    spec_to_string(Arglist,Inner),
+    multi_string_concat(["{:userdef \"",Name,"\" :arglist ",Inner,"}"],String).
+
 %special cases
 expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
     !,
-    Start = "{:type :spec_pre\n:content ",
-    goal_to_map(spec_pre(InternalModule:Functor/Arity,Arglist),Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}\n",Result).
-
+    Start = "{:type :pre-spec :content {:goal :spec-pre",
+    multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
+    multi_string_concat([":functor \"",Functor,"\""],FunctorPart),
+    my_string_concat(":arity ",Arity,ArityPart),
+    spec_to_string(Arglist,Spec),
+    my_string_concat(":arglist ",Spec,ArglistPart),
+    End = "}}",
+    create_map([Start,ModulePart,FunctorPart,ArityPart,ArglistPart,End],Result).
 expand(':-'(spec_pre(Functor/Arity,Arglist)),Module,Result) :-
     !,
     expand(':-'(spec_pre(Module:Functor/Arity,Arglist)),Module,Result).
 
 expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,Result) :-
     !,
-    Start = "{:type :spec_post\n:content ",
-    goal_to_map(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2),Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}\n",Result).
+    Start = "{:type :post-spec :content {:goal :spec-post",
+    multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
+    multi_string_concat([":functor \"",Functor,"\""],FunctorPart),
+    my_string_concat(":arity ",Arity,ArityPart),
+    spec_to_string(Arglist1,Premisse),
+    spec_to_string(Arglist2,Conclusion),
+    my_string_concat(":premisse ",Premisse,PremissePart),
+    my_string_concat(":conclusion ",Conclusion,ConclusionPart),
+    End = "}}",
+    create_map([Start,ModulePart,FunctorPart,ArityPart,PremissePart,ConclusionPart,End],Result).
+
 
 expand(':-'(spec_post(Functor/Arity,Arglist1,Arglist2)),Module,Result) :-
     !,
@@ -319,30 +380,29 @@ expand(':-'(spec_post(Functor/Arity,Arglist1,Arglist2)),Module,Result) :-
 
 expand(':-'(spec_invariant(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
     !,
-    Start = "{:type :spec_inv\n:content ",
-    goal_to_map(spec_invariant(InternalModule:Functor/Arity,Arglist),Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}\n",Result).
+    Start = "{:type :inv-spec :content {:goal :spec-inv",
+    multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
+    multi_string_concat([":functor \"",Functor,"\""],FunctorPart),
+    my_string_concat(":arity ",Arity,ArityPart),
+    spec_to_string(Arglist,Spec),
+    my_string_concat(":arglist ",Spec,ArglistPart),
+    End = "}}",
+    create_map([Start,ModulePart,FunctorPart,ArityPart,ArglistPart,End],Result).
 
 expand(':-'(spec_invariant(Functor/Arity,Arglist)),Module,Result) :-
     !,
     expand(':-'(spec_invariant(Module:Functor/Arity,Arglist)),Module,Result).
 
-expand(':-'(A),_Module,Result) :-
-    A = declare_spec(_),
+expand(':-'(declare_spec(Spec)),_Module,Result) :-
     !,
-    Start = "{:type :declare_spec\n:content ",
-    goal_to_map(A,Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}\n",Result).
+    spec_to_string(Spec,Inner),
+    multi_string_concat(["{:type :declare-spec :content ",Inner,"}"], Result).
 
-expand(':-'(A),_Module,Result) :-
-    A  = define_spec(_,_),
+expand(':-'(define_spec(Alias,Definition)),_Module,Result) :-
     !,
-    Start = "{:type :define_spec\n:content ",
-    goal_to_map(A,Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}\n",Result).
+    spec_to_string(Alias,AliasPart),
+    spec_to_string(Definition,DefPart),
+    create_map(["{:type :define-spec :content {:alias ",AliasPart," :definition ", DefPart, "}}"],Result).
 
 % normal direct call
 expand(':-'(A),_Module,Result) :-
