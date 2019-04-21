@@ -123,13 +123,14 @@
 (defn- validation-spec? [{[_ & args] :arglist}]
   (= 1 (count args)))
 
-(defn- specs-to-map [{[outer & args] :arglist :as spec}]
-  (let [module (get-in outer [:arglist 0 :term])
-        functor (get-in outer [:arglist 1 :arglist 0 :term])
-        arity (get-in outer [:arglist 1 :arglist 1 :value])]
-    (if (validation-spec? spec)
-      (hash-map (vector module functor arity) (map (comp (partial map transform-spec) utils/get-elements-of-list) args))
-      (hash-map (vector module functor arity) (list (map (comp (partial map transform-spec) utils/get-elements-of-list) args))))))
+(defmulti specs-to-map :goal)
+
+(defmethod specs-to-map :default [{module :module functor :functor arity :arity arglist :arglist}]
+  {[module functor arity] (vector (map transform-spec arglist))})
+
+(defmethod specs-to-map :spec-post [{module :module functor :functor arity :arity prem :premisse conc :conclusion}]
+  {[module functor arity] (vector (vector (map transform-spec prem) (map transform-spec conc)))})
+
 
 (defn- order-specs [specs]
   (->> specs
@@ -142,10 +143,10 @@
   (reduce (fn [m {alias :alias def :definition}] (assoc m (transform-spec alias) (transform-spec def))) {} define-specs))
 
 (defn- clean-up-spec-definitions [central-map]
-  (let [specs (:define_spec central-map)]
+  (let [specs (:define-spec central-map)]
     (-> central-map
-        (dissoc :define_spec)
-        (dissoc :declare_spec)
+        (dissoc :define-spec)
+        (dissoc :declare-spec)
         (assoc :specs specs))))
 
 (defn order-preds [preds]
@@ -160,12 +161,12 @@
   (-> data
       (group-by-and-apply :type (partial map :content))
       (update :define-spec order-define-specs)
-      ;clean-up-spec-definitions
-      ;(update :spec_pre order-specs)
-      ;(update :spec_post order-specs)
-      ;(update :spec_inv order-specs)
-      ;(update :pred order-preds)
-      ;(rename-keys {:spec_pre :pre-specs :spec_post :post-specs :spec_inv :inv-specs :pred :preds})
+      clean-up-spec-definitions
+      (update :pre-spec order-specs)
+      (update :post-spec order-specs)
+      (update :inv-spec order-specs)
+      (update :pred order-preds)
+      (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
       ))
 
 (defn add-built-ins [dialect data]
@@ -217,5 +218,5 @@
   (-> edn
       transform-to-edn
       format-and-clean-up
-      ;pre-processor/pre-process-single
+      pre-processor/pre-process-single
       ))
