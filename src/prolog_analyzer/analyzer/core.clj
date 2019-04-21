@@ -127,7 +127,7 @@
 (defn complete-analysis [printer data]
   (log/debug "Start complete analysis")
   (doseq [pred-id (utils/get-pred-identities data)
-        clause-id (utils/get-clause-identities-of-pred pred-id data)]
+          clause-number (utils/get-clause-identities-of-pred pred-id data)]
     (let [pre-spec (do
                      (log/debug (str pred-id))
                      (r/simplify-or
@@ -137,6 +137,6 @@
                            (map r/->TupleSpec)
                            r/->OneOfSpec)
                       (:specs data)))]
-      ;(log/debug (str "Clause: " [clause-id (r/to-string pre-spec)]))
-      (printer (str clause-id "#" (r/to-string pre-spec)) (analyzing data (utils/get-clause clause-id data) pre-spec))
+      ;(log/debug (str "Clause: " [clause-number (r/to-string pre-spec)]))
+      (printer (str pred-id clause-number "#" (r/to-string pre-spec)) (analyzing data (utils/get-clause pred-id clause-number data) pre-spec))
       )))

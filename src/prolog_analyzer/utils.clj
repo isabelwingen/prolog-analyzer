@@ -21,41 +21,30 @@
 
 (defn get-pred-identities
   [data]
-  (let [modules (keys (:preds data))]
-    (reduce-kv
-     (fn [m1 k1 v1]
-       (apply conj m1 (reduce-kv (fn [m2 k2 v2] (apply conj m2 (map #(vector k1 k2 %) (keys v2)))) [] v1)))
-     []
-     (:preds data))))
+  (keys (:preds data)))
+
+(defn get-clause-identities-of-pred
+  "Returns the clause ids of the predicate with id `pred-id` loaded in `data`."
+  [pred-id data]
+  (keys (get-in data [:preds pred-id])))
 
 
 (defn get-clause-identities
   "Returns the clause ids of all clauses loaded in `data`."
   [data]
-  (let [pred-ids (get-pred-identities data)
-        preds (:preds data)]
-    (->> pred-ids
-         (reduce-kv (fn [m _ pred-id] (assoc m pred-id (keys (get-in preds pred-id)))) {})
-         (reduce-kv (fn [m key value] (reduce #(conj %1 (conj (apply vector key) %2)) m value)) []))))
-
-(defn get-clause-identities-of-pred
-  "Returns the clause ids of the predicate with id `pred-id` loaded in `data`."
-  [pred-id data]
-  (->> pred-id
-       (get-in (:preds data))
-       keys
-       (map #(conj pred-id %))))
-
+  (for [p (get-pred-identities data)
+        c (get-clause-identities-of-pred p data)]
+    [p c]))
 
 (defn get-clause
   "Gets the actual code of a clause in `data` with id `clause-id`."
-  [clause-id data]
-  (get-in (:preds data) clause-id))
+  [pred-id clause-number data]
+  (get-in data [:preds pred-id clause-number]))
 
 (defn get-clauses-of-pred
   "Gets the code of all clauses belonging to the predicate with `pred-identity` loaded in `data`."
   [pred-identity data]
-  (vals (get-in (:preds data) pred-identity)))
+  (vals (get-in data [:preds pred-identity])))
 
 (defn get-terms [env]
   (remove #{:ENVIRONMENT} (uber/nodes env)))
@@ -67,11 +56,6 @@
   (if (uber/has-node? env term)
     (uber/attr env term :dom)
     nil))
-
-(defn get-goals [data]
-  (->> (get-clause-identities data)
-       (map #(get-in (:preds data) %))
-       (mapcat :body)))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to

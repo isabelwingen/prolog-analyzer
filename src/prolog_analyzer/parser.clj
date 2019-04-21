@@ -157,18 +157,13 @@
         (dissoc :declare_spec)
         (assoc :specs specs))))
 
-(defn- order-preds [preds]
-  (->> (group-by (juxt :module :name :arity) preds)
-       (apply-function-on-values (partial map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity))))
-       (apply-function-on-values #(->> %
-                                       (interleave (range 0 (count %)))
-                                       (apply hash-map)))
-       (reduce-kv (fn [m [module name arity] v]
-                    (if (= name "end_of_file")
-                      m
-                      (assoc-in m [module name arity] v)))
-                  {})))
-
+(defn order-preds [preds]
+  (->> preds
+       (group-by (juxt :module :name :arity))
+       (reduce-kv (fn [m k v] (assoc m k (->> v
+                                             (map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity)))
+                                             (interleave (range))
+                                             (apply hash-map)))) {})))
 (defn- format-and-clean-up [data]
   (log/debug "Start formatting of edn")
   (-> data

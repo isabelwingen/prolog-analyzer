@@ -30,9 +30,8 @@
          result data]
     (if (empty? clause-keys)
       result
-      (let [[source-module & _ :as clause-key] (first clause-keys)
-            body-key (apply vector :preds (conj clause-key :body))]
-        (recur (rest clause-keys) (update-in result body-key (partial map (partial set-correct-goal-module source-module data)))))
+      (let [[[source-module & _ :as pred-id] clause-number] (first clause-keys)]
+        (recur (rest clause-keys) (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module source-module data)))))
    )))
 
 (defn- create-pre-spec [pred-id data]
@@ -55,7 +54,7 @@
       result)))
 
 ;;mark self-calling clauses
-(defn- mark-self-calling-clause [[_ pred-name arity _] {body :body :as clause}]
+(defn- mark-self-calling-clause [[_ pred-name arity] {body :body :as clause}]
   (if (some #(and (= pred-name (:goal %)) (= arity (:arity %))) body)
     (assoc clause :self-calling? true)
     (assoc clause :self-calling? false)))
@@ -63,8 +62,8 @@
 (defn mark-self-calling-clauses [data]
   (loop [clause-ids (utils/get-clause-identities data)
          result data]
-    (if-let [clause-id (first clause-ids)]
-      (recur (rest clause-ids) (update-in result (apply vector :preds clause-id) (partial mark-self-calling-clause clause-id)))
+    (if-let [[pred-id clause-number] (first clause-ids)]
+      (recur (rest clause-ids) (update-in result [:preds pred-id clause-number] (partial mark-self-calling-clause pred-id)))
       result)))
 
 (defn- transform-arglist [args]
@@ -84,10 +83,10 @@
 
 
 (defn transform-args-to-term-records [data]
-  (reduce (fn [data clause-id]
+  (reduce (fn [data [pred-id clause-number]]
             (-> data
-                (update-in (concat [:preds] clause-id [:arglist]) transform-arglist)
-                (update-in (concat [:preds] clause-id [:body]) transform-body))
+                (update-in [:preds pred-id clause-number :arglist] transform-arglist)
+                (update-in [:preds pred-id clause-number :body] transform-body))
             )
           data
           (utils/get-clause-identities data)))

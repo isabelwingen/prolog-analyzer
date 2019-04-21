@@ -608,7 +608,7 @@
   (term-type [term] ATOM)
   (initial-spec [term] (->AtomSpec))
   printable
-  (to-string [x] (str "atom")))
+  (to-string [x] (str term)))
 
 (defrecord StringTerm [term]
   term

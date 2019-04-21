@@ -12,7 +12,9 @@
 
 
 
-(def data (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" "resources/spec-test.pl"))
+(def sic "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1")
+(def data (parser/process-prolog-file "sicstus" "prolog/prolog_analyzer.pl" sic "resources/spec-test.pl"))
+data
 
 (deftest get-specs-of-pred-test
   (is (= {:pre-specs [[(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]
@@ -27,15 +29,15 @@
 
 (deftest get-clause-identities-test
   (is (=
-       [["spec_test" "member_int" 2 0]
-        ["spec_test" "member_int" 2 1]
-        ["spec_test" "foo" 3 0]]
+       [[["spec_test" "member_int" 2] 0]
+        [["spec_test" "member_int" 2] 1]
+        [["spec_test" "foo" 3] 0]]
        (sut/get-clause-identities data))))
 
 (deftest get-clause-identities-of-pred-test
-  (is (= [["spec_test" "member_int" 2 0] ["spec_test" "member_int" 2 1]]
+  (is (= [0 1]
          (sut/get-clause-identities-of-pred ["spec_test" "member_int" 2] data)))
-  (is (= [["spec_test" "foo" 3 0]]
+  (is (= [0]
          (sut/get-clause-identities-of-pred ["spec_test" "foo" 3] data))))
 
 (deftest get-clauses-of-pred-test
