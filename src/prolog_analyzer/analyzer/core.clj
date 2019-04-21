@@ -137,6 +137,6 @@
                            (map r/->TupleSpec)
                            r/->OneOfSpec)
                       (:specs data)))]
-      (log/debug (str "Clause: " [clause-id (r/to-string pre-spec)]))
+      ;(log/debug (str "Clause: " [clause-id (r/to-string pre-spec)]))
       (printer (str clause-id "#" (r/to-string pre-spec)) (analyzing data (utils/get-clause clause-id data) pre-spec))
       )))
