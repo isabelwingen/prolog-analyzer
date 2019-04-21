@@ -12,8 +12,9 @@
   ([edn]
    (->> edn
         parser/process-edn
-
-        (analyzer/complete-analysis my-pp/short-print)))
+        (analyzer/complete-analysis my-pp/short-print))
+   ;(<╯°□°>╯︵┻━┻)
+    )
   ([dialect term-expander file prolog-exe]
    (->> file
         (parser/process-prolog-file dialect term-expander prolog-exe)
