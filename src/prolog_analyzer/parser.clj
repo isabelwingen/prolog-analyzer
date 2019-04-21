@@ -76,50 +76,49 @@
        ))
 
 (defmulti transform-spec "Transforms the raw edn of specs to a better suited format."
-  (juxt :type :functor))
+  :type)
 
-(defmethod transform-spec [:atom nil] [{term :term}]
-  (case term
-    "any" (r/->AnySpec)
-    "ground" (r/->GroundSpec)
-    "var" (r/->VarSpec)
-    "string" (r/->StringSpec)
-    "nonvar" (r/->NonvarSpec)
-    "number" (r/->NumberSpec)
-    "float" (r/->FloatSpec)
-    "integer" (r/->IntegerSpec)
-    "atom" (r/->AtomSpec)
-    "atomic" (r/->AtomicSpec)
-    "int" (r/->IntegerSpec)
-    "emptylist" (r/->EmptyListSpec)
-    (r/->UserDefinedSpec term)))
+(defmethod transform-spec :default [term]
+  (case (:type term)
+    :any (r/->AnySpec)
+    :ground (r/->GroundSpec)
+    :var (r/->VarSpec)
+    :string (r/->StringSpec)
+    :nonvar (r/->NonvarSpec)
+    :number (r/->NumberSpec)
+    :float (r/->FloatSpec)
+    :integer (r/->IntegerSpec)
+    :atom (r/->AtomSpec)
+    :atomic (r/->AtomicSpec)
+    :int (r/->IntegerSpec)
+    :emptylist (r/->EmptyListSpec)
+    (r/->UserDefinedSpec (name (:type term)))))
 
-(defmethod transform-spec [:compound "list"] [{[type] :arglist}]
-  (r/->ListSpec (transform-spec type)))
 
-(defmethod transform-spec [:compound "compound"] [{[{functor :functor arglist :arglist}] :arglist}]
+(defmethod transform-spec :list [{list-type :list-type}]
+  (r/->ListSpec (transform-spec list-type)))
+
+(defmethod transform-spec :compound [{functor :functor arglist :arglist}]
   (r/->CompoundSpec functor (map transform-spec arglist)))
 
-(defmethod transform-spec [:compound "one_of"] [{inner-list :arglist}]
-  (let [arglist (utils/get-elements-of-list (first inner-list))]
-    (r/->OneOfSpec (map transform-spec arglist))))
+(defmethod transform-spec :one-of [{arglist :arglist}]
+  (r/->OneOfSpec (map transform-spec arglist)))
 
-(defmethod transform-spec [:compound "and"] [{inner-list :arglist}]
-  (let [arglist (utils/get-elements-of-list (first inner-list))]
-    (r/->AndSpec (map transform-spec arglist))))
+(defmethod transform-spec :and [{arglist :arglist}]
+  (r/->AndSpec (map transform-spec arglist)))
 
-(defmethod transform-spec [:compound "tuple"] [{inner-list :arglist}]
-  (let [arglist (utils/get-elements-of-list (first inner-list))]
-    (r/->TupleSpec (map transform-spec arglist))))
+(defmethod transform-spec :tuple [{arglist :arglist}]
+  (r/->TupleSpec (map transform-spec arglist)))
 
-(defmethod transform-spec [:compound "atom"] [{arglist :arglist}]
-  (r/->ExactSpec (:term (first arglist))))
+(defmethod transform-spec :same [{term :term}]
+  (r/->ExactSpec term))
 
-(defmethod transform-spec [:compound "specvar"] [{[spec] :arglist}]
-  (r/->SpecvarSpec (:name spec)))
+(defmethod transform-spec :specvar [{n :name}]
+  (r/->SpecvarSpec n))
 
-(defmethod transform-spec :default [spec]
-  (assoc (r/->UserDefinedSpec (:functor spec)) :arglist (map transform-spec (:arglist spec))))
+(defmethod transform-spec :userdef [{n :name arglist :arglist}]
+  (assoc (r/->UserDefinedSpec n) :arglist (map transform-spec arglist)))
+
 
 (defn- validation-spec? [{[_ & args] :arglist}]
   (= 1 (count args)))
@@ -139,16 +138,8 @@
        (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
        ))
 
-(defn- order-declare-specs [declares]
-  (map (comp first :arglist) declares))
-
-(defn- order-define-specs [defines]
-  (let [keys (map (comp first :arglist) defines)]
-    (if (= keys (distinct keys))
-      (->> (map :arglist defines)
-           (into {})
-           (reduce-kv (fn [m k v] (assoc m (transform-spec k) (transform-spec v))) {}))
-      (log/error "Error defining specs"))))
+(defn- order-define-specs [define-specs]
+  (reduce (fn [m {alias :alias def :definition}] (assoc m (transform-spec alias) (transform-spec def))) {} define-specs))
 
 (defn- clean-up-spec-definitions [central-map]
   (let [specs (:define_spec central-map)]
@@ -168,17 +159,14 @@
   (log/debug "Start formatting of edn")
   (-> data
       (group-by-and-apply :type (partial map :content))
-      (update :declare_spec order-declare-specs)
-      (update :define_spec order-define-specs)
-      clean-up-spec-definitions
-      (update :spec_pre order-specs)
-      (update :spec_post order-specs)
-      (update :spec_inv order-specs)
-      (update :pred order-preds)
-      (rename-keys {:spec_pre :pre-specs
-                    :spec_post :post-specs
-                    :spec_inv :inv-specs
-                    :pred :preds})))
+      (update :define-spec order-define-specs)
+      ;clean-up-spec-definitions
+      ;(update :spec_pre order-specs)
+      ;(update :spec_post order-specs)
+      ;(update :spec_inv order-specs)
+      ;(update :pred order-preds)
+      ;(rename-keys {:spec_pre :pre-specs :spec_post :post-specs :spec_inv :inv-specs :pred :preds})
+      ))
 
 (defn add-built-ins [dialect data]
   (log/debug "Add built-ins")
@@ -229,4 +217,5 @@
   (-> edn
       transform-to-edn
       format-and-clean-up
-      pre-processor/pre-process-single))
+      ;pre-processor/pre-process-single
+      ))

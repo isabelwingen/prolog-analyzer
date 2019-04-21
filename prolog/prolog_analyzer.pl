@@ -293,16 +293,14 @@ expand(':-'(A,B),Module,Result) :-
     my_string_concat(Start,Map,Tmp1),
     my_string_concat(Tmp1,"}",Result).
 
-spec_to_string(Term,String) :-
+spec_to_string(Term,Name) :-
     var(Term),
     prolog_load_context(dialect,swi),!,
-    (var_property(Term,name(Name)) -> true ; term_string(Term,Name)),
-    multi_string_concat(["{:var \"",Name,"\"}"],String).
-spec_to_string(Term,String) :-
+    (var_property(Term,name(Name)) -> true ; term_string(Term,Name)).
+spec_to_string(Term,Name) :-
     var(Term),!,
     write_to_codes(Term,NameCodes),
-    atom_codes(Name,NameCodes),
-    multi_string_concat(["{:var \"",Name,"\"}"],String).
+    atom_codes(Name,NameCodes).
 spec_to_string(Terms,String) :-
     is_list(Terms),!,
     maplist(spec_to_string,Terms,Strings),
@@ -310,40 +308,43 @@ spec_to_string(Terms,String) :-
     multi_string_concat(["[",Inner,"]"],String).
 spec_to_string(Term,String) :-
     atomic(Term),!,
-    my_string_concat(":",Term,String).
+    multi_string_concat(["{:type :",Term,"}"],String).
+spec_to_string(atom(Atom),String) :-
+    !,
+    multi_string_concat(["{:type :same :term \"",Atom,"\"}"],String).
 spec_to_string(same(Atom),String) :-
     !,
-    multi_string_concat(["{:same ",Atom,"}"],String).
+    multi_string_concat(["{:type :same :term \"",Atom,"\"}"],String).
 spec_to_string(one_of(Arglist),String) :-
     !,
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:one-of ",Inner,"}"],String).
+    multi_string_concat(["{:type :one-of :arglist ",Inner,"}"],String).
 spec_to_string(and(Arglist),String) :-
     !,
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:and ",Inner,"}"],String).
+    multi_string_concat(["{:type :and :arglist ",Inner,"}"],String).
 spec_to_string(tuple(Arglist),String) :-
     !,
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:tuple ",Inner,"}"],String).
+    multi_string_concat(["{:type :tuple :arglist  ",Inner,"}"],String).
 spec_to_string(list(Type),String) :-
     !,
     spec_to_string(Type,Inner),
-    multi_string_concat(["{:list ",Inner,"}"],String).
+    multi_string_concat(["{:type :list :list-type ",Inner,"}"],String).
 spec_to_string(compound(Compound),String) :-
     !,
     Compound =.. [Functor|Arglist],
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:compound \"",Functor,"\" :arglist ",Inner,"}"],String).
+    multi_string_concat(["{:type :compound :functor \"",Functor,"\" :arglist ",Inner,"}"],String).
 spec_to_string(specvar(X),String) :-
     !,
     spec_to_string(X,Inner),
-    multi_string_concat(["{:specvar ",Inner,"}"],String).
+    multi_string_concat(["{:type :specvar :name \"",Inner,"\"}"],String).
 spec_to_string(Userdefspec,String) :-
     compound(Userdefspec),
     Userdefspec =.. [Name|Arglist],
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:userdef \"",Name,"\" :arglist ",Inner,"}"],String).
+    multi_string_concat(["{:type :userdef :name \"",Name,"\" :arglist ",Inner,"}"],String).
 
 %special cases
 expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
