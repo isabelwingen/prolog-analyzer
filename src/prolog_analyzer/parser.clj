@@ -25,7 +25,7 @@
   (try
     (with-open [in (java.io.PushbackReader. (clojure.java.io/reader clojure-file))]
       (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
-        (doall (take-while (fn [e] (not= :theend e)) edn-seq))))
+        (doall (take-while (fn [e] #_(println e) (not= :theend e)) edn-seq))))
     (catch RuntimeException e
       (printf "Error parsing edn file '%s': '%s\n" clojure-file (.getMessage e)))))
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
@@ -192,7 +192,7 @@
        (read-prolog-code-as-raw-edn dialect term-expander prolog-exe)
        format-and-clean-up
        pre-processor/pre-process-single
-       #_(add-built-ins dialect)
+       (add-built-ins dialect)
        ))
 
 (defn process-prolog-files [dialect term-expander prolog-exe & file-names]
@@ -215,8 +215,9 @@
        ))
 
 (defn process-edn [edn]
-  (-> edn
-      transform-to-edn
-      format-and-clean-up
-      pre-processor/pre-process-single
-      ))
+  (->> edn
+       transform-to-edn
+       format-and-clean-up
+       pre-processor/pre-process-single
+       (add-built-ins "swipl")
+       ))
