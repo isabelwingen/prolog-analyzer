@@ -285,14 +285,6 @@ split(Term,Name,Arity,Arglist,self) :-
     (Name1 = (\+) -> Name = ":not" ; Name = Name1),
     Term =.. [_|Arglist].
 
-expand(Term,Module) :-
-    current_output(Out),
-    expand(Term,Module,Out).
-
-expand(_,term_expander,"") :- !.
-
-expand(_,annotations,"") :- !.
-
 expand(':-'(A,B),Module,Result) :-
     !,
     body_list(B,Body),
@@ -421,10 +413,12 @@ get_stream(Module,Stream) :-
     open(ClojureFile,append,Stream),
     assert(edn_stream(Module,Stream)).
 
-term_expander(end_of_file) :-
+term_expander(end_of_file) :- !,
     prolog_load_context(module,Module),
     (retract(edn_stream(Module,Stream)) -> close(Stream); true).
-
+term_expander(Term) :-
+    prolog_load_context(module,Module),
+    (Module = user; Module = annotations; Module = prolog_analyzer),!.
 term_expander(Term) :-
     prolog_load_context(module, Module),
     expand(Term,Module,Result),
@@ -437,15 +431,8 @@ user:term_expansion(A,A) :-
 
 :- multifile user:term_expansion/6.
 user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
-    nonmember(plspec_token, Ids),
-    Term = ':-'(use_module(_)),!.
-user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
-    nonmember(plspec_token, Ids),
-    Term = ':-'(use_module(_,_)),!.
-user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
-    nonmember(plspec_token, Ids),
+    nonmember(plspec_token, Ids),!,
     term_expander(Term).
 
-% must_fail_clpfd_det takes super long
-
-% startet at 15:44
+close_orphaned_stream :-
+    (retract(edn_stream(_,S)) -> close(S); true).

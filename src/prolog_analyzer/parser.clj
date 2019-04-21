@@ -49,6 +49,7 @@
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" clojure-file "'),"
                   "['" file "'],"
+                  "prolog_analyzer:close_orphaned_stream,"
                   "halt.")
         {err :err} (sh/sh prolog-exe "--goal" goal "--noinfo" :env (into {} (System/getenv)))]
     err))
