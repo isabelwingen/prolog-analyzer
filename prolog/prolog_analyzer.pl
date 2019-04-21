@@ -263,6 +263,7 @@ arg_to_map(Type,Term,Map) :-
     my_string_concat(R3, "}",Map).
 
 arg_to_map(atom,_,"{:type :atom}") :- !.
+arg_to_map(atom,[],"{:type :empty-list}") :- !.
 
 arg_to_map(atomic,[],"{:type :empty-list}") :- !.
 arg_to_map(error,Term,Map) :-
@@ -416,14 +417,14 @@ get_stream(Module,Stream) :-
 term_expander(end_of_file) :- !,
     prolog_load_context(module,Module),
     (retract(edn_stream(Module,Stream)) -> close(Stream); true).
-term_expander(Term) :-
+term_expander(_) :-
     prolog_load_context(module,Module),
     (Module = user; Module = annotations; Module = prolog_analyzer),!.
 term_expander(Term) :-
     prolog_load_context(module, Module),
     expand(Term,Module,Result),
     get_stream(Module,Stream),
-    write(Stream,Result),nl(Stream),nl(Stream).
+    write(Stream,Result),nl(Stream),nl(Stream), flush_output(Stream).
 
 user:term_expansion(A,A) :-
     !,
