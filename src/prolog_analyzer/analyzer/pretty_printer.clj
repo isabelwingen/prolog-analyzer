@@ -94,7 +94,7 @@
     (println "---------------------\n")))
 
 (defn short-print [title graph]
-  (println title)
+  ;(println title)
   (println)
   (let [error-terms (->> graph
                          (utils/get-terms)
