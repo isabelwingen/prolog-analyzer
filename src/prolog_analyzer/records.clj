@@ -661,7 +661,8 @@
            ATOMIC (str "[" (to-string head) "]")
            EMPTYLIST (str "[" (to-string head) "]")
            VAR (str "[" (to-string head) "|" (to-string tail) "]")
-           LIST (str "[" (to-arglist (get-elements-of-list x)) "]"))))
+           LIST (str "[" (to-arglist (get-elements-of-list x)) "]")
+           ATOM "error:tail-is-atom")))
 
 
 (defrecord CompoundTerm [functor arglist]
