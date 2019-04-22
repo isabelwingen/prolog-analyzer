@@ -41,13 +41,13 @@
                       (filter #(= :is-tail (uber/attr env % :relation)))
                       first
                       uber/src)
-        tail-dom (utils/get-dom-of-term env tail)
+        tail-dom (some->> tail (utils/get-dom-of-term env))
         overwrite true]
     (if (nil? tail-dom)
       (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]) {:overwrite overwrite})
       (case+ (r/spec-type tail-dom)
              r/TUPLE (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(cons head-dom %)) {:overwrite overwrite})
-             r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(r/->OneOfSpec [% head-dom])) {:overwrite overwrite})
+             r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :type #(r/->OneOfSpec [% head-dom])) {:overwrite overwrite})
              env))))
 
 (defmethod process-edge :default [env edge]
