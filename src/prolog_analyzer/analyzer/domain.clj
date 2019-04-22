@@ -308,7 +308,7 @@
       false
       (and
        (= functor-term functor-spec)
-       (not (r/error-spec? (r/intersect spec dom (get-defs-from-env env))))
+       (not (r/error-spec? (r/intersect dom spec (get-defs-from-env env))))
        (every? (partial apply spec-valid? env) (partition 2 (r/next-steps spec term (get-defs-from-env env))))))
     (and
      (= functor-term functor-spec)
@@ -321,7 +321,7 @@
     (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
       false
       (and
-       (not (r/error-spec? (r/intersect spec dom (get-defs-from-env env))))
+       (not (r/error-spec? (r/intersect dom spec (get-defs-from-env env))))
        (every? (partial apply spec-valid? env) (partition 2 (r/next-steps spec term (get-defs-from-env env))))))
     (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env)))))) ;;TODO: if dom is nil, is the result false?
 
@@ -329,5 +329,5 @@
   (if-let [dom (utils/get-dom-of-term env term)]
     (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
       false
-      (not (r/error-spec? (r/intersect spec dom (get-defs-from-env env)))))
+      (not (r/error-spec? (r/intersect dom spec (get-defs-from-env env)))))
     (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))))
