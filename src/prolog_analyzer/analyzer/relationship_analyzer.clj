@@ -69,7 +69,7 @@
     (let [next (step in)]
       (if (same in next)
         (do (log/debug "Fixpoint Analysis is done") next)
-        (if (> counter 10)
+        (if (> counter 50)
           (do
             (log/error "infinite loop?")
             next)
