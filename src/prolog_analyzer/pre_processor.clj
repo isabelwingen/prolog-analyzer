@@ -34,7 +34,7 @@
   (cond
     (:arglist spec) (r/->OneOfSpec [(r/->VarSpec) (update spec :arglist (partial map (fn [x] (r/->AnySpec))))])
     (:type spec) (r/->OneOfSpec [(r/->VarSpec) (assoc spec :type (r/->AnySpec))])
-    :else (r/->OneOfSpec [(r/->VarSpec) spec])))
+    :else (if (r/any-spec? spec) spec (r/->OneOfSpec [(r/->VarSpec) spec]))))
 
 (defn- create-pre-spec [pred-id data]
   (->> data
