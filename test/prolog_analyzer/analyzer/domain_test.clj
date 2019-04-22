@@ -98,11 +98,6 @@
                (r/->ListTerm (r/->VarTerm "X") (r/->EmptyListTerm)) (r/->ListSpec (r/->GroundSpec)) ;; TODO: is this okay?
                (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->GroundSpec)])
                (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) (r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)]))
-  (do-template [term] (is (r/error-spec? (calculate-and-get-dom term (r/->GroundSpec))) (str (r/to-string term)))
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_1603")
-    )
-
   )
 
 
@@ -117,9 +112,6 @@
                (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) (r/->ListSpec (r/->IntegerSpec))
                (r/->ListTerm (r/->VarTerm "Y") (r/->EmptyListTerm)) (r/->ListSpec (r/->AnySpec))
                (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) (r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)]))
-  (do-template [term] (is (r/error-spec? (calculate-and-get-dom term (r/->NonvarSpec))) (str (r/to-string term)))
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_1603"))
   )
 ;; Important Example:
 ;; :- spec_pre(foo/1,[var]).
@@ -157,10 +149,15 @@
     (r/->EmptyListTerm)
     (r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410")
+ ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
     )
   )
+
+(calculate-and-get-dom (r/->VarTerm "X") (r/->AtomSpec))
+(-> test-env
+    ;(sut/add-type-to-dom (r/->VarTerm "X") (r/->AnySpec))
+    (sut/add-type-to-dom (r/->VarTerm "X") (r/->AtomSpec))
+    (utils/get-dom-of-term (r/->VarTerm "X")))
 
 ;;TODO: what is the initial spec of an atom? ExactSpec or AtomSpec? How handle intersectioning with exact?
 ;; Current Status: Value of atom is lost, intersect with exact always yields a result, check later, if it matches with the original value
@@ -177,7 +174,7 @@
     (r/->IntegerTerm 2)
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)
-    (r/->VarTerm "X")
+                                        ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
     ))
 
 
@@ -187,7 +184,7 @@
   (are [term]
       (r/error-spec? (calculate-and-get-dom term (r/->NumberSpec)))
     (r/->AtomTerm "no")
-    (r/->VarTerm "X")
+                                        ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
     (r/->ListTerm (r/->NumberTerm 2) (r/->EmptyListTerm))
     (r/->CompoundTerm "node" [(r/->AtomTerm "hello")])
     )
@@ -202,9 +199,8 @@
                (is (r/error-spec? (calculate-and-get-dom term (r/->IntegerSpec))) (str (r/to-string term)))
                (r/->NumberTerm 3.14)
                (r/->FloatTerm 3.14)
-               (r/->VarTerm "X")
+                                        ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
                (r/->AtomTerm "no")
-               (r/->AnonVarTerm "_123")
                (r/->ListTerm (r/->IntegerTerm 0) (r/->EmptyListTerm))
                (r/->CompoundTerm "node" [(r/->AtomTerm "hello")]))
   )
@@ -220,9 +216,8 @@
     (r/->NumberTerm 42)
     (r/->IntegerTerm 123)
     (r/->AtomTerm "no")
+                                        ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
     (r/->ListTerm (r/->FloatTerm 0.0) (r/->EmptyListTerm))
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_234")
     (r/->CompoundTerm "node" [(r/->AtomTerm "hello")])
     )
   )
@@ -237,8 +232,7 @@
       (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm)) ;TODO: atm the error is only visible in the HEAD term. Should it be at top level?
       (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
       (r/->AtomTerm "nocake")
-      (r/->VarTerm "X")
-      (r/->AnonVarTerm "_0410")
+                                        ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
       (r/->IntegerTerm 2)
       (r/->NumberTerm 2)
       (r/->FloatTerm 2.0)))
@@ -261,8 +255,7 @@
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     (r/->AtomTerm "nocake")
     (r/->IntegerTerm 2)
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410")
+                                        ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
 
@@ -278,8 +271,7 @@
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     (r/->AtomTerm "nocake")
     (r/->IntegerTerm 2)
-    (r/->VarTerm "X")
-    (r/->AnonVarTerm "_0410")
+                                        ;   (r/->VarTerm "X") ;;TODO: is okay, when domain is empty or any
     (r/->NumberTerm 2)
     (r/->FloatTerm 2.0)))
 
@@ -312,9 +304,9 @@
   ;; non initial and dom empty
   (do-template [term spec expected-dom] (is (= expected-dom (calculate-and-get-dom false term spec)) (str "not initial and empty: " (r/to-string term) " " (r/to-string spec)))
                (r/->VarTerm "X") (r/->VarSpec) (r/->VarSpec)
-               (r/->VarTerm "X") (r/->IntegerSpec) (sut/CANNOT-GROUND)
+               (r/->VarTerm "X") (r/->IntegerSpec) (r/->IntegerSpec)
                (r/->VarTerm "X") (r/->AnySpec) (r/->AnySpec)
-               (r/->VarTerm "X") (r/make-spec:user-defined "blob") (sut/CANNOT-GROUND)
+               (r/->VarTerm "X") (r/make-spec:user-defined "blob") (r/->ExactSpec "blob")
                (r/->VarTerm "X") (r/->SpecvarSpec "X") (r/->AnySpec)
     ))
 
@@ -377,12 +369,12 @@
                        :origin))
                    (str (clojure.string/join " " [(r/to-string term) (r/to-string spec) (str options)])))
 
-               (r/->VarTerm "Y") (r/->IntegerSpec) {:initial false :overwrite false} (sut/CANNOT-GROUND)
+               (r/->VarTerm "Y") (r/->IntegerSpec) {:initial false :overwrite false} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->IntegerSpec) {:initial false :overwrite true} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
 
-               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite false} (r/->VarSpec)
+               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite false} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
                (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite true} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
                (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite false} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
                (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite true} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
