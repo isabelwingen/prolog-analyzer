@@ -32,3 +32,4 @@ pom.xml.asc
 *.fdb_latexmk
 
 doc/auto
+*.txt
