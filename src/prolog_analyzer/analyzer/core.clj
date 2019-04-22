@@ -47,7 +47,7 @@
   env)
 
 (defn add-relationships [env]
-  (log/debug "Add Relationships")
+  ;(log/debug "Add Relationships")
   (reduce #(add-relationships-aux %1 %2) env (utils/get-terms env)))
 
 (defn- goal-args->tuple [arglist]
@@ -103,14 +103,14 @@
       (evaluate-goal-relationships goal data)))
 
 (defn evaluate-body [env data body]
-  (log/debug "Evaluate Body")
+  ;(log/debug "Evaluate Body")
   (reduce (partial evaluate-goal data) env body))
 
 (defn- add-index-to-input-arguments [env arglist]
   (apply uber/add-nodes-with-attrs env (map-indexed #(vector %2 {:index %1}) arglist)))
 
 (defn initial-env [data arglist pre-spec]
-  (log/debug "Initialize Env")
+  ;(log/debug "Initialize Env")
   (-> (uber/digraph)
       (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get data :specs)}])
       (dom/fill-env-for-term-with-spec (apply r/to-head-tail-list arglist) pre-spec {:initial true})
@@ -125,7 +125,7 @@
       ))
 
 (defn complete-analysis [printer data]
-  (log/debug "Start complete analysis")
+  (log/debug "Start analysis of the clause")
   (doseq [pred-id (utils/get-pred-identities data)
           clause-number (utils/get-clause-identities-of-pred pred-id data)]
     (let [pre-spec (do
