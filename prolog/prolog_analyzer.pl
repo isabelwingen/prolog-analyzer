@@ -481,6 +481,10 @@ term_expander(end_of_file) :- !,
 term_expander(_) :-
     prolog_load_context(module,Module),
     (Module = user; Module = annotations; Module = prolog_analyzer),!.
+term_expander(':-'(module(_))) :- !.
+term_expander(':-'(module(_,_))) :- !.
+term_expander(':-'(use_module(_))) :- !.
+term_expander(':-'(use_module(_,_))) :- !.
 term_expander(Term) :-
     prolog_load_context(module, Module),
     expand(Term,Module,Result),
