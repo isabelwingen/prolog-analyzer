@@ -33,8 +33,7 @@
                             (uber/add-edges [term type {:relation :specvar}])))
             (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
               (uber/set-attrs env term (-> (uber/attrs env term)
-                                           (update :history #(conj % new-type))
-                                           (update :history distinct)
+                                           (update :history #(if (< (count %) 5) (conj % new-type) %))
                                            (update :dom #(if (= new-type %) % (r/intersect % new-type (utils/get-user-defined-specs env) overwrite?))) ;; order of intersect matters here!
                                            ))
               (uber/add-nodes-with-attrs env [term {:dom new-type :history [new-type]}])))))
