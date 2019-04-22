@@ -608,7 +608,7 @@
   (term-type [term] ATOM)
   (initial-spec [term] (->AtomSpec))
   printable
-  (to-string [x] (str term)))
+  (to-string [x] (if (nil? term) "<atom>" (str term))))
 
 (defrecord StringTerm [term]
   term
@@ -662,7 +662,7 @@
            EMPTYLIST (str "[" (to-string head) "]")
            VAR (str "[" (to-string head) "|" (to-string tail) "]")
            LIST (str "[" (to-arglist (get-elements-of-list x)) "]")
-           ATOM "error:tail-is-atom")))
+           ATOM (if (= tail "[]") (str "[" (to-string head) "]") "error:list-with-atom-tail"))))
 
 
 (defrecord CompoundTerm [functor arglist]
