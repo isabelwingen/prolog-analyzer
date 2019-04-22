@@ -1,5 +1,5 @@
 (ns prolog-analyzer.pre-processor
-  (:require [prolog-analyzer.utils :as utils]
+  (:require [prolog-analyzer.utils :as utils :refer [case+]]
             [prolog-analyzer.records :as r]
             [clojure.tools.logging :as log]
             ))
@@ -30,14 +30,18 @@
         (recur (rest clause-keys) (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module source-module data)))))
    )))
 
+(defn- maybe-spec [spec]
+  (cond
+    (:arglist spec) (r/->OneOfSpec [(r/->VarSpec) (update spec :arglist (partial map (fn [x] (r/->AnySpec))))])
+    (:type spec) (r/->OneOfSpec [(r/->VarSpec) (assoc spec :type (r/->AnySpec))])
+    :else (r/->OneOfSpec [(r/->VarSpec) spec])))
+
 (defn- create-pre-spec [pred-id data]
   (->> data
        (utils/get-clauses-of-pred pred-id)
        (map :arglist)
-       (map (partial map r/initial-spec))
+       (map (partial map (comp maybe-spec r/initial-spec)))
        ))
-
-
 
 ;; If there are no pre-specs for a predicate, add one
 (defn- add-any-pre-specs [data]
