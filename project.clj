@@ -16,7 +16,4 @@
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}
              :dev {:dependencies [[org.clojure/test.check "0.9.0"]]
-                   :plugins [[lein-githooks "0.1.0"]]
-                   :githooks {:auto-install true
-                              :pre-push ["lein eastwood"]
-                              :pre-commit ["lein eastwood"]}}})
+                   :plugins []}})
