@@ -847,3 +847,14 @@
       (if (= :inf tail-length)
         :inf
         (inc tail-length)))))
+
+
+(defn var-spec? [spec]
+  (if (nil? spec)
+    false
+    (= VAR (spec-type spec))))
+
+(defn any-spec? [spec]
+  (if (nil? spec)
+    true
+    (= ANY (spec-type spec))))

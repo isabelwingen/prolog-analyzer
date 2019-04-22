@@ -35,7 +35,7 @@
               (uber/set-attrs env term (-> (uber/attrs env term)
                                            (update :history #(conj % new-type))
                                            (update :history distinct)
-                                           (update :dom #(if (= new-type %) % (r/intersect new-type % (utils/get-user-defined-specs env) overwrite?)))
+                                           (update :dom #(if (= new-type %) % (r/intersect % new-type (utils/get-user-defined-specs env) overwrite?))) ;; order of intersect matters here!
                                            ))
               (uber/add-nodes-with-attrs env [term {:dom new-type :history [new-type]}])))))
   ([env term type]
@@ -83,6 +83,11 @@
   (if (nil? spec)
     true
     (contains? #{r/VAR r/ANY} (r/spec-type spec))))
+
+(defn- var-or-nil? [spec]
+  (if (nil? spec)
+    true
+    (= r/VAR (r/spec-type spec))))
 
 (defn- remove-vars-from-dom [env term]
   (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
@@ -161,60 +166,73 @@
 (defmethod fill-dom [:var :specvar] [env term spec options]
   (let [step1 (-> env
                   (fill-dom term (r/initial-spec term) options)
+                  (uber/add-attr term :was-var true)
                   (uber/add-edges [term spec {:relation :specvar}])
                   (add-to-artifical-term term spec options))]
     (add-type-to-dom step1 spec (utils/get-dom-of-term step1 term))))
 
 (defmethod fill-dom [:var :var] [env term spec {initial? :initial :as options}]
-  (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
-    (add-type-to-dom env term spec options)
-    (if initial?
-      env
-      (add-type-to-dom env term (ALREADY-NONVAR)))))
+  (cond
+    (nil? (utils/get-dom-of-term env term)) (add-type-to-dom env term spec options)
+    (r/var-spec? (utils/get-dom-of-term env term)) env
+    (r/any-spec? (utils/get-dom-of-term env term)) (-> env
+                                                       (uber/add-nodes term)
+                                                       (uber/add-attr term :assumed-type spec)
+                                                       (add-type-to-dom term spec options))
+    :else (if initial?
+            (-> env
+                (uber/add-attr term :was-var true))
+            (add-type-to-dom env term (ALREADY-NONVAR)))))
 
-(defn- compound-spec-for-var-term [env term spec options]
+(defn- process-filling-for-var-term [env term spec options]
   (-> env
       (add-type-to-dom term spec options)
       (fill-dom-of-next-steps term spec options)
       (add-to-artifical-term term spec options)))
 
-(defmethod fill-dom [:var :compound-or-list] [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (if initial?
-    (-> env
-        (remove-vars-from-dom term)
-        (create-artifical-term term spec options)
-        (compound-spec-for-var-term term spec options)
-        )
-    (if overwrite?
-      (-> env
-          (create-artifical-term term spec options)
-          (compound-spec-for-var-term term spec options))
-      (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
-        (add-type-to-dom env term (CANNOT-GROUND))
-        (-> env
-            (create-artifical-term term spec options)
-            (compound-spec-for-var-term term spec options))
-        ))))
-
-(defmethod fill-dom [:var :default] [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [intersection (r/intersect (r/->VarSpec) spec (get-defs-from-env env) overwrite?)]
+(defmethod fill-dom [:var :compound-or-list] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
+  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
     (if initial?
       (-> env
           (remove-vars-from-dom term)
-          (compound-spec-for-var-term term spec options)
+          (create-artifical-term term spec options)
+          (process-filling-for-var-term term spec options)
           )
       (if overwrite?
         (-> env
-            (compound-spec-for-var-term term spec options))
-        (if (var-or-any-or-nil? (utils/get-dom-of-term env term))
+            (create-artifical-term term spec options)
+            (process-filling-for-var-term term spec options))
+        (if (r/var-spec? (utils/get-dom-of-term env term))
+          (add-type-to-dom env term (CANNOT-GROUND))
+          (if (r/any-spec? (utils/get-dom-of-term env term))
+            (-> env
+                (uber/add-nodes term)
+                (uber/add-attr term :assumed-type spec)
+                (create-artifical-term term spec options)
+                (process-filling-for-var-term term spec options))
+            (-> env
+                (create-artifical-term term spec options)
+                (process-filling-for-var-term term spec options))))))))
+
+(defmethod fill-dom [:var :default] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
+  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))
+        intersection (r/intersect (or (utils/get-dom-of-term env term) (r/->AnySpec)) spec (get-defs-from-env env) overwrite?)]
+    (if initial? ;; mode initial -> grounding ok
+      (-> env
+          (remove-vars-from-dom term)
+          (process-filling-for-var-term term spec options))
+      (if overwrite? ;; mode overwrite -> grounding ok
+        (process-filling-for-var-term env term spec options)
+        (if (r/var-spec? (utils/get-dom-of-term env term))
           (if (r/error-spec? intersection)
             (add-type-to-dom env term (CANNOT-GROUND))
+            (process-filling-for-var-term env term intersection options))
+          (if (r/any-spec? (utils/get-dom-of-term env term))
             (-> env
-                (add-type-to-dom term intersection options)
-                (add-to-artifical-term term spec options)))
-          (-> env
-              (compound-spec-for-var-term term spec options)
-              ))))))
+                (uber/add-nodes term)
+                (uber/add-attr term :assumed-type spec)
+                (process-filling-for-var-term term spec options))
+            (process-filling-for-var-term env term spec options)))))))
 
 
 (defmethod fill-dom [:var :error] [env term spec options]
@@ -239,7 +257,10 @@
 
 (defmethod fill-dom [:nonvar :var] [env term spec {initial? :initial overwrite? :overwrite :as options}]
   (if initial?
-    (fill-dom env term (r/initial-spec term) options)
+    (-> env
+        (uber/add-nodes term)
+        (uber/add-attr term :was-var true)
+        (fill-dom term (r/initial-spec term) options))
     (add-type-to-dom env term (ALREADY-NONVAR))))
 
 (defmethod fill-dom [:nonvar :compound-or-list] [env term spec {overwrite? :overwrite :as options}]

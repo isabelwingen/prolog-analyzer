@@ -8,10 +8,8 @@
             [loom.graph]
             ))
 
-(defn was-var? [env term]
-  (contains? (set (map #(dissoc % :origin) (uber/attr env term :history))) (r/->VarSpec)))
-
-(defn- nonvar-spec? [env term])
+(defn was-var? [env node]
+  (uber/attr env node :was-var))
 
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
 
@@ -40,18 +38,20 @@
 
 (defmethod process-edge :is-head [env edge]
   (let [list (uber/dest edge)
-        head-dom (utils/get-dom-of-term env (uber/src edge))
-        tail-dom (some->> list
-                          (uber/in-edges env)
-                          (filter #(= :is-tail (uber/attr env % :relation)))
-                          first
-                          uber/src
-                          (utils/get-dom-of-term env))]
+        head (uber/src edge)
+        head-dom (utils/get-dom-of-term env head)
+        tail (some->> list
+                      (uber/in-edges env)
+                      (filter #(= :is-tail (uber/attr env % :relation)))
+                      first
+                      uber/src)
+        tail-dom (utils/get-dom-of-term env tail)
+        overwrite true]
     (if (nil? tail-dom)
-      (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]))
+      (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]) {:overwrite overwrite})
       (case+ (r/spec-type tail-dom)
-             r/TUPLE (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(cons head-dom %)))
-             r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(r/->OneOfSpec [% head-dom])))
+             r/TUPLE (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(cons head-dom %)) {:overwrite overwrite})
+             r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(r/->OneOfSpec [% head-dom])) {:overwrite overwrite})
              env))))
 
 (defmethod process-edge :default [env edge]
