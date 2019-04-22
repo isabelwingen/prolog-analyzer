@@ -105,3 +105,21 @@
       (doseq [t error-terms]
         (print-in-columns [20] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t)))))
     (println "----------------------\n")))
+
+(defn better-print [title graph]
+  (println)
+  (let [error-terms (->> graph
+                         (utils/get-terms)
+                         (remove contains-arti-term?)
+                         (filter #(r/error-spec? (utils/get-dom-of-term graph %))))
+        lengths (->> error-terms
+                     (map r/to-string)
+                     (map count))
+        maximum (if (empty? lengths) 0 (apply max lengths))]
+    (if (empty? error-terms)
+      (println ":) No errors found")
+      (doseq [t error-terms]
+        (print-in-columns [5 (+ 2 maximum)] ":(" (r/to-string t) (r/to-string (utils/get-dom-of-term graph t)))
+        (println)))
+    (println "--------------------\n")
+    ))

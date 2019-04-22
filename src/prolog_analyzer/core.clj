@@ -12,7 +12,7 @@
   ([edn]
    (->> edn
         parser/process-edn
-        (analyzer/complete-analysis my-pp/short-print))
+        (analyzer/complete-analysis my-pp/better-print))
    (<╯°□°>╯︵┻━┻)
     )
   ([dialect term-expander file prolog-exe]
