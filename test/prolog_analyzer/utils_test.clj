@@ -12,11 +12,9 @@
 
 
 
-(def sic "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1")
-(def data (parser/process-prolog-file "sicstus" "prolog/prolog_analyzer.pl" sic "resources/spec-test.pl"))
+(def data (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" "resources/spec-test.pl"))
 data
 
-(map r/to-string (first (:pre-specs (sut/get-specs-of-pred ["spec_test" "member_int" 2] data))))
 
 (deftest get-specs-of-pred-test
   (is (= {:pre-specs [
