@@ -6,11 +6,7 @@
 
 
 (defn- pred->module-map [data]
-  (reduce-kv
-   (fn [m k v]
-     (merge m (apply hash-map (interleave (keys v) (repeat k)))))
-   {}
-   (:preds data)))
+  (reduce (fn [m [module pred _]] (assoc m pred module)) {} (keys (:preds data))))
 
 (defn- get-module-of-predicate [data pred]
   (get (pred->module-map data) pred "user"))
