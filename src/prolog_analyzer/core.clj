@@ -13,14 +13,14 @@
    (->> edn
         parser/process-edn
         (analyzer/complete-analysis my-pp/short-print))
-   ;(<╯°□°>╯︵┻━┻)
+   (<╯°□°>╯︵┻━┻)
     )
   ([dialect term-expander file prolog-exe]
    (->> file
         (parser/process-prolog-file dialect term-expander prolog-exe)
         (analyzer/complete-analysis my-pp/short-print)
         )
-   (<╯°□°>╯︵┻━┻))
-  )
+   (<╯°□°>╯︵┻━┻)
+    ))
 
   (def sic "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1")
