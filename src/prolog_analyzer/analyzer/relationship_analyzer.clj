@@ -8,17 +8,13 @@
             [loom.graph]
             ))
 
-(defn was-var? [env node]
-  (uber/attr env node :was-var))
 
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
 
 (defmethod process-edge :specvar [env edge]
   (let [dest (uber/dest edge)
         src (uber/src edge)]
-    (if (was-var? env src)
-      (dom/add-type-to-dom env dest (utils/get-dom-of-term env src) {:overwrite true})
-      (dom/add-type-to-dom env dest (utils/get-dom-of-term env src)))))
+    (dom/add-type-to-dom env dest (utils/get-dom-of-term env src) {:overwrite true})))
 
 (defmethod process-edge :complex-specvar [env edge]
   (let [term (uber/src edge)
