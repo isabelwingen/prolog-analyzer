@@ -367,7 +367,7 @@
            DISJOINT))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
-  (to-string [x] (str functor "(" (to-arglist arglist) ")")))
+  (to-string [x] (str "Compound(" functor "(" (to-arglist arglist) "))")))
 
 (declare ->GroundSpec)
 
@@ -670,7 +670,7 @@
   (term-type [term] COMPOUND)
   (initial-spec [term] (->CompoundSpec functor (map initial-spec arglist)))
   printable
-  (to-string [x] (str functor "(" (to-arglist arglist) ")")))
+  (to-string [x] (str "Compound(" functor "(" (to-arglist arglist) "))")))
 
 (defrecord ShouldNotHappenTerm [term]
   term
