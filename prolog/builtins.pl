@@ -14,7 +14,6 @@
 :- declare_spec(compound).
 
 :- define_spec(callable, one_of([compound, atom])).
-:- define_spec(compound, any). %Hotfix until we have a compound spec without functor
 
 :- spec_pre(user:callable/1, [any]).
 :- spec_post(user:callable/1, [callable], [callable]).
