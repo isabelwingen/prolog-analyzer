@@ -262,8 +262,8 @@ arg_to_map(Type,Term,Map) :-
     my_string_concat(R2, Type, R3),
     my_string_concat(R3, "}",Map).
 
-arg_to_map(atom,_,"{:type :atom}") :- !.
 arg_to_map(atom,[],"{:type :empty-list}") :- !.
+arg_to_map(atom,_,"{:type :atom}") :- !.
 
 arg_to_map(atomic,[],"{:type :empty-list}") :- !.
 arg_to_map(error,Term,Map) :-
