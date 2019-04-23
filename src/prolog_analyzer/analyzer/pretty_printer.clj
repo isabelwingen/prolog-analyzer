@@ -106,6 +106,23 @@
         (print-in-columns [20] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t)))))
     (println "----------------------\n")))
 
+
+(defn- tinker-error-message [env term]
+  (let [attrs (uber/attrs env term)
+        main-index (uber/attr env term :index)
+        subgoals (uber/attr env term :goal-index)
+        subgoals-str (if subgoals (reduce-kv #(str "Index " %3 " in " %2 \n %1 ) "" subgoals) "")
+        main-str (if main-index (str "Index " main-index " in head"))
+        index-str (str "The bad term was found here:\n" main-index "\n" subgoals-str)]
+    (str ":( There was an ERROR in term "
+         (r/to-string term)
+         "!\n"
+         "This is the error message:\n"
+         (r/to-string (utils/get-dom-of-term env term))
+         "\n\n"
+         (if (or main-index subgoals) index-str "")
+         )))
+
 (defn better-print [title graph]
   (println title)
   (println)
@@ -120,7 +137,7 @@
     (if (empty? error-terms)
       (println ":) No errors found")
       (doseq [t error-terms]
-        (print-in-columns [5 (+ 2 maximum)] ":(" (r/to-string t) (r/to-string (utils/get-dom-of-term graph t)))
+        (println (tinker-error-message graph t))
         (println)))
     (println "--------------------\n")
     ))
