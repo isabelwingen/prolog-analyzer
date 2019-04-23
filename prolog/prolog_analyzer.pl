@@ -91,11 +91,6 @@ mapcat(Goal,List,Sep,Res,Break) :-
          multi_string_concat(["[",Join,"]"],Res)
     ).
 
-concat_to_last_elem(List,String,Res) :-
-    reverse(List,[Last|Other]),!,
-    my_string_concat(Last,String,NewLast),
-    reverse([NewLast|Other],Res).
-
 rule_to_map(Head,Body,Module,Map) :-
     split(Head,Name,Arity,Arglist,_),
     create_arglist(Arglist,ResArglist),
@@ -151,6 +146,9 @@ create_body_list([B],Res) :-
     !,
     goal_to_map(B,H),
     multi_string_concat(["[",H,"]"],Res).
+create_body_list(or(L),Res) :-
+    !,
+    create_body_list([or(L)],Res).
 create_body_list(Body,Res) :-
     maplist(goal_to_map,Body,T),
     join(", ",T,String),
