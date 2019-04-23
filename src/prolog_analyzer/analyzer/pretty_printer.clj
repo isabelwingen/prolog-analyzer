@@ -107,6 +107,7 @@
     (println "----------------------\n")))
 
 (defn better-print [title graph]
+  (println title)
   (println)
   (let [error-terms (->> graph
                          (utils/get-terms)
