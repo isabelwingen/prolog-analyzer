@@ -11,7 +11,7 @@
             [clojure.string]))
 
 (defn- get-clojure-file-name [file]
-  (.getAbsolutePath (io/file "source.edn")))
+  (.getAbsolutePath (io/file "tmp.edn")))
 
 
 (defn- split-up-error-message [msg]

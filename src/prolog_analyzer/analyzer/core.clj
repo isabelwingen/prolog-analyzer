@@ -63,10 +63,12 @@
                             (map replace-specvars-with-uuid))
         term (goal-args->tuple arglist)
         goal-specs-as-tuples (goal-specs->tuples goal-specs)
+        indexed-env (reduce-kv #(uber/add-attr %1 %3 :in-goal {:goal [module goal-name arity] :index %2}) env (apply vector arglist))
         ]
     (if (and (> arity 0) goal-specs)
       (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
       env)))
+
 
 (defn condition-fullfilled? [env {head :head tail :tail :as head-tail-list} [conditions p]]
   (if (and (r/empty-list? head-tail-list) (empty? conditions))
