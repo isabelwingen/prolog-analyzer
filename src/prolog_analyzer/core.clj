@@ -18,7 +18,7 @@
   ([dialect term-expander file prolog-exe]
    (->> file
         (parser/process-prolog-file dialect term-expander prolog-exe)
-        (analyzer/complete-analysis my-pp/short-print)
+        (analyzer/complete-analysis my-pp/better-print)
         )
    (<╯°□°>╯︵┻━┻)
     ))
