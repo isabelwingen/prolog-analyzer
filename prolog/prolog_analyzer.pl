@@ -149,6 +149,9 @@ create_body_list([B],Res) :-
 create_body_list(or(L),Res) :-
     !,
     create_body_list([or(L)],Res).
+create_body_list(if(L),Res) :-
+    !,
+    create_body_list([or(L)],Res).
 create_body_list(Body,Res) :-
     maplist(goal_to_map,Body,T),
     join(", ",T,String),
