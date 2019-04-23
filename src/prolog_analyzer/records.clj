@@ -351,12 +351,15 @@
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
-           COMPOUND (if (and (= functor (.functor other-spec))
-                             (= (count arglist) (count (.arglist other-spec))))
-                      (-> other-spec
-                          (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
-                          replace-error-spec-with-intersect-error)
-                      DISJOINT)
+           COMPOUND (cond
+                      (nil? functor) other-spec
+                      (nil? (.functor other-spec)) spec
+                      :else (if (and (= functor (.functor other-spec))
+                                     (= (count arglist) (count (.arglist other-spec))))
+                              (-> other-spec
+                                  (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
+                                  replace-error-spec-with-intersect-error)
+                              DISJOINT))
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
            (AND, OR) (intersect other-spec spec defs overwrite?)
@@ -367,7 +370,7 @@
            DISJOINT))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
-  (to-string [x] (str "Compound(" functor "(" (to-arglist arglist) "))")))
+  (to-string [x] (if (nil? functor) "Compound" (str "Compound(" functor "(" (to-arglist arglist) "))"))))
 
 (declare ->GroundSpec)
 
