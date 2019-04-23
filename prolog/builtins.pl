@@ -371,7 +371,7 @@
 % no spec post
 
 :- declare_spec(file).
-:- define_spec(file, one_of([atom, string])).
+:- define_spec(file, one_of([atom, string, and([compound,ground])])).
 
 :- spec_pre(user:open/3, [file, one_of([atom(read), atom(write), atom(append)]), maybe(stream)]).
 :- spec_post(user:open/3, [any, any, any], [file, one_of([atom(read), atom(write), atom(append)]), stream]).
