@@ -56,6 +56,11 @@
 (defn- goal-specs->tuples [goal-specs]
   (map (partial apply r/to-tuple-spec) goal-specs))
 
+(defn- add-subgoal-index [goal-id env index term]
+  (let [wenv (if (and (uber/has-node? env term) (uber/attr env term :goal-index)) env (-> env (uber/add-nodes term) (uber/add-attr term :goal-index {})))
+        new-goal-index (assoc (uber/attr wenv term :goal-index) goal-id index)]
+    (uber/add-attr wenv term :goal-index new-goal-index)))
+
 (defn evaluate-goal-pre-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
@@ -63,11 +68,11 @@
                             (map replace-specvars-with-uuid))
         term (goal-args->tuple arglist)
         goal-specs-as-tuples (goal-specs->tuples goal-specs)
-        indexed-env (reduce-kv #(uber/add-attr %1 %3 :in-goal {:goal [module goal-name arity] :index %2}) env (apply vector arglist))
+        indexed-env (reduce-kv (partial add-subgoal-index [module goal-name arity]) env (apply vector arglist))
         ]
     (if (and (> arity 0) goal-specs)
-      (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
-      env)))
+      (dom/fill-env-for-term-with-spec indexed-env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
+      indexed-env)))
 
 
 (defn condition-fullfilled? [env {head :head tail :tail :as head-tail-list} [conditions p]]
@@ -110,6 +115,7 @@
 
 (defn- add-index-to-input-arguments [env arglist]
   (apply uber/add-nodes-with-attrs env (map-indexed #(vector %2 {:index %1}) arglist)))
+
 
 (defn initial-env [data arglist pre-spec]
   ;(log/debug "Initialize Env")
