@@ -50,6 +50,21 @@
              r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :type #(r/->OneOfSpec [% head-dom])) {:overwrite overwrite})
              env))))
 
+
+(defmethod process-edge :arg-at-pos [env edge]
+  (let [compound (uber/dest edge)
+        part (uber/src edge)
+        part-dom (utils/get-dom-of-term env part)
+        compound-dom (utils/get-dom-of-term env compound)
+        pos (uber/attr env edge :pos)]
+    (if (= r/COMPOUND (r/spec-type compound-dom))
+      (if (>= pos (count (:arglist compound-dom)))
+        (do
+          (log/debug (str "ERROR found: Found a compound with size " (count (:arglist compound-dom)) " but need at least size " (inc pos)))
+          env)
+        (dom/fill-env-for-term-with-spec env compound (update compound-dom :arglist #(assoc (apply vector %) pos part-dom)) {:overwrite true}))
+      env)))
+
 (defmethod process-edge :default [env edge]
   env)
 
