@@ -861,3 +861,135 @@
   (if (nil? spec)
     true
     (= ANY (spec-type spec))))
+
+
+
+                                        ;---------------------------------------------------------------------------
+
+(defmulti is-child-of (fn [child parent] [(spec-type child) (spec-type parent)]))
+
+(def hierarchy
+  (-> (make-hierarchy)
+      (derive INTEGER NUMBER)
+      (derive FLOAT NUMBER)
+      (derive ATOM ATOMIC)
+      (derive NUMBER ATOMIC)
+      (derive ATOMIC GROUND)
+      (derive GROUND NONVAR)
+      (derive NONVAR ANY)
+      (derive COMPOUND :compounds)
+      (derive LIST :compounds)
+      (derive EMPTYLIST LIST)
+      (derive TUPLE :compounds)
+      (derive :compounds :nonvar)
+    ;  (derive EMPTYLIST ATOMIC)
+      (derive VAR ANY)
+      (derive EXACT ATOM)))
+
+(isa? hierarchy INTEGER INTEGER)
+
+(defmulti intersect-pre-spec (fn [userdefs spec other-spec] [(spec-type spec) (spec-type other-spec)]) :hierarchy #'hierarchy)
+
+(defmethod intersect-pre-spec [ANY ANY] [_ l _] l)
+(defmethod intersect-pre-spec [NONVAR ANY] [_ l _] l)
+(defmethod intersect-pre-spec [VAR ANY] [_ l _] l)
+
+(defmethod intersect-pre-spec [GROUND LIST] [userdefs _ l]
+  (replace-error-spec-with-intersect-error (update l :type (partial intersect-pre-spec userdefs (->GroundSpec)))))
+(defmethod intersect-pre-spec [GROUND TUPLE] [userdefs _ tuple]
+  (replace-error-spec-with-intersect-error (update tuple :arglist (partial map (partial intersect-pre-spec userdefs (->GroundSpec))))))
+(defmethod intersect-pre-spec [GROUND EMPTYLIST] [_ _ l] l)
+
+
+(defmethod intersect-pre-spec [LIST GROUND] [userdefs l _]
+  (replace-error-spec-with-intersect-error (update l :type (partial intersect-pre-spec userdefs (->GroundSpec)))))
+(defmethod intersect-pre-spec [LIST LIST] [userdefs l r]
+  (replace-error-spec-with-intersect-error (update l :type (partial intersect-pre-spec userdefs (.type r)))))
+(defmethod intersect-pre-spec [LIST TUPLE] [userdefs list tuple]
+  (replace-error-spec-with-intersect-error (update tuple :arglist (partial map (partial intersect-pre-spec userdefs (.type list))))))
+(defmethod intersect-pre-spec [LIST EMPTYLIST] [_ _ l] l)
+(defmethod intersect-pre-spec [LIST ATOMIC] [_ _ _] (->EmptyListSpec))
+
+(defmethod intersect-pre-spec [TUPLE LIST] [userdefs tuple list]
+  (replace-error-spec-with-intersect-error (update tuple :arglist (partial map (partial intersect-pre-spec userdefs (.type list))))))
+(defmethod intersect-pre-spec [TUPLE TUPLE] [userdefs tuple1 tuple2]
+  (if (= (count (.arglist tuple1)) (count (.arglist tuple2)))
+    (replace-error-spec-with-intersect-error (update tuple1 :arglist (partial map (partial intersect-pre-spec userdefs) (.arglist tuple2))))
+    DISJOINT))
+(defmethod intersect-pre-spec [TUPLE GROUND] [userdefs tuple _]
+  (replace-error-spec-with-intersect-error (update tuple :arglist (partial map (partial intersect-pre-spec userdefs (->GroundSpec))))))
+(defmethod intersect-pre-spec [TUPLE EMPTYLIST] [_ tuple el]
+  (if (empty? (.arglist tuple))
+    el
+    DISJOINT))
+
+
+
+(defmethod intersect-pre-spec [COMPOUND COMPOUND] [userdefs comp1 comp2]
+  (cond
+    (nil? (.functor comp1)) comp2
+    (nil? (.functor comp2)) comp1
+    (and (= (.functor comp1) (.functor comp2))
+         (= (count (.arglist comp1)) (count (.arglist comp2)))) (replace-error-spec-with-intersect-error (update comp1 :arglist (partial map (partial intersect-pre-spec userdefs) (.arglist comp2))))
+    :else DISJOINT))
+(defmethod intersect-pre-spec [COMPOUND GROUND] [userdefs com _]
+  (replace-error-spec-with-intersect-error (update com :arglist (partial map (partial intersect-pre-spec userdefs (->GroundSpec))))))
+
+(defmethod intersect-pre-spec [EMPTYLIST LIST] [_ l _] l)
+(defmethod intersect-pre-spec [EMPTYLIST GROUND] [_ l _] l)
+(defmethod intersect-pre-spec [EMPTYLIST TUPLE] [_ el tuple]
+  (if (empty? (.arglist tuple))
+    el
+    DISJOINT))
+(defmethod intersect-pre-spec [EMPTYLIST EMPTYLIST] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [EMPTYLIST ATOMIC] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [EMPTYLIST ATOM] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [EMPTYLIST INTEGER] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [EMPTYLIST NUMBER] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [EMPTYLIST FLOAT] [_ _ _] DISJOINT)
+
+
+(defmethod intersect-pre-spec [ATOMIC EMPTYLIST] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [ATOM EMPTYLIST] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [FLOAT EMPTYLIST] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [NUMBER EMPTYLIST] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [INTEGER EMPTYLIST] [_ _ _] DISJOINT)
+
+(defmethod intersect-pre-spec [ATOMIC LIST] [_ _ _] (->EmptyListSpec))
+
+
+(defmethod intersect-pre-spec [NONVAR VAR] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [VAR NONVAR] [_ _ _] DISJOINT)
+
+
+(defmethod intersect-pre-spec [SPECVAR ANY] [_ _ other] other)
+(defmethod intersect-pre-spec [ANY SPECVAR] [_ other _] other)
+(defmethod intersect-pre-spec [SPECVAR SPECVAR] [_ _ _] (->AnySpec))
+
+(defmethod intersect-pre-spec [USERDEFINED ANY] [defs alias other]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
+(defmethod intersect-pre-spec [ANY USERDEFINED] [defs other alias]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
+(defmethod intersect-pre-spec [USERDEFINED USERDEFINED] [defs ali baba]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters ali defs) (resolve-definition-with-parameters baba defs))))
+
+(defmethod intersect-pre-spec [OR ANY] [userdefs or any]
+  (intersect-pre-spec userdefs any or))
+(defmethod intersect-pre-spec [ANY OR] [userdefs any or]
+  (-> or
+      (update :arglist (partial map (partial intersect-pre-spec userdefs any)))
+      (update :arglist (partial remove error-spec?))
+      (simplify-or userdefs)
+      replace-error-spec-with-intersect-error
+      ))
+
+
+(defmethod intersect-pre-spec :default [_ _ _]
+  DISJOINT)
+
+(intersect-pre-spec {} (->ListSpec (->AtomSpec)) (->GroundSpec))
+(intersect-pre-spec {} (->AtomSpec) (->GroundSpec))
+
+
+(defmulti intersect-post-spec (fn [spec other-spec user-definitions] [(spec-type spec) (spec-type other-spec)]))
+(defmulti intersect-post-spec-for-var-dom (fn [other-spec user-definitions] [(spec-type spec) (spec-type other-spec)]))
