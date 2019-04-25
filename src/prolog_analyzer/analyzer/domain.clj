@@ -20,6 +20,14 @@
 (declare fill-env-for-term-with-spec)
 (declare fill-dom)
 
+(defn- calculate-intersection [env old-type new-type overwrite]
+  (if (and
+       (= r/VAR (r/spec-type old-type))
+       (= r/ANY (r/spec-type new-type)))
+    (if overwrite
+      (r/->AnySpec)
+      (r/->VarSpec))
+    (r/intersect old-type new-type (utils/get-user-defined-specs env) overwrite)))
 
 
 (defn add-type-to-dom
@@ -34,7 +42,7 @@
             (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
               (uber/set-attrs env term (-> (uber/attrs env term)
                                            (update :history #(if (< (count %) 5) (conj % new-type) %))
-                                           (update :dom #(if (= new-type %) % (r/intersect % new-type (utils/get-user-defined-specs env) overwrite?))) ;; order of intersect matters here!
+                                           (update :dom #(if (= new-type %) % (calculate-intersection env % new-type overwrite?))) ;; order of intersect matters here!
                                            ))
               (uber/add-nodes-with-attrs env [term {:dom new-type :history [new-type]}])))))
   ([env term type]
