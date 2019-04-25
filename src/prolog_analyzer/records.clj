@@ -442,10 +442,10 @@
 
 (defn simplify-or [spec defs]
   (let [simplified-or (-> spec
-                          (update :arglist distinct)
+                          (update :arglist set)
                           (update :arglist (partial mapcat #(if (= OR (spec-type %)) (:arglist %) [%])))
                           (update :arglist #(reduce (partial add-to-one-of defs) [(first %)] (rest %)))
-                          (update :arglist (partial apply vector)))]
+                          (update :arglist set))]
     (case (count (:arglist simplified-or))
       0 DISJOINT
       1 (first (:arglist simplified-or))
@@ -720,8 +720,12 @@
     :list (map->ListSpec (update m :type map-to-spec))
     :tuple (map->TupleSpec (update m :arglist (partial map map-to-spec)))
     :compound (map->CompoundSpec (update m :arglist (partial map map-to-spec)))
-    :and (map->AndSpec (update m :arglist (partial map map-to-spec)))
-    :one-of (map->OneOfSpec (update m :arglist (partial map map-to-spec)))
+    :and (map->AndSpec (-> m
+                           (update :arglist (partial map map-to-spec))
+                           (update :arglist set)))
+    :one-of (map->OneOfSpec (-> m
+                                (update :arglist (partial map map-to-spec))
+                                (update :arglist set)))
     :user-defined (map->UserDefinedSpec (update m :arglist (partial map map-to-spec)))
     :error-spec (map->ErrorSpec m)
     :emptylist (->EmptyListSpec)
@@ -762,7 +766,7 @@
   (case (count specs)
     0 (->ErrorSpec "Cannot build empty one-of")
     1 (first specs)
-    (simplify-or (->OneOfSpec specs) defs)))
+    (simplify-or (->OneOfSpec (set specs)) defs)))
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
@@ -803,8 +807,6 @@
     LIST (find-specvars (.type spec))
     []))
 
-(defn get-definition-of-alias [defs user-defined-alias]
-  (get defs (dissoc user-defined-alias :origin)))
 
 (defn resolve-definition-with-parameters
   "User-defined specs can have parameters and when in use in spec annotations,
@@ -812,15 +814,18 @@
   we have to replace the parameter with their value."
   [{n :name arglist :arglist :as user-def-spec} defs]
   (if (nil? arglist)
-    (get-definition-of-alias defs user-def-spec)
+    (get defs user-def-spec)
     (let [alias (->> defs
                      keys
                      (filter #(= (:name %) n))
                      (filter #(= (count (:arglist %)) (count arglist)))
                      first)
-          definition (get-definition-of-alias defs alias)
-          replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))]
-      (reduce-kv replace-specvars-with-spec definition replace-map))))
+          definition (get defs alias)
+          replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))
+          result (reduce-kv replace-specvars-with-spec definition replace-map)]
+      (if (= OR (spec-type result))
+        (update result :arglist set)
+        result))))
 
 
 (defn supertype? [defs parent child]

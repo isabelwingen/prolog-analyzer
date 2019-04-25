@@ -32,19 +32,19 @@
                                    {:user-defined-specs
                                     {(r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])
                                      (r/->OneOfSpec
-                                      [(r/->CompoundSpec "node" [(r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])
-                                                                 (r/->SpecvarSpec "X")
-                                                                 (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])])
-                                       (r/->ExactSpec "empty")])
+                                      #{(r/->CompoundSpec "node" [(r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])
+                                                                    (r/->SpecvarSpec "X")
+                                                                    (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")])])
+                                        (r/->ExactSpec "empty")})
 
                                      (r/make-spec:user-defined "atomOrInt")
-                                     (r/->OneOfSpec [(r/->IntegerSpec) (r/->AtomSpec)])
+                                     (r/->OneOfSpec #{(r/->IntegerSpec) (r/->AtomSpec)})
 
                                      (r/make-spec:user-defined "blob")
                                      (r/->ExactSpec "blob")
 
                                      (r/make-spec:user-defined "varOrInt")
-                                     (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
+                                     (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)})
                                      }}])))
 
 
@@ -374,10 +374,10 @@
                (r/->VarTerm "Y") (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
 
-               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite false} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
-               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite true} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
-               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite false} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
-               (r/->VarTerm "Y") (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite true} (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)])
+               (r/->VarTerm "Y") (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial false :overwrite false} (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)})
+               (r/->VarTerm "Y") (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial false :overwrite true} (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)})
+               (r/->VarTerm "Y") (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial true :overwrite false} (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)})
+               (r/->VarTerm "Y") (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial true :overwrite true} (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)})
 
 
                (r/->IntegerTerm 1) (r/->VarSpec) {:initial false :overwrite false} (sut/ALREADY-NONVAR)
@@ -385,10 +385,10 @@
                (r/->IntegerTerm 1) (r/->VarSpec) {:initial true :overwrite false} (r/->IntegerSpec)
                (r/->IntegerTerm 1) (r/->VarSpec) {:initial true :overwrite true} (r/->IntegerSpec)
 
-               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite false} (r/->IntegerSpec)
-               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial false :overwrite true} (r/->IntegerSpec)
-               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite false} (r/->IntegerSpec)
-               (r/->IntegerTerm 1) (r/->OneOfSpec [(r/->VarSpec) (r/->IntegerSpec)]) {:initial true :overwrite true} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial false :overwrite false} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial false :overwrite true} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->IntegerTerm 1) (r/->OneOfSpec #{(r/->VarSpec) (r/->IntegerSpec)}) {:initial true :overwrite true} (r/->IntegerSpec)
 
 
                ))
@@ -415,15 +415,15 @@
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
 
-               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite false} (r/->VarSpec)
-               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite true} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
-               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite false} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
-               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite true} (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)])
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial false :overwrite false} (r/->VarSpec)
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial false :overwrite true} (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)})
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite false} (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)})
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite true} (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)})
 
-               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite false} (r/->IntegerSpec)
-               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial false :overwrite true} (r/->GroundSpec)
-               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite false} (r/->IntegerSpec)
-               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec [(r/->IntegerSpec) (r/->VarSpec)]) {:initial true :overwrite true} (r/->GroundSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial false :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial false :overwrite true} (r/->GroundSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite false} (r/->IntegerSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite true} (r/->GroundSpec)
 
 
 

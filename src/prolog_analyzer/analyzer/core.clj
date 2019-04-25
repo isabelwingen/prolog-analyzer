@@ -137,6 +137,7 @@
                            :pre-specs
                            (map replace-specvars-with-uuid)
                            (map r/->TupleSpec)
+                           set
                            r/->OneOfSpec)
                       (:specs data)))]
       ;(log/debug (str "Clause: " [clause-number (r/to-string pre-spec)]))

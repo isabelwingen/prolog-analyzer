@@ -16,22 +16,22 @@
 
 (def test-defs
   {(sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")])
-   (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")]) (sut/->SpecvarSpec "X") (sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")])]) (sut/->ExactSpec "empty")])
+   (sut/->OneOfSpec #{(sut/->CompoundSpec "node" [(sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")]) (sut/->SpecvarSpec "X") (sut/make-spec:user-defined "tree" [(sut/->SpecvarSpec "X")])]) (sut/->ExactSpec "empty")})
 
    (sut/make-spec:user-defined "atomOrInt")
-   (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+   (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
 
    (sut/make-spec:user-defined "atomOrVar")
-   (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->VarSpec)])
+   (sut/->OneOfSpec #{(sut/->AtomSpec) (sut/->VarSpec)})
 
    (sut/make-spec:user-defined "blob")
    (sut/->ExactSpec "blob")
 
    (sut/make-spec:user-defined "a")
-   (sut/->OneOfSpec [(sut/->TupleSpec [(sut/make-spec:user-defined "a")]) (sut/->ExactSpec "a")])
+   (sut/->OneOfSpec #{(sut/->TupleSpec [(sut/make-spec:user-defined "a")]) (sut/->ExactSpec "a")})
 
    expr
-   (sut/->OneOfSpec [cst, (sut/->CompoundSpec "expr" [op, expr, expr]), (sut/->CompoundSpec "neg" [expr])])
+   (sut/->OneOfSpec #{cst, (sut/->CompoundSpec "expr" [op, expr, expr]), (sut/->CompoundSpec "neg" [expr])})
 
    op (sut/->ExactSpec "+")
    cst (sut/->CompoundSpec "cst" [(sut/->IntegerSpec)])
@@ -47,12 +47,12 @@
 
 (deftest resolve-definition
   (are [in expected] (= expected (sut/resolve-definition-with-parameters in test-defs))
-    user-def-tree-int (sut/->OneOfSpec [(sut/->CompoundSpec "node" [user-def-tree-int (sut/->IntegerSpec) user-def-tree-int]) (sut/->ExactSpec "empty")])
-    (user-def-tree (sut/->SpecvarSpec "Y")) (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(user-def-tree (sut/->SpecvarSpec "Y")) (sut/->SpecvarSpec "Y") (user-def-tree (sut/->SpecvarSpec "Y"))]) (sut/->ExactSpec "empty")])
-    (user-def-tree (sut/->SpecvarSpec "A")) (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(user-def-tree (sut/->SpecvarSpec "A")) (sut/->SpecvarSpec "A") (user-def-tree (sut/->SpecvarSpec "A"))]) (sut/->ExactSpec "empty")])
-    (user-def-tree (sut/make-spec:user-defined "blob")) (sut/->OneOfSpec [(sut/->CompoundSpec "node" [(user-def-tree (sut/make-spec:user-defined "blob")) (sut/make-spec:user-defined "blob") (user-def-tree (sut/make-spec:user-defined "blob"))]) (sut/->ExactSpec "empty")])
+    user-def-tree-int (sut/->OneOfSpec #{(sut/->CompoundSpec "node" [user-def-tree-int (sut/->IntegerSpec) user-def-tree-int]) (sut/->ExactSpec "empty")})
+    (user-def-tree (sut/->SpecvarSpec "Y")) (sut/->OneOfSpec #{(sut/->CompoundSpec "node" [(user-def-tree (sut/->SpecvarSpec "Y")) (sut/->SpecvarSpec "Y") (user-def-tree (sut/->SpecvarSpec "Y"))]) (sut/->ExactSpec "empty")})
+    (user-def-tree (sut/->SpecvarSpec "A")) (sut/->OneOfSpec #{(sut/->CompoundSpec "node" [(user-def-tree (sut/->SpecvarSpec "A")) (sut/->SpecvarSpec "A") (user-def-tree (sut/->SpecvarSpec "A"))]) (sut/->ExactSpec "empty")})
+    (user-def-tree (sut/make-spec:user-defined "blob")) (sut/->OneOfSpec #{(sut/->CompoundSpec "node" [(user-def-tree (sut/make-spec:user-defined "blob")) (sut/make-spec:user-defined "blob") (user-def-tree (sut/make-spec:user-defined "blob"))]) (sut/->ExactSpec "empty")})
 
-    (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)])
+    (sut/make-spec:user-defined "atomOrInt") (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
     (sut/make-spec:user-defined "blob") (sut/->ExactSpec "blob")
 
     ))
@@ -80,7 +80,7 @@
   (are [x y] (= x (apply sut/to-or-spec nil y))
     (sut/->ErrorSpec "Cannot build empty one-of") []
     (sut/->IntegerSpec) [(sut/->IntegerSpec)]
-    (sut/->OneOfSpec [(sut/->IntegerSpec) (sut/->AtomSpec)]) [(sut/->IntegerSpec) (sut/->AtomSpec)]))
+    (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)}) [(sut/->IntegerSpec) (sut/->AtomSpec)]))
 
 
 (deftest has-specvars-test
@@ -130,8 +130,8 @@
       (sut/->IntegerSpec)                (sut/->GroundSpec)                                 (sut/->IntegerSpec)
       (sut/->IntegerSpec)                (sut/->NonvarSpec)                                 (sut/->IntegerSpec)
       (sut/->IntegerSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-     ; (sut/->IntegerSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
-     ; (sut/->IntegerSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->IntegerSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
+      (sut/->IntegerSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->IntegerSpec)                (sut/->SpecvarSpec "X")                            (sut/->IntegerSpec)
       (sut/->IntegerSpec)                (sut/->AnySpec)                                    (sut/->IntegerSpec)
 
@@ -150,8 +150,8 @@
       (sut/->FloatSpec)                (sut/->GroundSpec)                                 (sut/->FloatSpec)
       (sut/->FloatSpec)                (sut/->NonvarSpec)                                 (sut/->FloatSpec)
       (sut/->FloatSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-     ; (sut/->FloatSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-     ; (sut/->FloatSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->FloatSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->FloatSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->FloatSpec)                (sut/->SpecvarSpec "X")                            (sut/->FloatSpec)
       (sut/->FloatSpec)                (sut/->AnySpec)                                    (sut/->FloatSpec)
 
@@ -169,8 +169,8 @@
       (sut/->NumberSpec)                (sut/->GroundSpec)                                 (sut/->NumberSpec)
       (sut/->NumberSpec)                (sut/->NonvarSpec)                                 (sut/->NumberSpec)
       (sut/->NumberSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-     ; (sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
-      ;(sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
+      (sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
      (sut/->NumberSpec)                (sut/->SpecvarSpec "X")                            (sut/->NumberSpec)
       (sut/->NumberSpec)                (sut/->AnySpec)                                    (sut/->NumberSpec)
 
@@ -188,8 +188,8 @@
       (sut/->ExactSpec "cake")                (sut/->GroundSpec)                                 (sut/->ExactSpec "cake")
       (sut/->ExactSpec "cake")                (sut/->NonvarSpec)                                 (sut/->ExactSpec "cake")
       (sut/->ExactSpec "cake")                (sut/->VarSpec)                                    sut/DISJOINT
-     ; (sut/->ExactSpec "cake")                (sut/make-spec:user-defined "atomOrInt")           (sut/->ExactSpec "cake")
-     ; (sut/->ExactSpec "cake")                (sut/make-spec:user-defined "atomOrVar")           (sut/->ExactSpec "cake")
+      (sut/->ExactSpec "cake")                (sut/make-spec:user-defined "atomOrInt")           (sut/->ExactSpec "cake")
+      (sut/->ExactSpec "cake")                (sut/make-spec:user-defined "atomOrVar")           (sut/->ExactSpec "cake")
       (sut/->ExactSpec "cake")                (sut/->SpecvarSpec "X")                            (sut/->ExactSpec "cake")
       (sut/->ExactSpec "cake")                (sut/->AnySpec)                                    (sut/->ExactSpec "cake")
 
@@ -206,8 +206,8 @@
       (sut/->AtomSpec)                (sut/->GroundSpec)                                 (sut/->AtomSpec)
       (sut/->AtomSpec)                (sut/->NonvarSpec)                                 (sut/->AtomSpec)
       (sut/->AtomSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-      ;(sut/->AtomSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->AtomSpec)
-     ; (sut/->AtomSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
+      (sut/->AtomSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->AtomSpec)
+      (sut/->AtomSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
       (sut/->AtomSpec)                (sut/->SpecvarSpec "X")                            (sut/->AtomSpec)
       (sut/->AtomSpec)                (sut/->AnySpec)                                    (sut/->AtomSpec)
 
@@ -222,8 +222,8 @@
       (sut/->StringSpec)                (sut/->GroundSpec)                                 (sut/->StringSpec)
       (sut/->StringSpec)                (sut/->NonvarSpec)                                 (sut/->StringSpec)
       (sut/->StringSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-     ; (sut/->StringSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-    ;  (sut/->StringSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->StringSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->StringSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->StringSpec)                (sut/->SpecvarSpec "X")                            (sut/->StringSpec)
       (sut/->StringSpec)                (sut/->AnySpec)                                    (sut/->StringSpec)
 
@@ -238,8 +238,8 @@
       (sut/->AtomicSpec)                (sut/->GroundSpec)                                 (sut/->AtomicSpec)
       (sut/->AtomicSpec)                (sut/->NonvarSpec)                                 (sut/->AtomicSpec)
       (sut/->AtomicSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-    ;  (sut/->AtomicSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->IntegerSpec)])
-     ; (sut/->AtomicSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
+      (sut/->AtomicSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/->AtomicSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
       (sut/->AtomicSpec)                (sut/->SpecvarSpec "X")                            (sut/->AtomicSpec)
       (sut/->AtomicSpec)                (sut/->AnySpec)                                    (sut/->AtomicSpec)
 
@@ -253,8 +253,8 @@
       (sut/->CompoundSpec nil '())                (sut/->GroundSpec)                                 (sut/->CompoundSpec nil '())
       (sut/->CompoundSpec nil '())                (sut/->NonvarSpec)                                 (sut/->CompoundSpec nil '())
       (sut/->CompoundSpec nil '())                (sut/->VarSpec)                                    sut/DISJOINT
-      ;(sut/->CompoundSpec nil '())                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-      ;(sut/->CompoundSpec nil '())                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->CompoundSpec nil '())                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->CompoundSpec nil '())                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->CompoundSpec nil '())                (sut/->SpecvarSpec "X")                            (sut/->CompoundSpec nil '())
       (sut/->CompoundSpec nil '())                (sut/->AnySpec)                                    (sut/->CompoundSpec nil '())
 
@@ -269,8 +269,8 @@
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->NonvarSpec)                                 (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])
       (sut/->CompoundSpec "foo" [(sut/->VarSpec)])                  (sut/->NonvarSpec)                                 (sut/->CompoundSpec "foo" [(sut/->VarSpec)])
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->VarSpec)                                    sut/DISJOINT
-      ;(sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-     ; (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->SpecvarSpec "X")                            (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->AnySpec)                                    (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])
 
@@ -285,8 +285,8 @@
       (sut/->ListSpec (sut/->VarSpec))                  (sut/->GroundSpec)                                 sut/DISJOINT
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->NonvarSpec)                                 (sut/->ListSpec (sut/->FloatSpec))
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->VarSpec)                                    sut/DISJOINT
-      ;(sut/->ListSpec (sut/->FloatSpec))                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-     ; (sut/->ListSpec (sut/->FloatSpec))                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->ListSpec (sut/->FloatSpec))                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->ListSpec (sut/->FloatSpec))                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->SpecvarSpec "X")                            (sut/->ListSpec (sut/->FloatSpec))
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->AnySpec)                                    (sut/->ListSpec (sut/->FloatSpec))
 
@@ -295,8 +295,8 @@
       (sut/->EmptyListSpec)                (sut/->GroundSpec)                                 (sut/->EmptyListSpec)
       (sut/->EmptyListSpec)                (sut/->NonvarSpec)                                 (sut/->EmptyListSpec)
       (sut/->EmptyListSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-      ;(sut/->EmptyListSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-      ;(sut/->EmptyListSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->EmptyListSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->EmptyListSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->EmptyListSpec)                (sut/->SpecvarSpec "X")                            (sut/->EmptyListSpec)
       (sut/->EmptyListSpec)                (sut/->AnySpec)                                    (sut/->EmptyListSpec)
 
@@ -307,37 +307,37 @@
       (sut/->TupleSpec [(sut/->VarSpec)])                 (sut/->GroundSpec)                                 sut/DISJOINT
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/->NonvarSpec)                                 (sut/->TupleSpec [(sut/->AtomSpec)])
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/->VarSpec)                                    sut/DISJOINT
-     ; (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-     ; (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
+      (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/->SpecvarSpec "X")                            (sut/->TupleSpec [(sut/->AtomSpec)])
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/->AnySpec)                                    (sut/->TupleSpec [(sut/->AtomSpec)])
 
       (sut/->GroundSpec)                (sut/->GroundSpec)                                 (sut/->GroundSpec)
       (sut/->GroundSpec)                (sut/->NonvarSpec)                                 (sut/->GroundSpec)
       (sut/->GroundSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-    ;  (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->IntegerSpec)])
-     ; (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
+      (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
       (sut/->GroundSpec)                (sut/->SpecvarSpec "X")                            (sut/->GroundSpec)
       (sut/->GroundSpec)                (sut/->AnySpec)                                    (sut/->GroundSpec)
 
       (sut/->NonvarSpec)                (sut/->NonvarSpec)                                 (sut/->NonvarSpec)
       (sut/->NonvarSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-     ; (sut/->NonvarSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->IntegerSpec)])
-     ; (sut/->NonvarSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->VarSpec)])
+      (sut/->NonvarSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/->NonvarSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
       (sut/->NonvarSpec)                (sut/->SpecvarSpec "X")                            (sut/->NonvarSpec)
       (sut/->NonvarSpec)                (sut/->AnySpec)                                    (sut/->NonvarSpec)
 
 
       (sut/->VarSpec)                (sut/->VarSpec)                                    (sut/->VarSpec)
-   ;   (sut/->VarSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
-    ;  (sut/->VarSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->VarSpec)
+      (sut/->VarSpec)                (sut/make-spec:user-defined "atomOrInt")           sut/DISJOINT
+      (sut/->VarSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->VarSpec)
       (sut/->VarSpec)                (sut/->SpecvarSpec "X")                            (sut/->VarSpec)
       (sut/->VarSpec)                (sut/->AnySpec)                                    (sut/->VarSpec)
 
-     ; (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->IntegerSpec)])
-      ;(sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
-      ;(sut/make-spec:user-defined "atomOrInt")                (sut/->SpecvarSpec "X")                            (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->IntegerSpec)])
-      ;(sut/make-spec:user-defined "atomOrInt")                (sut/->AnySpec)                                    (sut/->OneOfSpec [(sut/->AtomSpec) (sut/->IntegerSpec)])
+      (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
+      (sut/make-spec:user-defined "atomOrInt")                (sut/->SpecvarSpec "X")                            (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/make-spec:user-defined "atomOrInt")                (sut/->AnySpec)                                    (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
 
       (sut/->SpecvarSpec "Y")                (sut/->SpecvarSpec "Y")                            (sut/->AnySpec)
       (sut/->SpecvarSpec "Y")                (sut/->SpecvarSpec "X")                            (sut/->AnySpec)
@@ -347,3 +347,22 @@
 
 
       ))
+
+(deftest intersect-pre-spec-and-or
+  (are [a b c] (and
+                (= c (sut/intersect-pre-spec test-defs a b))
+                (= c (sut/intersect-pre-spec test-defs b a)))
+    (sut/->AtomSpec) (sut/->OneOfSpec #{(sut/->AtomicSpec) (sut/->IntegerSpec)}) (sut/->AtomSpec)
+    (sut/->AtomSpec) (sut/->OneOfSpec #{(sut/->VarSpec) (sut/->IntegerSpec)}) sut/DISJOINT
+    (sut/->OneOfSpec #{(sut/->AtomicSpec) (sut/->VarSpec)}) (sut/->OneOfSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->OneOfSpec #{(sut/->AtomicSpec) (sut/->VarSpec)})
+
+
+    ))
+
+
+
+(let [a (sut/->OneOfSpec #{(sut/->AtomicSpec) (sut/->IntegerSpec)})
+      b (sut/->OneOfSpec #{(sut/->AnySpec) (sut/->IntegerSpec)})
+      r1 (sut/intersect-pre-spec test-defs a b)
+      r2 (sut/intersect-pre-spec test-defs b a)]
+  [r1 r2])

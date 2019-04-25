@@ -102,10 +102,10 @@
   (r/->CompoundSpec functor (map transform-spec arglist)))
 
 (defmethod transform-spec :one-of [{arglist :arglist}]
-  (r/->OneOfSpec (map transform-spec arglist)))
+  (r/->OneOfSpec (set (map transform-spec arglist))))
 
 (defmethod transform-spec :and [{arglist :arglist}]
-  (r/->AndSpec (map transform-spec arglist)))
+  (r/->AndSpec (set (map transform-spec arglist))))
 
 (defmethod transform-spec :tuple [{arglist :arglist}]
   (r/->TupleSpec (map transform-spec arglist)))
