@@ -899,10 +899,6 @@
   (if (= (.value e1) (.value e2))
     e1
     DISJOINT))
-(defmethod intersect-pre-spec [EXACT STRING] [_ _ _] DISJOINT)
-(defmethod intersect-pre-spec [EXACT NUMBER] [_ _ _] DISJOINT)
-(defmethod intersect-pre-spec [STRING EXACT] [_ _ _] DISJOINT)
-(defmethod intersect-pre-spec [NUMBER EXACT] [_ _ _] DISJOINT)
 
 
 
@@ -965,8 +961,6 @@
     (replace-error-spec-with-intersect-error (update compound :arglist (partial map (partial intersect-pre-spec u (->GroundSpec)))))))
 
 
-(intersect-pre-spec {} (->StringSpec) (->ExactSpec "cake"))
-
 (defmethod intersect-pre-spec [LIST LIST] [userdefs l r]
   (replace-error-spec-with-intersect-error (update l :type (partial intersect-pre-spec userdefs (.type r)))))
 (defmethod intersect-pre-spec [LIST TUPLE] [userdefs list tuple]
@@ -997,10 +991,7 @@
     e1
     DISJOINT))
 
-(defmethod intersect-pre-spec [EXACT ATOMIC] [_ e a] e)
-(defmethod intersect-pre-spec [ATOMIC EXACT] [_ a e] e)
 
-(intersect-pre-spec {}  (->AtomSpec) (->ListSpec (->FloatSpec)))
 
 (comment
 
