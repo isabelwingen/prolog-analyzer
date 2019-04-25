@@ -872,109 +872,103 @@
   (-> (make-hierarchy)
       (derive INTEGER NUMBER)
       (derive FLOAT NUMBER)
-      (derive ATOM :singletons)
-      (derive NUMBER :singletons)
-      (derive STRING :singletons)
-      (derive EXACT :singletons)
+      (derive ATOM ATOMIC)
+      (derive NUMBER ATOMIC)
+      (derive STRING ATOMIC)
+      (derive EXACT ATOM)
+      (derive ATOMIC GROUND)
       (derive GROUND NONVAR)
       (derive NONVAR ANY)
-      (derive TUPLE :compounds)
+      (derive VAR ANY)
       (derive LIST :compounds)
+      (derive TUPLE :compounds)
       (derive COMPOUND :compounds)
       ))
 
-(isa? hierarchy INTEGER INTEGER)
-
 (defmulti intersect-pre-spec (fn [userdefs spec other-spec] [(spec-type spec) (spec-type other-spec)]) :hierarchy #'hierarchy)
 
-(defmethod intersect-pre-spec [:singletons ATOMIC] [_ a _] a)
+(defmethod intersect-pre-spec :default [userdef left right]
+  (if (isa? hierarchy (spec-type left) (spec-type right))
+    left
+    (if (isa? hierarchy (spec-type right) (spec-type left))
+      right
+      DISJOINT)))
 
 
-(defmethod intersect-pre-spec [:singletons :singletons] [_ a b]
-  (cond
-    (isa? hierarchy (spec-type a) (spec-type b)) a
-    (isa? hierarchy (spec-type b) (spec-type a)) b
-    :else DISJOINT))
-
-(defmethod intersect-pre-spec [:singletons ANY] [_ a _] a)
-(defmethod intersect-pre-spec [ATOMIC ANY] [_ a _] a)
-(defmethod intersect-pre-spec [ANY :singletons] [_ _ a] a)
-(defmethod intersect-pre-spec [ANY ATOMIC] [_ _ a] a)
-(defmethod intersect-pre-spec [:singletons VAR] [_ a _] DISJOINT)
-(defmethod intersect-pre-spec [:singletons EMPTYLIST] [_ a _] DISJOINT)
-(defmethod intersect-pre-spec [NUMBER EMPTYLIST] [_ a _] DISJOINT)
-(defmethod intersect-pre-spec [VAR :singletons] [_ _ a] DISJOINT)
-(defmethod intersect-pre-spec [:singletons SPECVAR] [_ a _] a)
-(defmethod intersect-pre-spec [SPECVAR :singletons] [_ _ a] a)
-(defmethod intersect-pre-spec [SPECVAR ATOMIC] [_ _ a] a)
 (defmethod intersect-pre-spec [EXACT EXACT] [_ e1 e2]
   (if (= (.value e1) (.value e2))
     e1
     DISJOINT))
-(defmethod intersect-pre-spec [EXACT ATOM] [_ e a] e)
-(defmethod intersect-pre-spec [ATOM EXACT] [_ a e] e)
+(defmethod intersect-pre-spec [EXACT STRING] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [EXACT NUMBER] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [STRING EXACT] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [NUMBER EXACT] [_ _ _] DISJOINT)
 
-(defmethod intersect-pre-spec [:singletons :compounds] [_ _ _] DISJOINT)
-(defmethod intersect-pre-spec [:compounds :singletons] [_ _ _] DISJOINT)
 
 
-(defmethod intersect-pre-spec [:compounds ANY] [_ c _] c)
-(defmethod intersect-pre-spec [ANY :compounds] [_ _ c] c)
-
-(defmethod intersect-pre-spec [VAR ANY] [_ l any] l)
+(defmethod intersect-pre-spec [NONVAR VAR] [_ l any] DISJOINT)
 (defmethod intersect-pre-spec [VAR NONVAR] [_ l any] DISJOINT)
-(defmethod intersect-pre-spec [NONVAR ANY] [_ l any] l)
-(defmethod intersect-pre-spec [ANY ANY] [_ _ l] l)
 
-
-
-(defmethod intersect-pre-spec [SPECVAR ANY] [_ _ other] other)
-(defmethod intersect-pre-spec [SPECVAR VAR] [_ _ other] other)
-(defmethod intersect-pre-spec [SPECVAR :compounds] [_ _ other] other)
-(defmethod intersect-pre-spec [SPECVAR EMPTYLIST] [_ _ other] other)
-(defmethod intersect-pre-spec [ANY SPECVAR] [_ other _] other)
-(defmethod intersect-pre-spec [VAR SPECVAR] [_ other _] other)
-(defmethod intersect-pre-spec [:compounds SPECVAR] [_ other _] other)
-(defmethod intersect-pre-spec [ATOMIC SPECVAR] [_ other _] other)
-
-(defmethod intersect-pre-spec [GROUND NONVAR] [_ ground _] ground)
-
+(defmethod intersect-pre-spec [SPECVAR ANY] [_ _ l] l)
+(defmethod intersect-pre-spec [ANY SPECVAR] [_ l _] l)
 
 (defmethod intersect-pre-spec [EMPTYLIST LIST] [_ l _] l)
 (defmethod intersect-pre-spec [EMPTYLIST TUPLE] [_ el tuple]
   (if (empty? (.arglist tuple))
     el
     DISJOINT))
-(defmethod intersect-pre-spec [EMPTYLIST :singletons] [_ _ _] DISJOINT)
 (defmethod intersect-pre-spec [EMPTYLIST NUMBER] [_ _ _] DISJOINT)
-(defmethod intersect-pre-spec [EMPTYLIST ATOMIC] [_ _ _] (->EmptyListSpec))
-(defmethod intersect-pre-spec [EMPTYLIST ANY] [_ _ _] (->EmptyListSpec))
-(defmethod intersect-pre-spec [EMPTYLIST SPECVAR] [_ _ _] (->EmptyListSpec))
-(defmethod intersect-pre-spec [EMPTYLIST LIST] [_ _ _] (->EmptyListSpec))
-(defmethod intersect-pre-spec [EMPTYLIST EMPTYLIST] [_ _ _] (->EmptyListSpec))
 (defmethod intersect-pre-spec [EMPTYLIST ATOM] [_ _ _] DISJOINT)
-(defmethod intersect-pre-spec [LIST ATOMIC] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [EMPTYLIST STRING] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [EMPTYLIST VAR] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [EMPTYLIST ATOMIC] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [EMPTYLIST SPECVAR] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [EMPTYLIST ANY] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [EMPTYLIST LIST] [_ _ _] (->EmptyListSpec))
+
 (defmethod intersect-pre-spec [LIST EMPTYLIST] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [ATOMIC EMPTYLIST] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [ANY EMPTYLIST] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [SPECVAR EMPTYLIST] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [ATOM EMPTYLIST] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [STRING EMPTYLIST] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [NUMBER EMPTYLIST] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [VAR EMPTYLIST] [_ _ _] DISJOINT)
+
+(defmethod intersect-pre-spec [EMPTYLIST EMPTYLIST] [_ _ _] (->EmptyListSpec))
+
+(defmethod intersect-pre-spec [LIST ATOMIC] [_ _ _] (->EmptyListSpec))
+(defmethod intersect-pre-spec [LIST ATOM] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [LIST NUMBER] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [LIST STRING] [_ _ _] DISJOINT)
 (defmethod intersect-pre-spec [ATOMIC LIST] [_ _ _] (->EmptyListSpec))
 (defmethod intersect-pre-spec [ATOM LIST] [_ _ _] DISJOINT)
-(defmethod intersect-pre-spec [ATOMIC EMPTYLIST] [_ _ _] (->EmptyListSpec))
-(defmethod intersect-pre-spec [ATOM EMPTYLIST] [_ _ _] DISJOINT)
-
+(defmethod intersect-pre-spec [NUMBER LIST] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [STRING LIST] [_ _ _] DISJOINT)
 
 (defmethod intersect-pre-spec [SPECVAR SPECVAR] [_ _ _] (->AnySpec))
 
+(defmethod intersect-pre-spec [:compounds VAR] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [VAR :compounds] [_ _ _] DISJOINT)
 
-(defmethod intersect-pre-spec [LIST NONVAR] [_ l _] l)
-(defmethod intersect-pre-spec [TUPLE NONVAR] [_ l _] l)
-(defmethod intersect-pre-spec [COMPOUND NONVAR] [_ l _] l)
-(defmethod intersect-pre-spec [NONVAR COMPOUND] [_ _ l] l)
-(defmethod intersect-pre-spec [NONVAR TUPLE] [_ _ l] l)
-(defmethod intersect-pre-spec [NONVAR LIST] [_ _ l] l)
+(defmethod intersect-pre-spec [:compounds ANY] [_ l _] l)
+(defmethod intersect-pre-spec [ANY :compounds] [_ _ l] l)
+(defmethod intersect-pre-spec [:compounds SPECVAR] [_ l _] l)
+(defmethod intersect-pre-spec [SPECVAR :compounds] [_ _ l] l)
+
+(defmethod intersect-pre-spec [:compounds ATOMIC] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [ATOMIC :compounds] [_ _ _] DISJOINT)
+(defmethod intersect-pre-spec [GROUND :compounds] [u g c] (intersect-pre-spec u c g))
+(defmethod intersect-pre-spec [:compounds GROUND] [u compound ground]
+  (if (:type compound)
+    (replace-error-spec-with-intersect-error (update compound :type (partial intersect-pre-spec u (->GroundSpec))))
+    (replace-error-spec-with-intersect-error (update compound :arglist (partial map (partial intersect-pre-spec u (->GroundSpec)))))))
+
+
+(intersect-pre-spec {} (->StringSpec) (->ExactSpec "cake"))
 
 (defmethod intersect-pre-spec [LIST LIST] [userdefs l r]
   (replace-error-spec-with-intersect-error (update l :type (partial intersect-pre-spec userdefs (.type r)))))
-(defmethod intersect-pre-spec [LIST GROUND] [userdefs l r]
-  (replace-error-spec-with-intersect-error (update l :type (partial intersect-pre-spec userdefs (->GroundSpec)))))
 (defmethod intersect-pre-spec [LIST TUPLE] [userdefs list tuple]
   (replace-error-spec-with-intersect-error (update tuple :arglist (partial map (partial intersect-pre-spec userdefs (.type list))))))
 
@@ -984,8 +978,6 @@
   (if (= (count (.arglist tuple1)) (count (.arglist tuple2)))
     (replace-error-spec-with-intersect-error (update tuple1 :arglist (partial map (partial intersect-pre-spec userdefs) (.arglist tuple2))))
     DISJOINT))
-(defmethod intersect-pre-spec [TUPLE GROUND] [userdefs tuple _]
-  (replace-error-spec-with-intersect-error (update tuple :arglist (partial map (partial intersect-pre-spec userdefs (->GroundSpec))))))
 (defmethod intersect-pre-spec [TUPLE EMPTYLIST] [_ tuple el]
   (if (empty? (.arglist tuple))
     el
@@ -998,8 +990,6 @@
     (and (= (.functor comp1) (.functor comp2))
          (= (count (.arglist comp1)) (count (.arglist comp2)))) (replace-error-spec-with-intersect-error (update comp1 :arglist (partial map (partial intersect-pre-spec userdefs) (.arglist comp2))))
     :else DISJOINT))
-(defmethod intersect-pre-spec [COMPOUND GROUND] [userdefs com _]
-  (replace-error-spec-with-intersect-error (update com :arglist (partial map (partial intersect-pre-spec userdefs (->GroundSpec))))))
 
 
 (defmethod intersect-pre-spec [EXACT EXACT] [_ e1 e2]
@@ -1010,12 +1000,6 @@
 (defmethod intersect-pre-spec [EXACT ATOMIC] [_ e a] e)
 (defmethod intersect-pre-spec [ATOMIC EXACT] [_ a e] e)
 
-(defmethod intersect-pre-spec :default [userdef child parent]
-  (if (isa? hierarchy (spec-type child) (spec-type parent))
-    child
-    (if (isa? hierarchy (spec-type parent) (spec-type child))
-      parent
-      DISJOINT)))
 (intersect-pre-spec {}  (->AtomSpec) (->ListSpec (->FloatSpec)))
 
 (comment
