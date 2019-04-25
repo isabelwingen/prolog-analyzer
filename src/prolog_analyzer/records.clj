@@ -871,8 +871,6 @@
 
                                         ;---------------------------------------------------------------------------
 
-(defmulti is-child-of (fn [child parent] [(spec-type child) (spec-type parent)]))
-
 (def hierarchy
   (-> (make-hierarchy)
       (derive INTEGER NUMBER)
@@ -904,7 +902,6 @@
   (if (= (.value e1) (.value e2))
     e1
     DISJOINT))
-
 
 
 (defmethod intersect-pre-spec [NONVAR VAR] [_ l any] DISJOINT)
@@ -982,6 +979,7 @@
     el
     DISJOINT))
 
+
 (defmethod intersect-pre-spec [COMPOUND COMPOUND] [userdefs comp1 comp2]
   (cond
     (nil? (.functor comp1)) comp2
@@ -995,27 +993,59 @@
   (if (= (.value e1) (.value e2))
     e1
     DISJOINT))
+(defmethod intersect-pre-spec [SPECVAR OR] [_ _ or] or)
+(defmethod intersect-pre-spec [OR SPECVAR] [_ or _] or)
+(defmethod intersect-pre-spec [ANY OR] [defs any or] (intersect-pre-spec defs or any))
+(defmethod intersect-pre-spec [OR ANY] [defs or-spec other-spec]
+  (-> or-spec
+      (update :arglist (partial map #(intersect-pre-spec defs other-spec %)))
+      (update :arglist (partial remove error-spec?))
+      (update :arglist set)
+      (simplify-or defs)
+      replace-error-spec-with-intersect-error
+      ))
+
+(defmethod intersect-pre-spec [OR OR] [defs spec other-spec]
+  (->> (for [x (.arglist spec)
+             y (.arglist other-spec)]
+         [x y])
+       (map (partial apply intersect-pre-spec defs))
+       (remove error-spec?)
+       set
+       ->OneOfSpec
+       (#(simplify-or % defs))
+       replace-error-spec-with-intersect-error))
 
 
+(defmethod intersect-pre-spec [OR AND] [defs or and] (intersect-pre-spec defs and or))
 
-(comment
+(defmethod intersect-pre-spec [ANY AND] [defs any and] (intersect-pre-spec defs and any))
+(defmethod intersect-pre-spec [AND ANY] [defs and-spec other-spec]
+  (->> other-spec
+       (conj (.arglist and-spec))
+       distinct
+       (reduce (partial intersect-pre-spec defs))
+       replace-error-spec-with-intersect-error))
+(defmethod intersect-pre-spec [AND AND] [defs spec other-spec]
+  (->> (.arglist other-spec)
+       (concat (.arglist spec))
+       distinct
+       (reduce (partial intersect-pre-spec defs))
+       replace-error-spec-with-intersect-error))
+(defmethod intersect-pre-spec [AND OR] [defs and-spec or-spec]
+  (intersect-pre-spec defs or-spec (reduce (partial intersect-pre-spec defs) (.arglist and-spec))))
 
-    (defmethod intersect-pre-spec [USERDEFINED ANY] [defs alias other]
-    (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
-  (defmethod intersect-pre-spec [ANY USERDEFINED] [defs other alias]
-    (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
-  (defmethod intersect-pre-spec [USERDEFINED USERDEFINED] [defs ali baba]
-    (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters ali defs) (resolve-definition-with-parameters baba defs))))
+(defmethod intersect-pre-spec [USERDEFINED ANY] [defs alias other]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
+(defmethod intersect-pre-spec [ANY USERDEFINED] [defs other alias]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
+(defmethod intersect-pre-spec [USERDEFINED SPECVAR] [defs alias other]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
+(defmethod intersect-pre-spec [SPECVAR USERDEFINED] [defs other alias]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
 
-  (defmethod intersect-pre-spec [OR ANY] [userdefs or any]
-    (intersect-pre-spec userdefs any or))
-  (defmethod intersect-pre-spec [ANY OR] [userdefs any or]
-    (-> or
-        (update :arglist (partial map (partial intersect-pre-spec userdefs any)))
-        (update :arglist (partial remove error-spec?))
-        (simplify-or userdefs)
-        replace-error-spec-with-intersect-error
-        )))
+(defmethod intersect-pre-spec [USERDEFINED USERDEFINED] [defs ali baba]
+  (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters ali defs) (resolve-definition-with-parameters baba defs))))
 
 
 (defmulti intersect-post-spec (fn [spec other-spec user-definitions] [(spec-type spec) (spec-type other-spec)]))
