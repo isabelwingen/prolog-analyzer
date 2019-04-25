@@ -113,12 +113,6 @@
     (are [a b c] (and
                   (= c (sut/intersect-pre-spec test-defs a b))
                   (= c (sut/intersect-pre-spec test-defs a b))
-                                        ;  (= (sut/->ListSpec c) (sut/intersect-pre-spec (sut/->ListSpec a) (sut/->ListSpec b) test-defs))
-                                        ;  (= (sut/->ListSpec c) (sut/intersect-pre-spec (sut/->ListSpec b) (sut/->ListSpec a) test-defs))
-                                        ;  (= (sut/->TupleSpec [c]) (sut/intersect-pre-spec (sut/->TupleSpec [a]) (sut/->TupleSpec [b]) test-defs))
-                                        ;  (= (sut/->TupleSpec [c]) (sut/intersect-pre-spec (sut/->TupleSpec [b]) (sut/->TupleSpec [a]) test-defs))
-                                        ;  (= (sut/->CompoundSpec [c]) (sut/intersect-pre-spec (sut/->CompoundSpec [a]) (sut/->CompoundSpec [b]) test-defs))
-                                        ;  (= (sut/->CompoundSpec [c]) (sut/intersect-pre-spec (sut/->CompoundSpec [b]) (sut/->CompoundSpec [a]) test-defs))
                   )
       (sut/->IntegerSpec)                (sut/->IntegerSpec)                                (sut/->IntegerSpec)
       (sut/->IntegerSpec)                (sut/->FloatSpec)                                  sut/DISJOINT
@@ -175,9 +169,9 @@
       (sut/->NumberSpec)                (sut/->GroundSpec)                                 (sut/->NumberSpec)
       (sut/->NumberSpec)                (sut/->NonvarSpec)                                 (sut/->NumberSpec)
       (sut/->NumberSpec)                (sut/->VarSpec)                                    sut/DISJOINT
-      (sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
+     ; (sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
       ;(sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrVar")           sut/DISJOINT
-    ;  (sut/->NumberSpec)                (sut/->SpecvarSpec "X")                            (sut/->NumberSpec)
+     (sut/->NumberSpec)                (sut/->SpecvarSpec "X")                            (sut/->NumberSpec)
       (sut/->NumberSpec)                (sut/->AnySpec)                                    (sut/->NumberSpec)
 
 
@@ -218,7 +212,7 @@
       (sut/->AtomSpec)                (sut/->AnySpec)                                    (sut/->AtomSpec)
 
       (sut/->StringSpec)                (sut/->StringSpec)                                 (sut/->StringSpec)
-      (sut/->StringSpec)                (sut/->AtomicSpec)                                 sut/DISJOINT
+      (sut/->StringSpec)                (sut/->AtomicSpec)                                 (sut/->StringSpec)
       (sut/->StringSpec)                (sut/->CompoundSpec nil '())                       sut/DISJOINT
       (sut/->StringSpec)                (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])     sut/DISJOINT
       (sut/->StringSpec)                (sut/->ListSpec (sut/->FloatSpec))                 sut/DISJOINT
@@ -286,7 +280,7 @@
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->ListSpec (sut/->AtomSpec))                  sut/DISJOINT
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->EmptyListSpec)                              (sut/->EmptyListSpec)
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->TupleSpec [(sut/->AtomSpec)])               sut/DISJOINT
-      (sut/->ListSpec (sut/->FloatSpec))                (sut/->TupleSpec [(sut/->NumberSpec)])             (sut/->ListSpec (sut/->FloatSpec))
+      (sut/->ListSpec (sut/->FloatSpec))                (sut/->TupleSpec [(sut/->NumberSpec)])             (sut/->TupleSpec [(sut/->FloatSpec)])
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->GroundSpec)                                 (sut/->ListSpec (sut/->FloatSpec))
       (sut/->ListSpec (sut/->VarSpec))                  (sut/->GroundSpec)                                 sut/DISJOINT
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->NonvarSpec)                                 (sut/->ListSpec (sut/->FloatSpec))
