@@ -18,8 +18,8 @@
 
 (defn replace-specvars-with-uuid [pre-spec]
   (let [specvars (->> pre-spec
-                      (reduce #(concat %1 (r/find-specvars %2)) [])
-                      distinct
+                      (reduce #(concat %1 (r/find-specvars %2)) #{})
+                      set
                       (map :name))
         ids (repeatedly (count specvars) gensym)
         uuid-map (apply hash-map (interleave specvars ids))]

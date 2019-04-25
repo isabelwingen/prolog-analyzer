@@ -356,13 +356,17 @@
     (sut/->AtomSpec) (sut/->OneOfSpec #{(sut/->VarSpec) (sut/->IntegerSpec)}) sut/DISJOINT
     (sut/->OneOfSpec #{(sut/->AtomicSpec) (sut/->VarSpec)}) (sut/->OneOfSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->OneOfSpec #{(sut/->AtomicSpec) (sut/->VarSpec)})
 
+    (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->AndSpec #{(sut/->AtomicSpec) (sut/->GroundSpec)}) (sut/->IntegerSpec)
+    (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->AndSpec #{(sut/->FloatSpec) (sut/->GroundSpec)}) sut/DISJOINT
+    (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->AnySpec) (sut/->IntegerSpec)
+    (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->SpecvarSpec "X") (sut/->IntegerSpec)
 
     ))
 
 
 
-(let [a (sut/->OneOfSpec #{(sut/->AtomicSpec) (sut/->IntegerSpec)})
-      b (sut/->OneOfSpec #{(sut/->AnySpec) (sut/->IntegerSpec)})
+(let [a (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)})
+      b (sut/->AndSpec #{(sut/->AtomicSpec) (sut/->GroundSpec)})
       r1 (sut/intersect-pre-spec test-defs a b)
       r2 (sut/intersect-pre-spec test-defs b a)]
   [r1 r2])

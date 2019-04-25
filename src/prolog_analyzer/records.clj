@@ -427,7 +427,7 @@
 
 (defn simplify-and [{arglist :arglist} defs overwrite?]
   (let [intersect (some->> arglist
-                           distinct
+                           set
                            (reduce #(intersect %1 %2 defs overwrite?)))]
     (if (error-spec? intersect)
       DISJOINT
@@ -435,9 +435,9 @@
 
 
 (defn- add-to-one-of [defs so-far e]
-  (let [one-direction (apply vector (distinct (remove (partial supertype? defs e) so-far)))]
+  (let [one-direction (set (remove (partial supertype? defs e) so-far))]
     (if (every? #(not (supertype? defs % e)) one-direction)
-      (apply vector (distinct (conj one-direction e)))
+      (set (conj one-direction e))
       one-direction)))
 
 (defn simplify-or [spec defs]
@@ -801,11 +801,11 @@
 
 (defn find-specvars [spec]
   (case+ (spec-type spec)
-    SPECVAR [spec]
-    (OR, AND, COMPOUND, TUPLE) (distinct (reduce concat (map find-specvars (.arglist spec))))
-    USERDEFINED (if (contains? spec :arglist) (distinct (reduce concat (map find-specvars (:arglist spec)))) [])
-    LIST (find-specvars (.type spec))
-    []))
+         SPECVAR [spec]
+         (OR, AND, COMPOUND, TUPLE) (set (reduce concat (map find-specvars (.arglist spec))))
+         USERDEFINED (if (contains? spec :arglist) (set (reduce concat (map find-specvars (:arglist spec)))) [])
+         LIST (find-specvars (.type spec))
+         #{}))
 
 
 (defn resolve-definition-with-parameters
@@ -1023,17 +1023,23 @@
 (defmethod intersect-pre-spec [AND ANY] [defs and-spec other-spec]
   (->> other-spec
        (conj (.arglist and-spec))
-       distinct
+       set
        (reduce (partial intersect-pre-spec defs))
        replace-error-spec-with-intersect-error))
 (defmethod intersect-pre-spec [AND AND] [defs spec other-spec]
   (->> (.arglist other-spec)
        (concat (.arglist spec))
-       distinct
+       set
        (reduce (partial intersect-pre-spec defs))
        replace-error-spec-with-intersect-error))
 (defmethod intersect-pre-spec [AND OR] [defs and-spec or-spec]
   (intersect-pre-spec defs or-spec (reduce (partial intersect-pre-spec defs) (.arglist and-spec))))
+
+(defmethod intersect-pre-spec [SPECVAR AND] [defs specvar and] (intersect-pre-spec defs and specvar))
+(defmethod intersect-pre-spec [AND SPECVAR] [defs and specvar]
+  (reduce (partial intersect-pre-spec defs) (.arglist and)))
+
+
 
 (defmethod intersect-pre-spec [USERDEFINED ANY] [defs alias other]
   (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters alias defs) other)))
