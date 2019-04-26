@@ -1054,5 +1054,4 @@
   (replace-error-spec-with-intersect-error (intersect-pre-spec defs (resolve-definition-with-parameters ali defs) (resolve-definition-with-parameters baba defs))))
 
 
-(defmulti intersect-post-spec (fn [spec other-spec user-definitions] [(spec-type spec) (spec-type other-spec)]))
-(defmulti intersect-post-spec-for-var-dom (fn [other-spec user-definitions] [(spec-type spec) (spec-type other-spec)]))
+(defmulti intersect-post-spec (fn [userdefs spec other-spec] [(spec-type spec) (spec-type other-spec)]))

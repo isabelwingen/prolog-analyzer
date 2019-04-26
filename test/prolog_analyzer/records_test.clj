@@ -366,7 +366,8 @@
 
 
 (let [a (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)})
-      b (sut/->AndSpec #{(sut/->AtomicSpec) (sut/->GroundSpec)})
+      b (sut/->SpecvarSpec "X")
+
       r1 (sut/intersect-pre-spec test-defs a b)
       r2 (sut/intersect-pre-spec test-defs b a)]
   [r1 r2])

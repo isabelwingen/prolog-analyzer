@@ -20,31 +20,37 @@
 (declare fill-env-for-term-with-spec)
 (declare fill-dom)
 
-(defn- calculate-intersection [env old-type new-type overwrite]
-  (if (and
-       (= r/VAR (r/spec-type old-type))
-       (= r/ANY (r/spec-type new-type)))
-    (if overwrite
-      (r/->AnySpec)
-      (r/->VarSpec))
-    (r/intersect old-type new-type (utils/get-user-defined-specs env) overwrite)))
+(defn- replace-var-with-any [spec]
+  (case+ (r/spec-type spec)
+         r/VAR (r/->AnySpec)
+         (r/OR,r/AND) (-> spec
+                          (update :arglist (partial map replace-var-with-any))
+                          (update :arglist set))
+         (r/TUPLE, r/COMPOUND) (update spec :arglist (partial map replace-var-with-any))
+         r/LIST (update spec :type replace-var-with-any)
+         spec))
 
+
+(defn- initial-dom [obj]
+  (if (= prolog_analyzer.records.SpecvarSpec (type obj))
+    (r/->AnySpec)
+    (r/initial-spec obj)))
 
 (defn add-type-to-dom
   ([env term type {overwrite? :overwrite :as options}]
-   (let [new-type (r/replace-specvars-with-any type)]
+   (let [new-type (r/replace-specvars-with-any type)
+         dom (or (utils/get-dom-of-term env term) (initial-dom term))
+         old-type (if overwrite? (replace-var-with-any dom) dom)
+         defs (utils/get-user-defined-specs env)]
      (case+ (r/spec-type type)
             r/AND (reduce #(add-type-to-dom %1 term %2 options) env (:arglist type))
-            r/SPECVAR (let [dom (or (utils/get-dom-of-term env term) (r/initial-spec term))]
-                        (-> env
-                            (add-type-to-dom type dom options)
-                            (uber/add-edges [term type {:relation :specvar}])))
-            (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
-              (uber/set-attrs env term (-> (uber/attrs env term)
-                                           (update :history #(if (< (count %) 5) (conj % new-type) %))
-                                           (update :dom #(if (= new-type %) % (calculate-intersection env % new-type overwrite?))) ;; order of intersect matters here!
-                                           ))
-              (uber/add-nodes-with-attrs env [term {:dom new-type :history [new-type]}])))))
+            r/SPECVAR (-> env
+                          (uber/add-nodes term)
+                          (uber/add-attr term :dom (r/intersect new-type old-type defs))
+                          (uber/add-edges [term type {:relation :specvar}]))
+            (-> env
+                (uber/add-nodes term)
+                (uber/add-attr term :dom (r/intersect new-type old-type defs))))))
   ([env term type]
    (if (r/error-spec? type)
      (add-type-to-dom env term type {:overwrite true})
@@ -53,7 +59,6 @@
 (defn mark-as-was-var [env term]
   (let [attrs (uber/attrs env term)]
     (uber/set-attrs env term (assoc attrs :was-var true))))
-
 (defn WRONG-TYPE
   ([]
    (r/->ErrorSpec "Wrong type associated"))
@@ -71,6 +76,7 @@
 
 (defmethod check-if-valid [r/ATOM r/EXACT] [term spec]
   (= (:term term) (:value spec)))
+
 
 (defmethod check-if-valid [r/NUMBER r/INTEGER] [term spec]
   (int? (:value term)))
@@ -222,8 +228,7 @@
                 (process-filling-for-var-term term spec options))))))))
 
 (defmethod fill-dom [:var :default] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))
-        intersection (r/intersect (or (utils/get-dom-of-term env term) (r/->AnySpec)) spec (get-defs-from-env env) overwrite?)]
+  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
     (if initial? ;; mode initial -> grounding ok
       (-> env
           (remove-vars-from-dom term)
@@ -231,9 +236,7 @@
       (if overwrite? ;; mode overwrite -> grounding ok
         (process-filling-for-var-term env term spec options)
         (if (r/var-spec? (utils/get-dom-of-term env term))
-          (if (r/error-spec? intersection)
-            (add-type-to-dom env term (CANNOT-GROUND))
-            (process-filling-for-var-term env term intersection options))
+          (process-filling-for-var-term env term spec options)
           (if (r/any-spec? (utils/get-dom-of-term env term))
             (-> env
                 (uber/add-nodes term)
@@ -271,20 +274,18 @@
     (add-type-to-dom env term (ALREADY-NONVAR))))
 
 (defmethod fill-dom [:nonvar :compound-or-list] [env term spec {overwrite? :overwrite :as options}]
-  (let [suitable-spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env) overwrite?)]
-    (if (r/error-spec? suitable-spec)
-      (add-type-to-dom env term (WRONG-TYPE term spec))
-      (-> env
-          (add-type-to-dom term suitable-spec options)
-          (fill-dom-of-next-steps term spec options)))))
+  (-> env
+      (add-type-to-dom term spec options)
+      (fill-dom-of-next-steps term spec options)))
 
 (defmethod fill-dom [:nonvar :default] [env term spec {overwrite? :overwrite :as options}]
-  (let [suitable-spec (r/intersect spec (r/initial-spec term) (utils/get-user-defined-specs env) overwrite?)]
-    (if (or (r/error-spec? suitable-spec) (not (check-if-valid term spec)))
-      (add-type-to-dom env term (WRONG-TYPE term spec))
-      (-> env
-          (add-type-to-dom term suitable-spec options)
-          (fill-dom-of-next-steps term spec options)))))
+  (if (check-if-valid term spec)
+    (-> env
+        (add-type-to-dom term spec options)
+        (fill-dom-of-next-steps term spec options))
+    (add-type-to-dom env term (WRONG-TYPE term spec))
+    ))
+
 
 
 (defmethod fill-dom [:nonvar :error] [env term spec options]

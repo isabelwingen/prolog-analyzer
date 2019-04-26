@@ -61,14 +61,14 @@
   (is (= (r/->IntegerSpec)
          (-> test-env
              (uber/add-nodes-with-attrs [:x {:dom (r/->AtomicSpec)}])
-             (sut/add-type-to-dom :x (r/->NumberSpec))
-             (sut/add-type-to-dom :x (r/->IntegerSpec))
-             (uber/attr :x :dom))))
+             (sut/add-type-to-dom (r/->NumberTerm "3") (r/->NumberSpec))
+             (sut/add-type-to-dom (r/->NumberTerm "3") (r/->IntegerSpec))
+             (uber/attr (r/->NumberTerm "3") :dom))))
   (is (r/error-spec?
          (-> test-env
-             (sut/add-type-to-dom :x (r/->FloatSpec))
-             (sut/add-type-to-dom :x (r/->IntegerSpec))
-             (uber/attr :x :dom)))))
+             (sut/add-type-to-dom (r/->NumberTerm "3") (r/->FloatSpec))
+             (sut/add-type-to-dom (r/->NumberTerm "3") (r/->IntegerSpec))
+             (uber/attr (r/->NumberTerm "3") :dom)))))
 
 (defn calculate-and-get-dom
   ([initial? term spec]
@@ -331,9 +331,9 @@
                  (is (= expected-dom
                         (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (r/->VarSpec)
-               (r/->VarTerm "X") (r/->IntegerSpec) (sut/CANNOT-GROUND)
+               (r/->VarTerm "X") (r/->IntegerSpec) r/DISJOINT
                (r/->VarTerm "X") (r/->AnySpec) (r/->VarSpec)
-               (r/->VarTerm "X") (r/make-spec:user-defined "blob") (sut/CANNOT-GROUND)
+               (r/->VarTerm "X") (r/make-spec:user-defined "blob") r/DISJOINT
                (r/->VarTerm "X") (r/->SpecvarSpec "X") (r/->VarSpec)
                )
 
@@ -402,7 +402,7 @@
                            (sut/fill-env-for-term-with-spec term spec2 options)
                            (utils/get-dom-of-term term))
                        :origin))
-                   (str (clojure.string/join " " [(r/to-string term) (r/to-string spec1) (r/to-string spec2) (str options)])))
+                   (str (clojure.string/join " " ["expected:" (r/to-string expected-dom) " result: " (r/to-string term) (r/to-string spec1) (r/to-string spec2) (str options)])))
 
                (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial false :overwrite false} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial false :overwrite true} (r/->IntegerSpec)
@@ -410,7 +410,7 @@
                (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
 
 
-               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite false} (sut/CANNOT-GROUND)
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite false} r/DISJOINT
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite true} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
@@ -421,9 +421,9 @@
                (r/->VarTerm "Y") (r/->VarSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite true} (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)})
 
                (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial false :overwrite false} (r/->IntegerSpec)
-               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial false :overwrite true} (r/->GroundSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial false :overwrite true} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite false} (r/->IntegerSpec)
-               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite true} (r/->GroundSpec)
+               (r/->VarTerm "Y") (r/->GroundSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) {:initial true :overwrite true} (r/->IntegerSpec)
 
 
 

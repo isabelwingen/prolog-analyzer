@@ -6,5 +6,6 @@
 %:- define_spec(tree(specvar(X)),one_of([compound(node(tree(specvar(X)),specvar(X),tree(specvar(X)))),atom(empty)])).
 
 
-%:- spec_pre(f/2, [specvar(X), one_of([specvar(X), atom])]).
-f(A,B).
+:- spec_pre(foo/1,[var]).
+foo(L) :-
+    P = [_|L].
