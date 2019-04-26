@@ -105,14 +105,9 @@
     (= r/VAR (r/spec-type spec))))
 
 (defn- remove-vars-from-dom [env term]
-  (if (and (uber/has-node? env term) (utils/get-dom-of-term env term))
-    (let [new-attrs (-> (uber/attrs env term)
-
-                        (update :dom #(if (= r/VAR (r/spec-type %)) (r/->AnySpec) %)))]
-      (uber/set-attrs env term new-attrs))
+  (if (and (uber/has-node? env term) (r/var-spec? (utils/get-dom-of-term env term)))
+    (uber/add-attr env term :dom (r/->AnySpec))
     env))
-
-
 
 (def ART_PREFIX "A__")
 

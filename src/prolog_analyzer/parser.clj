@@ -10,7 +10,7 @@
             [clojure.set :refer [rename-keys]]
             [clojure.string]))
 
-(defn- get-clojure-file-name [file]
+(defn- get-edn-file-name []
   (.getAbsolutePath (io/file "tmp.edn")))
 
 
@@ -28,18 +28,19 @@
 (defmulti call-prolog (fn [dialect term-expander prolog-exe file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file]
-  (let [clojure-file (get-clojure-file-name file)
+  (let [clojure-file (get-edn-file-name)
         path-to-analyzer (str "'" term-expander "'")
-        goal (str "use_module(" path-to-analyzer ", [set_file/1, enable_write_out/0]),"
+        goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" clojure-file "'),"
                   "['" file "'],"
+                  "prolog_analyzer:close_orphaned_stream,"
                   "halt.")
         {err :err} (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv)))]
     err))
 
 (defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file]
   (let [current-hash (hash (slurp file))
-        clojure-file (get-clojure-file-name file)
+        clojure-file (get-edn-file-name)
         path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" clojure-file "'),"
@@ -58,7 +59,7 @@
   (log/debug (str "Start writing of file " file))
   (call-prolog dialect term-expander prolog-exe file)
   (log/debug (str "Start reading of edn"))
-  (transform-to-edn (get-clojure-file-name file)))
+  (transform-to-edn (get-edn-file-name)))
 
 
 (defn- apply-function-on-values [func in-map]
@@ -174,45 +175,33 @@
     (merge-with into data built-in)
     ))
 
-
-(def preamble
-  ":- module(tmp,[]).\n
-  :- use_module(prolog_analyzer,[enable_write_out/0,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).\n
-  :- enable_write_out.\n\n")
+(defn process-edn
+  ([edn] (process-edn "swipl" edn))
+  ([dialect edn] (->> edn
+                      transform-to-edn
+                      format-and-clean-up
+                      pre-processor/pre-process-single
+                      (add-built-ins dialect)
+                      )))
 
 (defn process-prolog-file [dialect term-expander prolog-exe file-name]
-  (when (.exists (io/file (get-clojure-file-name file-name)))
-    (io/delete-file (get-clojure-file-name file-name)))
-  (->> file-name
-       (read-prolog-code-as-raw-edn dialect term-expander prolog-exe)
-       format-and-clean-up
-       pre-processor/pre-process-single
-       (add-built-ins dialect)
-       ))
-
-(defn process-prolog-files [dialect term-expander prolog-exe & file-names]
-  (->> file-names
-       (filter #(.endsWith % ".pl"))
-       (map (partial read-prolog-code-as-raw-edn dialect term-expander prolog-exe))
-       (map format-and-clean-up)
-       (apply pre-processor/pre-process-multiple)
-       (add-built-ins dialect)))
+  (when (.exists (io/file (get-edn-file-name)))
+    (io/delete-file (get-edn-file-name)))
+  (call-prolog dialect term-expander prolog-exe file-name)
+  (process-edn dialect (get-edn-file-name)))
 
 (defn process-prolog-directory [dialect term-expander prolog-exe dir-name]
-  (->> dir-name
-       io/file
-       (tree-seq #(.isDirectory %) #(.listFiles %))
-       (remove #(.isDirectory %))
-       (map #(.getPath %))
-       (map str)
-       (remove #(.endsWith % ".edn"))
-       (apply process-prolog-files dialect term-expander prolog-exe)
-       ))
+  (when (.exists (io/file (get-edn-file-name)))
+    (io/delete-file (get-edn-file-name)))
+  (let [prolog-files (->> dir-name
+                          io/file
+                          (tree-seq #(.isDirectory %) #(.listFiles %))
+                          (remove #(.isDirectory %))
+                          (map #(.getPath %))
+                          (map str)
+                          (filter #(.endsWith % ".pl"))
 
-(defn process-edn [edn]
-  (->> edn
-       transform-to-edn
-       format-and-clean-up
-       pre-processor/pre-process-single
-       (add-built-ins "swipl")
-       ))
+                          )]
+    (doseq [pl prolog-files]
+      (call-prolog dialect term-expander prolog-exe pl))
+    (process-edn dialect (get-edn-file-name))))
