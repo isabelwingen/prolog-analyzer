@@ -16,7 +16,6 @@ initialize_dialect :-
 :- multifile term_expansion/2.
 :- dynamic write_out/0.
 :- dynamic filename/1.
-:- public enable_write_out/0.
 :- public set_file/1.
 
 set_file(Filename) :-
@@ -264,7 +263,17 @@ arg_to_map(Type,Term,Map) :-
     my_string_concat(R3, "}",Map).
 
 arg_to_map(atom,[],"{:type :empty-list}") :- !.
-arg_to_map(atom,_,"{:type :atom}") :- !.
+arg_to_map(atom,Term,Map) :-
+    prolog_load_context(dialect,swi),
+    !,
+    term_string(Term,String),
+    string_concat("{:term \"", String,R1),
+    string_concat(R1, "\" :type :atom}", Map).
+arg_to_map(atom,Term,Map) :-
+    !,
+    string_concat("{:term \"", Term,R1),
+    string_concat(R1, "\" :type :atom}", Map).
+
 
 arg_to_map(atomic,[],"{:type :empty-list}") :- !.
 arg_to_map(error,Term,Map) :-
@@ -285,14 +294,6 @@ split(Term,Name,Arity,Arglist,self) :-
     functor(Term,Name1,Arity),
     (Name1 = (\+) -> Name = ":not" ; Name = Name1),
     Term =.. [_|Arglist].
-
-expand(':-'(A,B),Module,Result) :-
-    !,
-    body_list(B,Body),
-    Start = "{:type      :pred\n :content   ",
-    rule_to_map(A,Body,Module,Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}",Result).
 
 spec_to_string(Term,Name) :-
     var(Term),
@@ -346,6 +347,15 @@ spec_to_string(Userdefspec,String) :-
     Userdefspec =.. [Name|Arglist],
     spec_to_string(Arglist,Inner),
     multi_string_concat(["{:type :userdef :name \"",Name,"\" :arglist ",Inner,"}"],String).
+
+expand(':-'(A,B),Module,Result) :-
+    !,
+    body_list(B,Body),
+    Start = "{:type      :pred\n :content   ",
+    rule_to_map(A,Body,Module,Map),
+    my_string_concat(Start,Map,Tmp1),
+    my_string_concat(Tmp1,"}",Result).
+
 
 %special cases
 expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
