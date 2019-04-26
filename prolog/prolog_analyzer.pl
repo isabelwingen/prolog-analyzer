@@ -500,7 +500,9 @@ term_expander(Term) :-
     prolog_load_context(module, Module),
     expand(Term,Module,Result),
     get_stream(Module,Stream),
-    write(Stream,Result),nl(Stream),nl(Stream), flush_output(Stream).
+    write(Stream,Result),nl(Stream),nl(Stream), flush_output(Stream),!.
+term_expander(_) :-
+    write("!!! Term expander did not succeed!").
 
 user:term_expansion(A,A) :-
     !,
