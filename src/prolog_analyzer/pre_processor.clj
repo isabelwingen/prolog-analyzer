@@ -41,6 +41,19 @@
        (utils/get-clauses-of-pred pred-id)
        (map :arglist)
        (map (partial map (comp maybe-spec r/initial-spec)))
+       (map (partial apply vector))
+       (apply vector)
+       ))
+
+
+(defn- create-post-spec [[_ _ arity :as pred-id] data]
+  (->> data
+       (utils/get-clauses-of-pred pred-id)
+       (map :arglist)
+       (map (partial map r/initial-spec))
+       (map (partial apply vector))
+       (map (partial vector (apply vector (repeatedly arity r/->AnySpec))))
+       (apply vector)
        ))
 
 ;; If there are no pre-specs for a predicate, add one
@@ -52,6 +65,16 @@
         (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (create-pre-spec pred-id data)))
         (recur (rest pred-ids) result))
       result)))
+
+(defn- add-any-post-specs [data]
+  (loop [pred-ids (utils/get-pred-identities data)
+         result data]
+    (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
+      (if (nil? (:post-specs (utils/get-specs-of-pred pred-id data)))
+        (recur (rest pred-ids) (assoc-in result [:post-specs module pred-name arity] (create-post-spec pred-id data)))
+        (recur (rest pred-ids) result))
+      result)))
+
 
 ;;mark self-calling clauses
 (defn- mark-self-calling-clause [[_ pred-name arity] {body :body :as clause}]
@@ -97,16 +120,6 @@
       mark-self-calling-clauses
       transform-args-to-term-records
       add-any-pre-specs
+      add-any-post-specs
       set-correct-modules
       ))
-
-
-(defn pre-process-multiple [& data]
-  (log/debug "Start Pre Process multiple")
-  (->> data
-       (map mark-self-calling-clauses)
-       (map transform-args-to-term-records)
-       (map add-any-pre-specs)
-       (map #(dissoc % :error-msg))
-       (apply merge-with into)
-       set-correct-modules))
