@@ -313,10 +313,12 @@
   (spec-type [spec] TUPLE)
   (next-steps [spec term defs _]
     (if (= LIST (term-type term))
-      (if (empty-list? (:tail term))
-        [(.head term) (first (.arglist spec))]
-        [(.head term) (first (.arglist spec))
-         (.tail term) (update spec :arglist rest)])
+      (case (vector (= VAR (term-type (.head term))) (or (empty-list? (.tail term)) (= VAR (term-type (.tail term)))))
+        [true true] []
+        [true false] [(.tail term) (update spec :arglist rest)]
+        [false true] [(.head term) (first (:arglist spec))]
+        [false false] [(.head term) (first (.arglist spec))
+                       (.tail term) (update spec :arglist rest)])
       []))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
