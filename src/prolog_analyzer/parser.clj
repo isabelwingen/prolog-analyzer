@@ -22,12 +22,7 @@
        (apply vector)))
 
 (defn transform-to-edn [clojure-file]
-  (try
-    (with-open [in (java.io.PushbackReader. (clojure.java.io/reader clojure-file))]
-      (let [edn-seq (repeatedly (partial edn/read {:eof :theend} in))]
-        (doall (take-while (fn [e] #_(println e) (not= :theend e)) edn-seq))))
-    (catch RuntimeException e
-      (printf "Error parsing edn file '%s': '%s\n" clojure-file (.getMessage e)))))
+  (read-string (str \[ (clojure.string/replace (slurp clojure-file) "\\" "\\\\") \])))
 ;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
 
 (defmulti call-prolog (fn [dialect term-expander prolog-exe file] dialect))
