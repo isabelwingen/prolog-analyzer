@@ -39,6 +39,7 @@
 (declare supertype?)
 (declare ->AndSpec)
 (declare has-specvars)
+(declare var-spec?)
 
 
 (defprotocol printable
@@ -272,15 +273,17 @@
   (to-string [x] (str "Exact(" value ")")))
 
 
+
+
 (defrecord ListSpec [type]
   spec
   (spec-type [spec] LIST)
   (next-steps [spec term defs _]
     (if (= LIST (term-type term))
-      (if (empty-list? (:tail term))
-        [(.head term) type]
-        [(.head term) type
-         (.tail term) spec])
+      (cond
+        (empty-list? (.tail term)) [(.head term) type]
+        (= VAR (term-type (.tail term))) [(.head term) type]
+        :else [(.head term) type (.tail term) spec])
       []))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
