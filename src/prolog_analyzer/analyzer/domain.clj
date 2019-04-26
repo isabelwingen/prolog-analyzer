@@ -75,7 +75,9 @@
 (defmulti check-if-valid (fn [term spec] [(r/term-type term) (r/spec-type spec)]))
 
 (defmethod check-if-valid [r/ATOM r/EXACT] [term spec]
-  (= (:term term) (:value spec)))
+  (if (nil? (:term term))
+    true
+    (= (:term term) (:value spec))))
 
 
 (defmethod check-if-valid [r/NUMBER r/INTEGER] [term spec]
