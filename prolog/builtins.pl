@@ -5,40 +5,39 @@
 :- spec_post(user:acyclic_term/1, [any], [any]).
 
 :- spec_pre(user:atom/1, [any]).
-:- spec_post(user:atom/1, [atom], [atom]).
+:- spec_post(user:atom/1, [any], [atom]).
 
 :- spec_pre(user:atomic/1, [any]).
-:- spec_post(user:atomic/1, [atomic], [atomic]).
+:- spec_post(user:atomic/1, [any], [atomic]).
 
 :- declare_spec(callable).
-:- declare_spec(compound).
 
 :- define_spec(callable, one_of([compound, atom])).
 
 :- spec_pre(user:callable/1, [any]).
-:- spec_post(user:callable/1, [callable], [callable]).
+:- spec_post(user:callable/1, [any], [callable]).
 
 
 :- spec_pre(user:compound/1, [any]).
-:- spec_post(user:compound/1, [compound], [compound]).
+:- spec_post(user:compound/1, [any], [compound]).
 
 :- spec_pre(user:float/1, [any]).
-:- spec_post(user:float/1, [float], [float]).
+:- spec_post(user:float/1, [any], [float]).
 
 :- spec_pre(user:ground/1, [any]).
-:- spec_post(user:ground/1, [ground], [ground]).
+:- spec_post(user:ground/1, [any], [ground]).
 
 :- spec_pre(user:integer/1, [any]).
-:- spec_post(user:integer/1, [integer], [integer]).
+:- spec_post(user:integer/1, [any], [integer]).
 
 :- spec_pre(user:number/1, [any]).
-:- spec_post(user:number/1, [number], [number]).
+:- spec_post(user:number/1, [any], [number]).
 
 :- spec_pre(user:nonvar/1, [any]).
-:- spec_post(user:nonvar/1, [nonvar], [nonvar]).
+:- spec_post(user:nonvar/1, [any], [nonvar]).
 
 :- spec_pre(user:var/1, [any]).
-:- spec_post(user:var/1, [var], [var]).
+:- spec_post(user:var/1, [any], [var]).
 
 
 :- declare_spec(maybe(specvar(X))).
@@ -85,9 +84,9 @@
 :- spec_pre(user:term_variables/2, [any, var]).
 :- spec_post(user:term_variables/2, [any, any], [any, list(var)]).
 
-:- spec_pre(user:sort/2, [list(any), list(any)]).
+:- spec_pre(user:sort/2, [list(specvar(X)), list(specvar(X))]). % TODO: or list(any)?
 :- spec_pre(user:sort/2, [list(any), var]).
-:- spec_post(user:sort/2, [any, any], [list(any), list(any)]).
+:- spec_post(user:sort/2, [any, any], [list(specvar(X)), list(specvar(X))]).
 
 :- spec_pre(user:sub_atom/5, [atom, maybe(int), maybe(int), maybe(int), maybe(atom)]).
 :- spec_post(user:sub_atom/5, [any, any, any, any, any], [atom, int, int, int, atom]).
@@ -99,7 +98,7 @@
 :- spec_pre(user:keysort/2, [list(pair), var]).
 :- spec_post(user:keysort/2, [any, any], [list(pair), list(pair)]).
 
-:- spec_pre(user:copy_term/2, [any, any]).
+:- spec_pre(user:copy_term/2, [any, any]). % not a specvar!
 :- spec_post(user:copy_term/2, [any, any], [any, any]).
 
 :- spec_pre(user:op/3, [int, one_of([atom(xfx), atom(xfy), atom(yfx), atom(fx), atom(fy), atom(xf), atom(yf)]), one_of([atom, list(atom)])]).
@@ -108,9 +107,9 @@
 :- spec_pre(user:current_op/3, [maybe(int), maybe(one_of([atom(xfx), atom(xfy), atom(yfx), atom(fx), atom(fy), atom(xf), atom(yf)])), maybe(atom)]).
 :- spec_post(user:current_op/3, [any, any, any], [int, one_of([atom(xfx), atom(xfy), atom(yfx), atom(fx), atom(fy), atom(xf), atom(yf)]), atom]).
 
-:- spec_pre(user:'=..'/2, [any, maybe(list(any))]).
+:- spec_pre(user:'=..'/2, [nonvar, maybe(list(any))]).
 :- spec_pre(user:'=..'/2, [var, list(any)]).
-:- spec_post(user:'=..'/2, [any, any], [any, list(any)]).
+:- spec_post(user:'=..'/2, [any, any], [nonvar, list(any)]).
 
 :- spec_pre(user:subsumes_term/2, [any, any]).
 % no spec_post
@@ -150,53 +149,53 @@
 % no spec_post
 
 :- declare_spec(arithmetic_expression).
-:- define_spec(arithmetic_expression,one_of([number,ground])).
-%:- define_spec(arithmetic_expression, one_of([number,
-%                                              compound(+(arithmetic_expression)),
-%                                              compound(-(arithmetic_expression)),
-%                                              compound(arithmetic_expression + arithmetic_expression),
-%                                              compound(arithmetic_expression - arithmetic_expression),
-%                                              compound(arithmetic_expression * arithmetic_expression),
-%                                              compound(arithmetic_expression / arithmetic_expression),
-%                                              compound(arithmetic_expression // arithmetic_expression),
-%                                              compound(arithmetic_expression div arithmetic_expression),
-%                                              compound(arithmetic_expression rem arithmetic_expression),
-%                                              compound(arithmetic_expression mod arithmetic_expression),
-%                                              compound(float_integer_part(arithmetic_expression)),
-%                                              compound(float_fractional_part(arithmetic_expression)),
-%                                              compound(float(arithmetic_expression)),
-%                                              compound(arithmetic_expression /\ arithmetic_expression),
-%                                              compound(arithmetic_expression \/ arithmetic_expression),
-%                                              compound(xor(arithmetic_expression, arithmetic_expression)),
-%                                              %compound(\(arithmetic_expression)),
-%                                              compound(arithmetic_expression << arithmetic_expression),
-%                                              compound(arithmetic_expression >> arithmetic_expression),
-%                                              compound(abs(arithmetic_expression)),
-%                                              compound(sign(arithmetic_expression)),
-%                                              compound(min(arithmetic_expression, arithmetic_expression)),
-%                                              compound(max(arithmetic_expression, arithmetic_expression)),
-%                                              compound(round(arithmetic_expression)),
-%                                              compound(truncate(arithmetic_expression)),
-%                                              compound(floor(arithmetic_expression)),
-%                                              compound(ceiling(arithmetic_expression)),
-%                                              compound(sin(arithmetic_expression)),
-%                                              compound(cos(arithmetic_expression)),
-%                                              compound(tan(arithmetic_expression)),
-%                                              compound(cot(arithmetic_expression)),
-%                                              compound(sinh(arithmetic_expression)),
-%                                              compound(cosh(arithmetic_expression)),
-%                                              compound(tanh(arithmetic_expression)),
-%                                              compound(coth(arithmetic_expression)),
-%                                              compound(asin(arithmetic_expression)),
-%                                              compound(acos(arithmetic_expression)),
-%                                              compound(atan(arithmetic_expression)),
-%                                              compound(atan2(arithmetic_expression, arithmetic_expression)),
-%                                              compound(sqrt(arithmetic_expression)),
-%                                              compound(log(arithmetic_expression)),
-%                                              compound(exp(arithmetic_expression)),
-%                                              compound(arithmetic_expression ** arithmetic_expression),
-%                                              compound(arithmetic_expression ^ arithmetic_expression),
-%                                              atom(pi) ])).
+%:- define_spec(arithmetic_expression,one_of([number,ground])).
+:- define_spec(arithmetic_expression, one_of([number,
+                                              compound(+(arithmetic_expression)),
+                                              compound(-(arithmetic_expression)),
+                                              compound(arithmetic_expression + arithmetic_expression),
+                                              compound(arithmetic_expression - arithmetic_expression),
+                                              compound(arithmetic_expression * arithmetic_expression),
+                                              compound(arithmetic_expression / arithmetic_expression),
+                                              compound(arithmetic_expression // arithmetic_expression),
+                                              compound(arithmetic_expression div arithmetic_expression),
+                                              compound(arithmetic_expression rem arithmetic_expression),
+                                              compound(arithmetic_expression mod arithmetic_expression),
+                                              compound(float_integer_part(arithmetic_expression)),
+                                              compound(float_fractional_part(arithmetic_expression)),
+                                              compound(float(arithmetic_expression)),
+                                              compound(arithmetic_expression /\ arithmetic_expression),
+                                              compound(arithmetic_expression \/ arithmetic_expression),
+                                              compound(xor(arithmetic_expression, arithmetic_expression)),
+                                              compound(\(arithmetic_expression)),
+                                              compound(arithmetic_expression << arithmetic_expression),
+                                              compound(arithmetic_expression >> arithmetic_expression),
+                                              compound(abs(arithmetic_expression)),
+                                              compound(sign(arithmetic_expression)),
+                                              compound(min(arithmetic_expression, arithmetic_expression)),
+                                              compound(max(arithmetic_expression, arithmetic_expression)),
+                                              compound(round(arithmetic_expression)),
+                                              compound(truncate(arithmetic_expression)),
+                                              compound(floor(arithmetic_expression)),
+                                              compound(ceiling(arithmetic_expression)),
+                                              compound(sin(arithmetic_expression)),
+                                              compound(cos(arithmetic_expression)),
+                                              compound(tan(arithmetic_expression)),
+                                              compound(cot(arithmetic_expression)),
+                                              compound(sinh(arithmetic_expression)),
+                                              compound(cosh(arithmetic_expression)),
+                                              compound(tanh(arithmetic_expression)),
+                                              compound(coth(arithmetic_expression)),
+                                              compound(asin(arithmetic_expression)),
+                                              compound(acos(arithmetic_expression)),
+                                              compound(atan(arithmetic_expression)),
+                                              compound(atan2(arithmetic_expression, arithmetic_expression)),
+                                              compound(sqrt(arithmetic_expression)),
+                                              compound(log(arithmetic_expression)),
+                                              compound(exp(arithmetic_expression)),
+                                              compound(arithmetic_expression ** arithmetic_expression),
+                                              compound(arithmetic_expression ^ arithmetic_expression),
+                                              atom(pi) ])).
 
 :- spec_pre(user:is/2, [maybe(number), arithmetic_expression]).
 :- spec_post(user:is/2, [any, any], [number, arithmetic_expression]).
@@ -216,34 +215,35 @@
 :- spec_pre(user:'=:='/2, [arithmetic_expression, arithmetic_expression]).
 % no spec post
 
-%:- spec_pre(user:'=\\='/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'=\\='/2, [arithmetic_expression, arithmetic_expression]).
 % no spec post
 
 :- spec_pre(user:'='/2, [any, any]).
+:- spec_post(user:'='/2, [any, any], [specvar(X), specvar(X)]).
 % no spec post
 
-%:- spec_pre(user:'\\\\='/2, [any, any]).
+:- spec_pre(user:'\\='/2, [any, any]).
 % no spec post
 
 :- spec_pre(user:'=='/2, [any, any]).
+:- spec_post(user:'=='/2, [any, any], [specvar(X), specvar(X)]).
+
+:- spec_pre(user:'\\=='/2, [any, any]).
 % no spec post
 
-%:- spec_pre(user:'\\\\=='/2, [any, any]).
+:- spec_pre(user:'@>2'/2, [any, any]).
 % no spec post
 
-%:- spec_pre(user:'@>2'/2, [any, any]).
+:- spec_pre(user:'@<2'/2, [any, any]).
 % no spec post
 
-%:- spec_pre(user:'@<2'/2, [any, any]).
+:- spec_pre(user:'@>=2'/2, [any, any]).
 % no spec post
 
-%:- spec_pre(user:'@>=2'/2, [any, any]).
+:- spec_pre(user:'@=<2'/2, [any, any]).
 % no spec post
 
-%:- spec_pre(user:'@=<2'/2, [any, any]).
-% no spec post
-
-%:- spec_pre(user:'\\\\+'/1, [callable]).
+:- spec_pre(user:'\\+'/1, [callable]).
 % no spec post
 
 :- spec_pre(user:';'/2, [callable, callable]).
