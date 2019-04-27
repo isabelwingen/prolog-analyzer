@@ -5,30 +5,28 @@
             ))
 
 
-(defn- pred->module-map [data]
-  (reduce (fn [m [module pred _]] (assoc m pred module)) {} (keys (:preds data))))
 
-(defn- get-module-of-predicate [data pred]
-  (get (pred->module-map data) pred "user"))
-
-;; Set correct module when the module is set on "self"
-(defn- get-correct-goal-module [source-module goal-name data goal-module]
+(defn- set-correct-goal-module [pred->module-map {goal-name :goal arity :arity goal-module :module :as goal}]
   (if (= "self" goal-module)
-    (get-module-of-predicate data goal-name)
-    goal-module
-    ))
+    (assoc goal :module (get pred->module-map goal-name "user"))
+    goal))
 
-(defn- set-correct-goal-module [source-module data {goal-name :goal arity :arity goal-module :module :as goal}]
-  (update goal :module (partial get-correct-goal-module source-module goal-name data)))
+(defn- calculate-pred-to-module-map [data]
+  (->> (select-keys data [:pre-specs :post-specs :preds])
+       vals
+       (mapcat keys)
+       (group-by second)
+       (reduce-kv #(assoc %1 %2 (first (first %3))) {})))
 
 (defn- set-correct-modules [data]
-  (loop [clause-keys (utils/get-clause-identities data)
-         result data]
-    (if (empty? clause-keys)
-      result
-      (let [[[source-module & _ :as pred-id] clause-number] (first clause-keys)]
-        (recur (rest clause-keys) (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module source-module data)))))
-   )))
+  (let [pred->module-map (calculate-pred-to-module-map data)]
+    (loop [clause-keys (utils/get-clause-identities data)
+           result data]
+      (if (empty? clause-keys)
+        result
+        (let [[[source-module & _ :as pred-id] clause-number] (first clause-keys)]
+          (recur (rest clause-keys) (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module pred->module-map)))))
+        ))))
 
 (defn- maybe-spec [spec]
   (cond
