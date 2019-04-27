@@ -121,7 +121,7 @@
   (->> specs
        (map specs-to-map)
        (apply merge-with into)
-       (reduce-kv (fn [m keys v] (update-in m keys #(into % v))) {})
+       (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
        ))
 
 (defn- order-define-specs [define-specs]

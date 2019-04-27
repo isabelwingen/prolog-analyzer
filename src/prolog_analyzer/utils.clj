@@ -14,9 +14,9 @@
   [[module pred-name arity :as pred-identity] data]
   (-> data
       (select-keys [:pre-specs :post-specs :inv-specs])
-      (update :pre-specs #(get-in % pred-identity))
-      (update :post-specs #(get-in % pred-identity))
-      (update :inv-specs #(get-in % pred-identity))
+      (update :pre-specs #(get % pred-identity))
+      (update :post-specs #(get % pred-identity))
+      (update :inv-specs #(get % pred-identity))
       ))
 
 (defn get-pred-identities

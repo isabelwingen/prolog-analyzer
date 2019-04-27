@@ -62,7 +62,7 @@
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
       (if (nil? (:pre-specs (utils/get-specs-of-pred pred-id data)))
-        (recur (rest pred-ids) (assoc-in result [:pre-specs module pred-name arity] (create-pre-spec pred-id data)))
+        (recur (rest pred-ids) (assoc-in result [:pre-specs [module pred-name arity]] (create-pre-spec pred-id data)))
         (recur (rest pred-ids) result))
       result)))
 
@@ -71,7 +71,7 @@
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
       (if (nil? (:post-specs (utils/get-specs-of-pred pred-id data)))
-        (recur (rest pred-ids) (assoc-in result [:post-specs module pred-name arity] (create-post-spec pred-id data)))
+        (recur (rest pred-ids) (assoc-in result [:post-specs [module pred-name arity]] (create-post-spec pred-id data)))
         (recur (rest pred-ids) result))
       result)))
 
