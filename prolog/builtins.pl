@@ -424,10 +424,8 @@
 :- spec_pre(user:current_predicate/1, [callable]).
 % no spec post
 
-:- spec_pre(member/2, [any, var]).
-:- spec_pre(member/2, [specvar(X), list(specvar(X))]).
-:- spec_pre(member/2, [var, list(any)]).
-:- spec_post(member/2, [var, list(specvar(X))], [specvar(X), list(specvar(X))]).
+:- spec_pre(user:member/2, [any, maybe(list(any))]).
+:- spec_post(user:member/2, [any,any], [specvar(X), list(specvar(X))]).
 
 %    11.3.56 current_prolog_flag/2   ISO
 %    11.3.206 set_prolog_flag/2   ISO
