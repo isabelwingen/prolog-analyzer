@@ -41,7 +41,7 @@
                       (filter #(= :is-tail (uber/attr env % :relation)))
                       first
                       uber/src)
-        tail-dom (some->> tail (utils/get-dom-of-term env))
+        tail-dom (or (utils/get-dom-of-term env tail) (r/->AnySpec))
         overwrite true]
     (if (nil? tail-dom)
       (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]) {:overwrite overwrite})
@@ -55,7 +55,7 @@
   (let [compound (uber/dest edge)
         part (uber/src edge)
         part-dom (utils/get-dom-of-term env part)
-        compound-dom (utils/get-dom-of-term env compound)
+        compound-dom (or (utils/get-dom-of-term env compound) (r/->AnySpec))
         pos (uber/attr env edge :pos)]
     (if (= r/COMPOUND (r/spec-type compound-dom))
       (if (>= pos (count (:arglist compound-dom)))

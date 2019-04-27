@@ -103,7 +103,7 @@
     (if (empty? error-terms)
       (println "No errors found")
       (doseq [t error-terms]
-        (print-in-columns [20] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t)))))
+        (print-in-columns [20] (r/to-string t) (r/to-string (or (utils/get-dom-of-term graph t) (r/->AnySpec))))))
     (println "----------------------\n")))
 
 
@@ -112,7 +112,7 @@
        (r/to-string term)
        "!\n"
        "This is the error message:\n"
-       (r/to-string (utils/get-dom-of-term env term))
+       (r/to-string (or (utils/get-dom-of-term env term) (r/->AnySpec)))
        "\n\n"
        ))
 
@@ -122,6 +122,7 @@
   (let [error-terms (->> graph
                          (utils/get-terms)
                          (remove contains-arti-term?)
+                         (remove #(nil? (utils/get-dom-of-term graph %)))
                          (filter #(r/error-spec? (utils/get-dom-of-term graph %))))]
     (if (empty? error-terms)
       (println ":) No errors found")

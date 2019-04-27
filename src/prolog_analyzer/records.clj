@@ -271,17 +271,29 @@
   printable
   (to-string [x] (str "Exact(" value ")")))
 
+(defn list-term? [term]
+  (and (= COMPOUND (term-type term))
+       (= "." (.functor term))
+       (= 2 (count (.arglist term)))))
+
+(defn get-head-and-tail [term]
+  {:head (first (.arglist term)) :tail (second (.arglist term))})
+
+(def VAR-TAIL (->ErrorSpec "Tail of list is a variable"))
 
 (defrecord ListSpec [type]
   spec
   (spec-type [spec] LIST)
-  (next-steps [spec term defs _]
-    (if (= LIST (term-type term))
-      (if (empty-list? (:tail term))
-        [(.head term) type]
-        [(.head term) type
-         (.tail term) spec])
-      []))
+  (next-steps [spec term defs overwrite]
+    (cond
+      (list-term? term)
+      (let [{head :head tail :tail} (get-head-and-tail term)]
+        (if (= VAR (term-type tail))
+          [head type tail spec]
+          [head type
+           tail spec]))
+      (= LIST (term-type term)) (if (nil? (.tail term)) [(.head term) type] [(.head term) type (.tail term) spec])
+      :else []))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
@@ -292,6 +304,11 @@
                      (update :arglist (partial map #(intersect type % defs overwrite?)))
                      replace-error-spec-with-intersect-error)
            EMPTYLIST other-spec
+           COMPOUND (if (= "." (.functor other-spec))
+                      (-> spec
+                          (update :type #(intersect % (first (.arglist other-spec)) defs overwrite?))
+                          (intersect (second (.arglist other-spec)) defs overwrite?))
+                      DISJOINT)
            ATOMIC (->EmptyListSpec)
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :type #(intersect other-spec % defs overwrite?)))
@@ -308,13 +325,21 @@
 (defrecord TupleSpec [arglist]
   spec
   (spec-type [spec] TUPLE)
-  (next-steps [spec term defs _]
-    (if (= LIST (term-type term))
-      (if (empty-list? (:tail term))
-        [(.head term) (first (.arglist spec))]
-        [(.head term) (first (.arglist spec))
-         (.tail term) (update spec :arglist rest)])
-      []))
+  (next-steps [spec term defs overwrite]
+    (cond
+      (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
+                          [head (first arglist)
+                           tail (update spec :arglist rest)])#_(if overwrite
+                          (let [{head :head tail :tail} (get-head-and-tail term)]
+                            [head (first arglist)
+                             tail (update spec :arglist rest)])
+                          (let [{head :head tail :tail} (get-head-and-tail term)]
+                            (if (= VAR (term-type tail))
+                              [tail (->ErrorSpec "tail of list is variable")]
+                              [head (first arglist)
+                               tail (update spec :arglist rest)])))
+      (= LIST (term-type term)) [(.head term) (first arglist) (.tail term) (update spec :arglist rest)]
+      :else []))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
@@ -327,6 +352,11 @@
                        (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
                        replace-error-spec-with-intersect-error)
                    DISJOINT)
+           COMPOUND (if (= "." (.functor other-spec))
+                      (let [f (intersect (first (.arglist spec)) (first (.arglist other-spec)) defs overwrite?)
+                            r (intersect (update :spec :arglist rest) (second (.arglist other-spec)) defs overwrite?)]
+                        (assoc spec :arglist (apply vector f r)))
+                      DISJOINT)
            ATOMIC (if (empty? arglist) (->EmptyListSpec) DISJOINT)
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
@@ -345,9 +375,12 @@
   spec
   (spec-type [spec] COMPOUND)
   (next-steps [spec term defs _]
-    (if (= COMPOUND (term-type term))
-      (interleave (.arglist term) arglist)
-      []))
+    (cond
+      (= COMPOUND (term-type term)) (interleave (.arglist term) arglist)
+      (and (= "." functor) (= LIST (term-type term))) [(.head term) (first arglist) (.tail term) (second arglist)]
+      (and (= "." functor) (list-term? term)) [(first (.arglist term)) (first arglist) (second (.arglist term)) (second arglist)]
+      )
+    )
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
@@ -360,6 +393,16 @@
                                   (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
                                   replace-error-spec-with-intersect-error)
                               DISJOINT))
+           LIST (if (= "." functor)
+                  (-> other-spec
+                      (update :type #(intersect % (first arglist) defs overwrite?))
+                      (intersect (second arglist) defs overwrite?))
+                  DISJOINT)
+           TUPLE (if (= "." functor)
+                   (let [f (intersect (first (.arglist other-spec)) (first arglist) defs overwrite?)
+                         r (intersect (update other-spec :arglist rest) (second arglist) defs overwrite?)]
+                     (assoc other-spec :arglist (apply vector f r)))
+                   DISJOINT)
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
            (AND, OR) (intersect other-spec spec defs overwrite?)
