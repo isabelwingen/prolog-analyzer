@@ -162,6 +162,7 @@
       (update :post-spec order-specs)
       (update :inv-spec order-specs)
       (update :pred order-preds)
+      (update :module (partial apply merge))
       (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
       ))
 

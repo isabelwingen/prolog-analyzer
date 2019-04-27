@@ -4,11 +4,13 @@
 initialize_dialect :-
     prolog_load_context(dialect,swi),!,
     use_module(library(error)),
+    use_module(library(system)),
     use_module(library(apply)),
     use_module(library(lists)).
 
 initialize_dialect :-
     use_module(library(file_systems)),
+    use_module(library(system)),
     use_module(library(codesio)),
     use_module(library(lists)).
 
@@ -489,13 +491,65 @@ get_stream(Module,Stream) :-
 term_expander(end_of_file) :- !,
     prolog_load_context(module,Module),
     (retract(edn_stream(Module,Stream)) -> close(Stream); true).
+term_expander(':-'(module(Module))) :-
+    !,
+    prolog_load_context(file,File),
+    prolog_load_context(directory,ModulePath),
+    working_directory(Current,ModulePath),
+    absolute_file_name(Module,Path),
+    working_directory(_,Current),
+    multi_string_concat(["{:type :module :content {\"",File,"\" \"",Module,"\"","}}"],Result1),
+    multi_string_concat(["{:type :module :content {\"",Path,"\" \"",Module,"\"","}}"],Result2),
+    get_stream(Module,Stream),
+    write(Stream,Result1),nl(Stream),
+    write(Stream,Result2),nl(Stream),flush_output(Stream),!.
+term_expander(':-'(module(Module,_))) :-
+    !,
+    prolog_load_context(file,File),
+    prolog_load_context(directory,ModulePath),
+    working_directory(Current,ModulePath),
+    absolute_file_name(Module,Path),
+    working_directory(_,Current),
+    multi_string_concat(["{:type :module :content {\"",File,"\" \"",Module,"\"","}}"],Result1),
+    multi_string_concat(["{:type :module :content {\"",Path,"\" \"",Module,"\"","}}"],Result2),
+    get_stream(Module,Stream),
+    write(Stream,Result1),nl(Stream),
+    write(Stream,Result2),nl(Stream),flush_output(Stream),!.
+term_expander(':-'(use_module(library(Lib)))) :-
+    !,
+    prolog_load_context(module, Module),
+    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\"}}"],Result),
+    get_stream(Module,Stream),
+    write(Stream,Result),nl(Stream),flush_output(Stream),!.
+term_expander(':-'(use_module(UsedModule))) :-
+    !,
+    prolog_load_context(module, Module),
+    prolog_load_context(directory,ModulePath),
+    working_directory(Current,ModulePath),
+    absolute_file_name(UsedModule,Path),
+    working_directory(_,Current),
+    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\"}}"],Result),
+    get_stream(Module,Stream),
+    write(Stream,Result),nl(Stream),flush_output(Stream),!.
+term_expander(':-'(use_module(library(Lib),_))) :-
+    !,
+    prolog_load_context(module, Module),
+    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\"}}"],Result),
+    get_stream(Module,Stream),
+    write(Stream,Result),nl(Stream),flush_output(Stream),!.
+term_expander(':-'(use_module(UsedModule,_))) :-
+    !,
+    prolog_load_context(module, Module),
+    prolog_load_context(directory,ModulePath),
+    working_directory(Current,ModulePath),
+    absolute_file_name(UsedModule,Path),
+    working_directory(_,Current),
+    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\"}}"],Result),
+    get_stream(Module,Stream),
+    write(Stream,Result),nl(Stream),flush_output(Stream),!.
 term_expander(_) :-
     prolog_load_context(module,Module),
     (Module = user; Module = annotations; Module = prolog_analyzer),!.
-term_expander(':-'(module(_))) :- !.
-term_expander(':-'(module(_,_))) :- !.
-term_expander(':-'(use_module(_))) :- !.
-term_expander(':-'(use_module(_,_))) :- !.
 term_expander(Term) :-
     prolog_load_context(module, Module),
     expand(Term,Module,Result),
