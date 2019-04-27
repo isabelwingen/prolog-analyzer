@@ -267,12 +267,12 @@ arg_to_map(atom,Term,Map) :-
     prolog_load_context(dialect,swi),
     !,
     term_string(Term,String),
-    string_concat("{:term \"", String,R1),
-    string_concat(R1, "\" :type :atom}", Map).
+    my_string_concat("{:term \"", String,R1),
+    my_string_concat(R1, "\" :type :atom}", Map).
 arg_to_map(atom,Term,Map) :-
     !,
-    string_concat("{:term \"", Term,R1),
-    string_concat(R1, "\" :type :atom}", Map).
+    my_string_concat("{:term \"", Term,R1),
+    my_string_concat(R1, "\" :type :atom}", Map).
 
 
 arg_to_map(atomic,[],"{:type :empty-list}") :- !.
