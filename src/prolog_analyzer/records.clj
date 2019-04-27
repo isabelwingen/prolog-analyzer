@@ -810,28 +810,42 @@
     SPECVAR
     (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
-    (USERDEFINED, OR, AND, COMPOUND, TUPLE)
-    (update spec :arglist (fn [s] (seq (map #(replace-specvar-name-with-value % specvar-name replace-value) s))))
+    (OR,AND) (-> spec
+                 (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
+                 (update :arglist set))
 
+    (USERDEFINED, COMPOUND, TUPLE)
+    (-> spec
+        (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
+        (update :arglist (partial apply vector)))
     LIST
     (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
 
     spec
     ))
 
-(defn replace-specvars-with-spec [spec specvar-name replace-spec]
-  (case+ (spec-type spec)
-    SPECVAR
-    (if (= specvar-name (:name spec)) replace-spec spec)
 
-    (USERDEFINED, OR, AND, COMPOUND, TUPLE)
-    (update spec :arglist (fn [s] (seq (map #(replace-specvars-with-spec % specvar-name replace-spec) s))))
+(defn replace-specvars-with-spec [type specvar-name replace-spec]
+  (when-not (satisfies? spec type) (println type) (println))
+  (case+ (spec-type type)
+    SPECVAR
+    (if (= specvar-name (:name type)) replace-spec type)
+
+    (OR,AND) (-> type
+                 (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+                 (update :arglist set))
+
+    (USERDEFINED, COMPOUND, TUPLE)
+    (-> type
+        (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+        (update :arglist (partial apply vector)))
 
     LIST
-    (update spec :type #(replace-specvars-with-spec % specvar-name replace-spec))
+    (update type :type #(replace-specvars-with-spec % specvar-name replace-spec))
 
-    spec
+    type
     ))
+
 
 (defn find-specvars [spec]
   (case+ (spec-type spec)
