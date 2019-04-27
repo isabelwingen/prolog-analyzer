@@ -51,17 +51,6 @@
     err))
 
 
-(defn read-prolog-code-as-raw-edn
-  "Parses a prolog file to edn.
-  No additional modification is done on the created data."
-  [dialect term-expander prolog-exe file]
-  (log/debug (str "Dialect: " dialect))
-  (log/debug (str "Start writing of file " file))
-  (call-prolog dialect term-expander prolog-exe file)
-  (log/debug (str "Start reading of edn"))
-  (transform-to-edn (get-edn-file-name)))
-
-
 (defn- apply-function-on-values [func in-map]
   (reduce-kv #(assoc %1 %2 (func %3)) {} in-map))
 
@@ -166,24 +155,16 @@
       (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
       ))
 
-(defn add-built-ins [dialect data]
-  (log/debug "Add built-ins")
-  (let [built-in (-> "/home/isabel/Studium/prolog-analyzer/prolog/builtins.pl"
-                     (#(read-prolog-code-as-raw-edn "swipl" "prolog/prolog_analyzer.pl" "swipl" %))
-                     format-and-clean-up
-                     pre-processor/pre-process-single
-                     (dissoc :error-msg))]
-    (merge-with into data built-in)
-    ))
 
 (defn process-edn
   ([edn] (process-edn "swipl" edn))
-  ([dialect edn] (->> edn
-                      transform-to-edn
-                      format-and-clean-up
-                      pre-processor/pre-process-single
-                      (add-built-ins dialect)
-                      )))
+  ([dialect edn]
+   (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl")
+   (->> edn
+        transform-to-edn
+        format-and-clean-up
+        pre-processor/pre-process-single
+        )))
 
 (defn process-prolog-file [dialect term-expander prolog-exe file-name]
   (when (.exists (io/file (get-edn-file-name)))

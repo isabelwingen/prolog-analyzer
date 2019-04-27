@@ -289,12 +289,8 @@
   (spec-type [spec] LIST)
   (next-steps [spec term defs overwrite]
     (cond
-      (list-term? term)
-      (let [{head :head tail :tail} (get-head-and-tail term)]
-        (if (= VAR (term-type tail))
-          [head type tail spec]
-          [head type
-           tail spec]))
+      (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
+                          [head type tail spec])
       (= LIST (term-type term)) (if (nil? (.tail term)) [(.head term) type] [(.head term) type (.tail term) spec])
       :else []))
   (next-steps [spec term defs] (next-steps spec term defs false))
@@ -332,15 +328,7 @@
     (cond
       (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
                           [head (first arglist)
-                           tail (update spec :arglist rest)])#_(if overwrite
-                          (let [{head :head tail :tail} (get-head-and-tail term)]
-                            [head (first arglist)
-                             tail (update spec :arglist rest)])
-                          (let [{head :head tail :tail} (get-head-and-tail term)]
-                            (if (= VAR (term-type tail))
-                              [tail (->ErrorSpec "tail of list is variable")]
-                              [head (first arglist)
-                               tail (update spec :arglist rest)])))
+                           tail (update spec :arglist rest)])
       (= LIST (term-type term)) [(.head term) (first arglist) (.tail term) (update spec :arglist rest)]
       :else []))
   (next-steps [spec term defs] (next-steps spec term defs false))
