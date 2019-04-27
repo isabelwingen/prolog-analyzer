@@ -60,6 +60,7 @@ spec(integer).
 spec(number).
 spec(float).
 spec(emptylist).
+spec(compound).
 
 spec(compound(X)) :- compound(X), X=.. [_|Args], maplist(spec_and_nonvar,Args).
 spec(list(X)) :- spec_and_nonvar(X).
@@ -72,8 +73,8 @@ spec(Spec) :-
     Spec =.. [Functor|Arglist],
     maplist(spec_and_nonvar,Arglist),
     spec_alias(NewSpec,_),
-    NewSpec =.. [Functor|NewArglist],!,
-    match_specs(Arglist,NewArglist).
+    NewSpec =.. [Functor|NewArglist],
+    match_specs(Arglist,NewArglist),!.
 spec(Spec) :-
     \+ compound(Spec),
     spec_alias(Spec,_).
