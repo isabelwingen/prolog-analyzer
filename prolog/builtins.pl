@@ -151,7 +151,6 @@
 % no spec_post
 
 :- declare_spec(arithmetic_expression).
-%:- define_spec(arithmetic_expression,one_of([number,ground])).
 :- define_spec(arithmetic_expression, one_of([number,
                                               compound(+(arithmetic_expression)),
                                               compound(-(arithmetic_expression)),
@@ -443,6 +442,7 @@
 %    11.3.105 initialization/1   declaration, ISO
 %    11.3.125 multifile/1   declaration, ISO
 
+
 %% TODO: check module for library predicates
 % TODO: Keys must be ground
 :- declare_spec(avl_tree(specvar(_Key), specvar(_Value))).
@@ -456,79 +456,79 @@
 :- declare_spec(ordset(specvar(_Type))).
 :- define_spec(ordset(specvar(X)), list(specvar(X))). %% TODO: this would make a great deferred spec
 
-:- spec_pre(avl_to_list/2,   [avl_tree(specvar(Key), specvar(Value)), maybe(list(pair(specvar(Key), specvar(Value))))]).
-:- spec_post(avl_to_list/2,  [any, any], [avl_tree(specvar(Key), specvar(Value)), list(pair(specvar(Key), specvar(Value)))]).
+:- spec_pre(avl:avl_to_list/2,   [avl_tree(specvar(Key), specvar(Value)), maybe(list(pair(specvar(Key), specvar(Value))))]).
+:- spec_post(avl:avl_to_list/2,  [any, any], [avl_tree(specvar(Key), specvar(Value)), list(pair(specvar(Key), specvar(Value)))]).
 
-:- spec_pre(avl_domain/2,   [avl_tree(specvar(Key), specvar(_Value)), maybe(list(specvar(Key)))]).
-:- spec_post(avl_domain/2,  [any, any], [avl_tree(specvar(Key), specvar(_Value)), list(specvar(Key))]).
+:- spec_pre(avl:avl_domain/2,   [avl_tree(specvar(Key), specvar(_Value)), maybe(list(specvar(Key)))]).
+:- spec_post(avl:avl_domain/2,  [any, any], [avl_tree(specvar(Key), specvar(_Value)), list(specvar(Key))]).
 
-:- spec_pre(avl_fetch/2,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value))]).
+:- spec_pre(avl:avl_fetch/2,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value))]).
 % no spec post
 
-:- spec_pre(avl_fetch/3,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value))]).
-:- spec_post(avl_fetch/3, [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value)]).
+:- spec_pre(avl:avl_fetch/3,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value))]).
+:- spec_post(avl:avl_fetch/3, [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value)]).
 
-:- spec_pre(avl_height/2,  [avl_tree(specvar(_Key), specvar(_Value)), maybe(integer)]).
-:- spec_post(avl_height/2, [any, any], [avl_tree(specvar(_Key), specvar(_Value)), integer]).
+:- spec_pre(avl:avl_height/2,  [avl_tree(specvar(_Key), specvar(_Value)), maybe(integer)]).
+:- spec_post(avl:avl_height/2, [any, any], [avl_tree(specvar(_Key), specvar(_Value)), integer]).
 
-:- spec_pre(avl_max/2,  [avl_tree(specvar(_Key), specvar(_Value)), any]).
-:- spec_post(avl_max/2, [any, any], [avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_max/2,  [avl_tree(specvar(_Key), specvar(_Value)), any]).
+:- spec_post(avl:avl_max/2, [any, any], [avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
 
-:- spec_pre(avl_max/3,  [avl_tree(specvar(_Key), specvar(_Value)), any, any]).
-:- spec_post(avl_max/3, [any, any, any], [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_pre(avl:avl_max/3,  [avl_tree(specvar(_Key), specvar(_Value)), any, any]).
+:- spec_post(avl:avl_max/3, [any, any, any], [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
 
-:- spec_pre(avl_min/2,  [avl_tree(specvar(_Key), specvar(_Value)), any]).
-:- spec_post(avl_min/2, [any, any], [avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_min/2,  [avl_tree(specvar(_Key), specvar(_Value)), any]).
+:- spec_post(avl:avl_min/2, [any, any], [avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
 
 :- spec_pre(avl_min/3,  [avl_tree(specvar(_Key), specvar(_Value)), any, any]).
-:- spec_post(avl_min/3, [any, any, any], [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_post(avl:avl_min/3, [any, any, any], [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
 
-:- spec_pre(avl_member/2,  [var, avl_tree(specvar(_Key), specvar(_Value))]).
-:- spec_post(avl_member/2,  [any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value))]).
+:- spec_pre(avl:avl_member/2,  [var, avl_tree(specvar(_Key), specvar(_Value))]).
+:- spec_post(avl:avl_member/2,  [any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value))]).
 
-:- spec_pre(avl_member/3,  [var, avl_tree(specvar(_Key), specvar(_Value)), any]).
-:- spec_post(avl_member/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value)]).
+:- spec_pre(avl:avl_member/3,  [var, avl_tree(specvar(_Key), specvar(_Value)), any]).
+:- spec_post(avl:avl_member/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value)]).
 
-:- spec_pre(avl_next/3,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), maybe(specvar(Key))]).
-:- spec_post(avl_next/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_next/3,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), maybe(specvar(Key))]).
+:- spec_post(avl:avl_next/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
 
-:- spec_pre(avl_next/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value))]).
-:- spec_post(avl_next/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_pre(avl:avl_next/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value))]).
+:- spec_post(avl:avl_next/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
 
-:- spec_pre(avl_prev/3,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), maybe(specvar(Key))]).
-:- spec_post(avl_prev/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_prev/3,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), maybe(specvar(Key))]).
+:- spec_post(avl:avl_prev/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
 
-:- spec_pre(avl_prev/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value))]).
-:- spec_post(avl_prev/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_pre(avl:avl_prev/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value))]).
+:- spec_post(avl:avl_prev/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
 
 
-:- spec_pre(avl_range/2,  [avl_tree(specvar(_Key), specvar(Value)), maybe(list(specvar(Value)))]).
-:- spec_post(avl_range/2, [any, any],  [avl_tree(specvar(_Key), specvar(Value)), list(specvar(Value))]).
+:- spec_pre(avl:avl_range/2,  [avl_tree(specvar(_Key), specvar(Value)), maybe(list(specvar(Value)))]).
+:- spec_post(avl:avl_range/2, [any, any],  [avl_tree(specvar(_Key), specvar(Value)), list(specvar(Value))]).
 
-:- spec_pre(avl_size/2,  [avl_tree(specvar(_Key), specvar(_Value)), maybe(integer)]).
-:- spec_post(avl_size/2, [any, any], [avl_tree(specvar(_Key), specvar(_Value)), integer]).
+:- spec_pre(avl:avl_size/2,  [avl_tree(specvar(_Key), specvar(_Value)), maybe(integer)]).
+:- spec_post(avl:avl_size/2, [any, any], [avl_tree(specvar(_Key), specvar(_Value)), integer]).
 
 % crazy
-:- spec_pre(avl_store/4,  [ground, avl_tree(specvar(_Key), specvar(_Value)), any, avl_tree(specvar(_Key2), specvar(_Value2))]).
-:- spec_post(avl_store/4, [any, any, any, any], [specvar(NewKey), avl_tree(specvar(Key), specvar(Value)), specvar(NewValue),
+:- spec_pre(avl:avl_store/4,  [ground, avl_tree(specvar(_Key), specvar(_Value)), any, avl_tree(specvar(_Key2), specvar(_Value2))]).
+:- spec_post(avl:avl_store/4, [any, any, any, any], [specvar(NewKey), avl_tree(specvar(Key), specvar(Value)), specvar(NewValue),
                                                  avl_tree(one_of([specvar(NewKey), specvar(Key)]),
                                                           one_of([specvar(NewValue), specvar(Value)]))]).
 
-:- spec_pre(avl_delete/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
-:- spec_post(avl_delete/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_pre(avl:avl_delete/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
+:- spec_post(avl:avl_delete/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
 
-:- spec_pre(avl_del_max/4,  [avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
-:- spec_post(avl_del_max/4, [any,any,any,any],  [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_pre(avl:avl_del_max/4,  [avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
+:- spec_post(avl:avl_del_max/4, [any,any,any,any],  [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
 
-:- spec_pre(avl_del_min/4,  [avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
-:- spec_post(avl_del_min/4, [any,any,any,any],  [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_pre(avl:avl_del_min/4,  [avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
+:- spec_post(avl:avl_del_min/4, [any,any,any,any],  [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
 
-:- spec_pre(ord_list_to_avl/2,  [ordset(pair), any]).
-:- spec_post(ord_list_to_avl/2, [any,any], [ordset(pair(specvar(Key), specvar(Value))), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_pre(avl:ord_list_to_avl/2,  [ordset(pair), any]).
+:- spec_post(avl:ord_list_to_avl/2, [any,any], [ordset(pair(specvar(Key), specvar(Value))), avl_tree(specvar(Key), specvar(Value))]).
 
-:- spec_pre(avl_change/5,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value)),
+:- spec_pre(avl:avl_change/5,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value)),
                                           maybe(avl_tree(specvar(Key), one_of([specvar(Value), specvar(Value2)]))),
                                           maybe(specvar(Value2))]).
-:- spec_post(avl_change/5, [any,any,any,any,any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value),
+:- spec_post(avl:avl_change/5, [any,any,any,any,any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value),
                                                   avl_tree(specvar(Key), one_of([specvar(Value), specvar(Value2)])),
                                                   specvar(Value2)]).
