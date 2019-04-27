@@ -69,10 +69,15 @@
       (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
       env)))
 
+(defn- valid? [env term spec]
+  (-> env
+      (dom/fill-env-for-term-with-spec term spec)
+      (utils/get-dom-of-term term)))
+
 (defn condition-fullfilled? [env {head :head tail :tail :as head-tail-list} [conditions p]]
   (if (and (r/empty-list? head-tail-list) (empty? conditions))
     true
-    (and (dom/spec-valid? env head (first conditions))
+    (and (valid? env head (first conditions))
          (condition-fullfilled? env tail [(rest conditions) p]))))
 
 
@@ -118,6 +123,7 @@
       (dom/fill-env-for-term-with-spec (apply r/to-head-tail-list arglist) pre-spec {:initial true})
       (add-index-to-input-arguments arglist)
       ))
+
 
 (defn analyzing [data {arglist :arglist body :body :as clause} pre-spec]
   (-> (initial-env data arglist pre-spec)
