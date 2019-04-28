@@ -204,7 +204,6 @@
                                         ;(add-to-artifical-term term spec options)
 
             )]
-    (println (utils/get-dom-of-term env term))
     res))
 
 (defmethod fill-dom [:var :compound-or-list] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]

@@ -75,7 +75,7 @@
 (defn- contains-arti-term? [term]
   (or (arti-term? term)
       (and (arti-term? (:head term)) (arti-term? (:tail term)))
-      (and ((complement nil?) (:arglist term)) (every? #(not (arti-term? %)) (:arglist term)))))
+      (and ((complement nil?) (:arglist term)) (some #(arti-term? %) (:arglist term)))))
 
 
 
@@ -131,3 +131,22 @@
         (println)))
     (println "--------------------\n")
     ))
+
+(defn print-type-information [title graph]
+  (println title "\n")
+  (let [error-terms (->> graph
+                        (utils/get-terms)
+                        (remove contains-arti-term?)
+                        (remove #(nil? (utils/get-dom-of-term graph %)))
+                        (filter #(r/error-spec? (utils/get-dom-of-term graph %))))
+        other-terms (->> graph
+                         (utils/get-terms)
+                         (remove contains-arti-term?)
+                       ;  (remove (set error-terms))
+                         (remove #(nil? (uber/attr graph % :index))))]
+    (if (empty? error-terms)
+      (doseq [t other-terms]
+        (print-in-columns [50] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t (r/->AnySpec)))))
+      (doseq [t error-terms]
+        (println (tinker-error-message graph t) "\n")))
+    (println "---------------------------------\n")))
