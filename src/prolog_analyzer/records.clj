@@ -826,7 +826,6 @@
 
 
 (defn replace-specvars-with-spec [type specvar-name replace-spec]
-  (when-not (satisfies? spec type) (println type) (println))
   (case+ (spec-type type)
     SPECVAR
     (if (= specvar-name (:name type)) replace-spec type)

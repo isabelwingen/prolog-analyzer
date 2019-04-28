@@ -20,10 +20,11 @@
   (let [term (uber/src edge)
         userdef (uber/dest edge)
         used-specvars (map uber/dest (uber/out-edges env userdef))
-        replace-map (reduce #(assoc %1 (:name %2) (or (utils/get-dom-of-term env %2) %1)) {} used-specvars)
+        replace-map (reduce #(assoc %1 (:name %2) (or (utils/get-dom-of-term env %2) %2)) {} used-specvars)
         new-spec (reduce-kv r/replace-specvars-with-spec userdef replace-map)]
     (dom/fill-env-for-term-with-spec env term new-spec)
     ))
+
 
 (defmethod process-edge :artificial [env edge]
   (let [normal (uber/src edge)
