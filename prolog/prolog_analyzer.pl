@@ -559,14 +559,17 @@ term_expander(Term) :-
 term_expander(_) :-
     write("!!! Term expander did not succeed!").
 
+
 user:term_expansion(A,A) :-
     !,
-    term_expander(A).
+    term_expander(A),
+    ((A = ':-'(module(_));A=':-'(module(_,_))) -> Out=A;Out=[]).
 
 :- multifile user:term_expansion/6.
-user:term_expansion(Term, Layout1, Ids, Term, Layout1, [plspec_token|Ids]) :-
+user:term_expansion(Term, Layout1, Ids, Out, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),!,
-    term_expander(Term).
+    term_expander(Term),
+    ((Term = ':-'(module(_));Term=':-'(module(_,_))) -> Out=Term; Out= []).
 
 close_orphaned_stream :-
     (retract(edn_stream(_,S)) -> close(S); true).
