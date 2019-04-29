@@ -16,14 +16,27 @@
    [clojure.tools.namespace.repl :refer [refresh]]
    ))
 
-(defn replace-specvars-with-uuid [pre-spec]
+(defmulti replace-specvars-with-uuid (comp sequential? first))
+(defmethod replace-specvars-with-uuid false [pre-spec]
   (let [specvars (->> pre-spec
                       (reduce #(concat %1 (r/find-specvars %2)) #{})
                       set
                       (map :name))
-        ids (repeatedly (count specvars) gensym)
+        ids (repeatedly gensym)
         uuid-map (apply hash-map (interleave specvars ids))]
     (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) pre-spec)))
+
+(defmethod replace-specvars-with-uuid true [[condition premise :as post-spec]]
+  (let [specvars (->> premise
+                      (conj condition)
+                      (reduce #(concat %1 (r/find-specvars %2)) #{})
+                      set
+                      (map :name))
+        ids (repeatedly gensym)
+        uuid-map (apply hash-map (interleave specvars ids))
+        new-condition (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) condition)
+        new-premise (reduce-kv r/replace-specvar-name-with-value premise uuid-map)]
+    [new-condition new-premise]))
 
 (defmulti add-relationships-aux (fn [env term] (type term)))
 (defmethod add-relationships-aux prolog_analyzer.records.ListTerm [env {head :head tail :tail :as term}]
@@ -63,16 +76,17 @@
                             (:pre-specs)
                             (map replace-specvars-with-uuid))
         term (goal-args->tuple arglist)
-        goal-specs-as-tuples (goal-specs->tuples goal-specs)
-        ]
+        goal-specs-as-tuples (goal-specs->tuples goal-specs)]
     (if (and (> arity 0) goal-specs)
       (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
       env)))
 
 (defn- valid? [env term spec]
-  (-> env
-      (dom/fill-env-for-term-with-spec term spec)
-      (utils/get-dom-of-term term)))
+  (let [old-dom (utils/get-dom-of-term env term)
+        new-dom (-> env
+                    (dom/fill-env-for-term-with-spec term spec)
+                    (utils/get-dom-of-term term))]
+    (= old-dom new-dom)))
 
 (defn condition-fullfilled? [env {head :head tail :tail :as head-tail-list} [conditions p]]
   (if (and (r/empty-list? head-tail-list) (empty? conditions))
@@ -81,10 +95,13 @@
          (condition-fullfilled? env tail [(rest conditions) p]))))
 
 
-(defn apply-valid-post-spec [env tuple-term [condition promise :as post-spec]]
-  (if (condition-fullfilled? env tuple-term post-spec)
-    (dom/fill-env-for-term-with-spec env tuple-term promise {:initial false :overwrite true})
-    env))
+(defn apply-valid-post-spec [tuple-term env post-spec]
+  (let [[condition promise :as with-uuid] (replace-specvars-with-uuid post-spec)]
+    (if (condition-fullfilled? env tuple-term with-uuid)
+      (-> env
+          (dom/fill-env-for-term-with-spec tuple-term (apply r/to-tuple-spec condition) {:initial :false :overwrite false})
+          (dom/fill-env-for-term-with-spec tuple-term promise {:initial false :overwrite true}))
+      env)))
 
 (defn evaluate-goal-post-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
   (let [goal-specs (some->> data
@@ -94,7 +111,7 @@
         ]
     (if (empty? goal-specs)
       env
-      (reduce #(apply-valid-post-spec %1 term %2) env goal-specs))))
+      (reduce (partial apply-valid-post-spec term) env goal-specs))))
 
 (defmulti evaluate-goal-relationships (fn [env goal data] (:goal goal)))
 
@@ -132,7 +149,9 @@
       ))
 
 (defn complete-analysis [printer data]
-  (log/debug "Start analysis of the clause")
+  (log/debug "Start analysis")
+  (when (empty? (utils/get-pred-identities data))
+    (log/debug "No predicates found"))
   (doseq [pred-id (utils/get-pred-identities data)
           clause-number (utils/get-clause-identities-of-pred pred-id data)]
     (let [pre-spec (do
