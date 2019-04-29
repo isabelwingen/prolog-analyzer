@@ -81,16 +81,15 @@
          (condition-fullfilled? env tail [(rest conditions) p]))))
 
 
-(defn apply-valid-post-spec [env {arglist :arglist :as tuple-term} [condition promise :as post-spec]]
+(defn apply-valid-post-spec [env tuple-term [condition promise :as post-spec]]
   (if (condition-fullfilled? env tuple-term post-spec)
-    (dom/fill-env-for-term-with-spec env tuple-term (apply r/to-tuple-spec promise) {:initial false :overwrite true})
+    (dom/fill-env-for-term-with-spec env tuple-term promise {:initial false :overwrite true})
     env))
 
 (defn evaluate-goal-post-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
-                            (:post-specs)
-                            (map (partial map replace-specvars-with-uuid)))
+                            (:post-specs))
         term (goal-args->tuple arglist)
         ]
     (if (empty? goal-specs)

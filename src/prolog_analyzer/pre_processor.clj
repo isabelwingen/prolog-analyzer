@@ -52,7 +52,15 @@
        (map (partial apply vector))
        (map (partial vector (apply vector (repeatedly arity r/->AnySpec))))
        (apply vector)
-       ))
+       (group-by first)
+       (reduce-kv (fn [m k v] (assoc m k (->> v
+                                             (map second)
+                                             (map (partial apply r/to-tuple-spec))
+                                             set
+                                             r/->OneOfSpec
+                                             )))
+                  {})))
+
 
 ;; If there are no pre-specs for a predicate, add one
 (defn- add-any-pre-specs [data]

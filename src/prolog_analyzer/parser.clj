@@ -124,6 +124,26 @@
        (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
        ))
 
+(defn- create-post-spec-map [post-specs]
+  (->> post-specs
+       (group-by first)
+       (reduce-kv (fn [m k v] (assoc m k (->> v
+                                             (map second)
+                                             (map (partial apply r/to-tuple-spec))
+                                             set
+                                             r/->OneOfSpec
+                                             ))) {})))
+
+(defn order-post-specs [specs]
+  (->> specs
+       (map specs-to-map)
+       (apply merge-with into)
+       (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
+       (reduce-kv (fn [m k v]
+                    (assoc m k (create-post-spec-map v)))
+                  {})
+       ))
+
 (defn- order-define-specs [define-specs]
   (reduce (fn [m {alias :alias def :definition}] (assoc m (transform-spec alias) (transform-spec def))) {} define-specs))
 
@@ -148,7 +168,7 @@
       (update :define-spec order-define-specs)
       clean-up-spec-definitions
       (update :pre-spec order-specs)
-      (update :post-spec order-specs)
+      (update :post-spec order-post-specs)
       (update :inv-spec order-specs)
       (update :pred order-preds)
       (update :module (partial apply merge))
