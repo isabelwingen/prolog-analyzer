@@ -34,7 +34,7 @@
 
 
 (defn- initial-dom [obj]
-  (if (= prolog_analyzer.records.SpecvarSpec (type obj))
+  (if (satisfies? prolog-analyzer.records/spec obj)
     (r/->AnySpec)
     (r/initial-spec obj)))
 
