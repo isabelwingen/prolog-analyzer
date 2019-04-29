@@ -34,3 +34,4 @@ pom.xml.asc
 doc/auto
 *.txt
 prolog/playground.pl
+*.result
