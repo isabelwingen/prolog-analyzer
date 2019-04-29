@@ -144,9 +144,8 @@
                          (remove contains-arti-term?)
                        ;  (remove (set error-terms))
                          (remove #(nil? (uber/attr graph % :index))))]
-    (if (empty? error-terms)
-      (doseq [t other-terms]
-        (print-in-columns [50] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t (r/->AnySpec)))))
-      (doseq [t error-terms]
-        (println (tinker-error-message graph t) "\n")))
+    (doseq [t other-terms]
+      (print-in-columns [50] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t (r/->AnySpec)))))
+    (doseq [t error-terms]
+      (println (tinker-error-message graph t) "\n"))
     (println "---------------------------------\n")))
