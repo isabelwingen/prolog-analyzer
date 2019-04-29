@@ -10,9 +10,11 @@
             [clojure.set :refer [rename-keys]]
             [clojure.string]))
 
-(defn- get-edn-file-name []
-  (.getAbsolutePath (io/file "tmp.edn")))
+(defn- get-name-without-ending [file-name]
+  (first (clojure.string/split (.getName (io/file file-name)) #"\.")))
 
+(defn- get-edn-file-name [file-name]
+  (.getAbsolutePath (io/file (str "edns/" (get-name-without-ending file-name) ".edn"))))
 
 (defn- split-up-error-message [msg]
   (->> msg
@@ -22,13 +24,16 @@
        (apply vector)))
 
 (defn transform-to-edn [clojure-file]
-  (read-string (str \[ (clojure.string/replace (slurp clojure-file) "\\" "\\\\") \])))
-;; https://stackoverflow.com/questions/15234880/how-to-use-clojure-edn-read-to-get-a-sequence-of-objects-in-a-file
+  (if (.exists (io/file clojure-file))
+    (read-string (str \[ (clojure.string/replace (slurp clojure-file) "\\" "\\\\") \]))
+    (do
+      (log/warn "No .edn file was created")
+      [])))
 
 (defmulti call-prolog (fn [dialect term-expander prolog-exe file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file]
-  (let [clojure-file (get-edn-file-name)
+  (let [clojure-file (get-edn-file-name file)
         path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" clojure-file "'),"
@@ -40,7 +45,7 @@
 
 (defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file]
   (let [current-hash (hash (slurp file))
-        clojure-file (get-edn-file-name)
+        clojure-file (get-edn-file-name file)
         path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" clojure-file "'),"
@@ -187,14 +192,14 @@
         )))
 
 (defn process-prolog-file [dialect term-expander prolog-exe file-name]
-  (when (.exists (io/file (get-edn-file-name)))
-    (io/delete-file (get-edn-file-name)))
+  (when (.exists (io/file (get-edn-file-name file-name)))
+    (io/delete-file (get-edn-file-name file-name)))
   (call-prolog dialect term-expander prolog-exe file-name)
-  (process-edn dialect (get-edn-file-name)))
+  (process-edn dialect (get-edn-file-name file-name)))
 
 (defn process-prolog-directory [dialect term-expander prolog-exe dir-name]
-  (when (.exists (io/file (get-edn-file-name)))
-    (io/delete-file (get-edn-file-name)))
+  (when (.exists (io/file (get-edn-file-name dir-name)))
+    (io/delete-file (get-edn-file-name dir-name)))
   (let [prolog-files (->> dir-name
                           io/file
                           (tree-seq #(.isDirectory %) #(.listFiles %))
@@ -206,4 +211,4 @@
                           )]
     (doseq [pl prolog-files]
       (call-prolog dialect term-expander prolog-exe pl))
-    (process-edn dialect (get-edn-file-name))))
+    (process-edn dialect (get-edn-file-name dir-name))))
