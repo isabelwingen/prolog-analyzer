@@ -113,7 +113,8 @@
        "!\n"
        "This is the error message:\n"
        (r/to-string (or (utils/get-dom-of-term env term) (r/->AnySpec)))
-       "\n\n"
+       "\n"
+       (uber/attr env term :indices)
        ))
 
 (defn better-print [title graph]
@@ -146,6 +147,25 @@
                          (remove #(nil? (uber/attr graph % :index))))]
     (doseq [t other-terms]
       (print-in-columns [50] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t (r/->AnySpec)))))
+    (println)
+    (doseq [t error-terms]
+      (println (tinker-error-message graph t) "\n"))
+    (println "---------------------------------\n")))
+
+(defn print-with-indices [title graph]
+  (println title "\n")
+  (let [error-terms (->> graph
+                         (utils/get-terms)
+                         (remove contains-arti-term?)
+                         (remove #(nil? (utils/get-dom-of-term graph %)))
+                         (filter #(r/error-spec? (utils/get-dom-of-term graph %))))
+        other-terms (->> graph
+                         (utils/get-terms)
+                         (remove contains-arti-term?)
+                         (remove #(nil? (uber/attr graph % :index))))]
+    (doseq [t other-terms]
+      (print-in-columns [50 10] (r/to-string t) (str (uber/attr graph t :index)) (r/to-string (utils/get-dom-of-term graph t (r/->AnySpec)))))
+    (println)
     (doseq [t error-terms]
       (println (tinker-error-message graph t) "\n"))
     (println "---------------------------------\n")))

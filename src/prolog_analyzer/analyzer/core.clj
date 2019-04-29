@@ -118,11 +118,24 @@
 (defmethod evaluate-goal-relationships :default [env goal data]
   env)
 
+
+
+(defn set-indices [env {goal-name :goal arglist :arglist} data]
+  (reduce-kv
+   (fn [e index arg] (if (and (uber/has-node? e arg) (uber/attr e arg :indices))
+                      (uber/add-attr e arg :indices (assoc (uber/attr e arg :indices) goal-name index))
+                      (-> e
+                          (uber/add-nodes arg)
+                          (uber/add-attr arg :indices {goal-name index}))))
+   env
+   (apply vector arglist)))
+
 (defn evaluate-goal [data env goal]
   (-> env
       (evaluate-goal-pre-specs goal data)
       (evaluate-goal-post-specs goal data)
-      (evaluate-goal-relationships goal data)))
+      (evaluate-goal-relationships goal data)
+      (set-indices goal data)))
 
 (defn evaluate-body [env data body]
   ;(log/debug "Evaluate Body")
