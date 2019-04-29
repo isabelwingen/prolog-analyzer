@@ -84,7 +84,7 @@
 :- spec_pre(user:term_variables/2, [any, var]).
 :- spec_post(user:term_variables/2, [any, any], [any, list(var)]).
 
-:- spec_pre(user:sort/2, [list(specvar(X)), list(specvar(X))]). % TODO: or list(any)?
+:- spec_pre(user:sort/2, [list(specvar(X)), list(specvar(X))]).
 :- spec_pre(user:sort/2, [list(any), var]).
 :- spec_post(user:sort/2, [any, any], [list(specvar(X)), list(specvar(X))]).
 
@@ -441,7 +441,6 @@
 %    11.3.125 multifile/1   declaration, ISO
 
 
-%% TODO: check module for library predicates
 % TODO: Keys must be ground
 :- declare_spec(avl_tree(specvar(_Key), specvar(_Value))).
 :- define_spec(avl_tree(specvar(Key), specvar(Value)), one_of([compound(node(specvar(Key),
@@ -530,3 +529,80 @@
 :- spec_post(avl:avl_change/5, [any,any,any,any,any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value),
                                                   avl_tree(specvar(Key), one_of([specvar(Value), specvar(Value2)])),
                                                   specvar(Value2)]).
+
+
+
+:- spec_pre(user:length/2, [maybe(list(any)), maybe(int)]).
+:- spec_post(user:length/2, [any, any], [list(any), int]).
+
+:- spec_pre(user:is_list/1, [any]).
+:- spec_post(user:is_list/1, [any], [list(any)]).
+
+:- spec_pre(user:memberchk/2, [any, maybe(list(any))]).
+:- spec_post(user:memberchk/2, [any,any], [specvar(X), list(specvar(X))]).
+
+:- spec_pre(user:msort/2, [list(specvar(X)), list(specvar(X))]).
+:- spec_pre(user:msort/2, [list(any), var]).
+:- spec_post(user:msort/2, [any, any], [list(specvar(X)), list(specvar(X))]).
+
+:- spec_pre(lists:append/2,  [list(list(any)), maybe(list(any))]).
+:- spec_post(lists:append/2,  [any, any], [list(list(any)), list(any)]).
+
+:- spec_pre(lists:flatten/2,  [list(list(any)), maybe(list(any))]).
+:- spec_post(lists:flatten/2,  [any, any], [list(list(any)), list(any)]).
+
+:- spec_pre(append/3,  [maybe(list(any)), maybe(list(any)), maybe(list(any))]).
+:- spec_post(append/3, [any,any,any], [list(specvar(X)), list(specvar(Y)), list(one_of([specvar(X), specvar(Y)]))]).
+
+:- spec_pre(lists:prefix/2,  [maybe(list(any)), maybe(list(any))]).
+:- spec_post(lists:prefix/2, [any,any], [list(specvar(X)), list(specvar(X))]).
+
+:- spec_pre(lists:select/3,  [any, maybe(list(any)), maybe(list(any))]).
+:- spec_post(lists:select/3, [any,any,any], [specvar(X), list(specvar(X)), list(specvar(X))]).
+
+:- spec_pre(lists:selectchk/3,  [any, maybe(list(any)), maybe(list(any))]).
+:- spec_post(lists:selectchk/3, [any,any,any], [specvar(X), list(specvar(X)), list(specvar(X))]).
+
+:- spec_pre(lists:delete/3,  [maybe(list(any)), any, maybe(list(any))]).
+:- spec_post(lists:delete/3,  [any,any,any], [list(specvar(X)), specvar(X), list(specvar(X))]).
+
+:- spec_pre(lists:nth0/3,  [maybe(int), maybe(list(any)), any]).
+:- spec_post(lists:nth0/3,  [any,any,any], [int, list(specvar(X)), specvar(X)]).
+
+:- spec_pre(lists:nth1/3,  [maybe(int), maybe(list(any)), any]).
+:- spec_post(lists:nth1/3,  [any,any,any], [int, list(specvar(X)), specvar(X)]).
+
+:- spec_pre(lists:nth0/4,  [maybe(int), maybe(list(any)), any, maybe(list(any))]).
+:- spec_post(lists:nth0/4,  [any,any,any,any], [int, list(specvar(X)), specvar(X), list(specvar(X))]).
+
+:- spec_pre(lists:nth1/4,  [maybe(int), maybe(list(any)), any, maybe(list(any))]).
+:- spec_post(lists:nth1/4,  [any,any,any,any], [int, list(specvar(X)), specvar(X), list(specvar(X))]).
+
+:- spec_pre(lists:proper_length/2, [list(any), maybe(int)]).
+:- spec_post(lists:proper_length/2, [any, any], [list(any), int]).
+
+:- spec_pre(lists:reverse/2, [maybe(list(specvar(X))), list(specvar(X))]).
+:- spec_pre(lists:reverse/2, [list(specvar(X)), maybe(list(specvar(X)))]).
+:- spec_post(lists:reverse/2, [any, any], [list(specvar(X)), list(specvar(X))]).
+
+:- spec_pre(lists:permutation/2, [maybe(list(specvar(X))), list(specvar(X))]).
+:- spec_pre(lists:permutation/2, [list(specvar(X)), maybe(list(specvar(X)))]).
+:- spec_post(lists:permutation/2, [any, any], [list(specvar(X)), list(specvar(X))]).
+
+:- spec_pre(lists:max_member/2, [any, list(any)]).
+:- spec_post(lists:max_member/2, [any,any], [specvar(X), list(specvar(X))]).
+
+:- spec_pre(lists:min_member/2, [any, list(any)]).
+:- spec_post(lists:min_member/2, [any,any], [specvar(X), list(specvar(X))]).
+
+:- spec_pre(lists:sum_list/2, [list(number), maybe(number)]).
+:- spec_post(lists:sum_list/2, [any,any], [list(number), number]).
+
+:- spec_pre(lists:max_list/2, [list(number), maybe(number)]).
+:- spec_post(lists:max_list/2, [any,any], [list(number), number]).
+
+:- spec_pre(lists:min_list/2, [list(number), maybe(number)]).
+:- spec_post(lists:min_list/2, [any,any], [list(number), number]).
+
+:- spec_pre(lists:numlist/3, [integer, integer, maybe(list(integer))]).
+:- spec_post(lists:numlist/3, [any,any,any], [integer, integer, list(integer)]).
