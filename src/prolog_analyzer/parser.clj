@@ -180,6 +180,17 @@
       (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
       ))
 
+(defn add-built-ins [data]
+  (log/debug "Add built-ins")
+  (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl")
+  (let [built-in (-> "/home/isabel/Studium/prolog-analyzer/prolog/builtins.pl"
+                     get-edn-file-name
+                     transform-to-edn
+                     format-and-clean-up
+                     pre-processor/pre-process-single
+                     (dissoc :error-msg))]
+    (merge-with into data built-in)
+    ))
 
 (defn process-edn
   ([edn] (process-edn "swipl" edn))
@@ -189,6 +200,7 @@
         transform-to-edn
         format-and-clean-up
         pre-processor/pre-process-single
+        add-built-ins
         )))
 
 (defn process-prolog-file [dialect term-expander prolog-exe file-name]
