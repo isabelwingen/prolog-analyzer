@@ -150,9 +150,11 @@
     (fill-dom env (get-artificial-term env term) spec options)
     env))
 
-(defn- fill-dom-of-next-steps [env term spec {overwrite? :overwrite :as options}]
-  (reduce (fn [e [t s]] (fill-dom e t s options)) env (partition 2 (r/next-steps spec term (utils/get-user-defined-specs env) overwrite?))))
-
+(defn- fill-dom-of-next-steps [env term spec {overwrite? :overwrite initial? :initial :as options}]
+  (let [next (apply hash-map (r/next-steps spec term (utils/get-user-defined-specs env) overwrite?))]
+    (if (and (= r/LIST (r/term-type term)) (= r/VAR (:tail term)) (not overwrite?) (not initial?) (= r/ANY (utils/get-dom-of-term env term (r/->AnySpec))))
+      (reduce (fn [e [t s]] (fill-dom e t s options)) env (dissoc next (:tail term)))
+      (reduce (fn [e [t s]] (fill-dom e t s options)) env next))))
 
 (defmulti fill-dom (fn [env term spec options] [(if (= r/VAR (r/term-type term)) :var :nonvar) (case+ (r/spec-type spec)
                                                                                                      r/ANY :any
@@ -220,17 +222,15 @@
             (process-filling-for-var-term term spec options))
         (if (r/var-spec? (utils/get-dom-of-term env term))
           (add-type-to-dom env term (CANNOT-GROUND))
-          (if (nil? (utils/get-dom-of-term env term))
-            (add-type-to-dom env term (CANNOT-GROUND))
-            (if (r/any-spec? (utils/get-dom-of-term env term))
-              (-> env
-                  (uber/add-nodes term)
-                  (uber/add-attr term :assumed-type spec)
+          (if (r/any-spec? (utils/get-dom-of-term env term))
+            (-> env
+                (uber/add-nodes term)
+                (uber/add-attr term :assumed-type spec)
                                         ;    (create-artifical-term term spec options)
-                  (process-filling-for-var-term term spec options))
-              (-> env
+                (process-filling-for-var-term term spec options))
+            (-> env
                                         ;   (create-artifical-term term spec options)
-                  (process-filling-for-var-term term spec options)))))))))
+                (process-filling-for-var-term term spec options))))))))
 
 (defmethod fill-dom [:var :default] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
