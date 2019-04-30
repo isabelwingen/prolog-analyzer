@@ -72,7 +72,7 @@
 :- spec_pre(user:number_codes/2, [int, list(int)]).
 :- spec_pre(user:number_codes/2, [int, var]).
 :- spec_pre(user:number_codes/2, [var, list(int)]).
-:- spec_post(user:number_codes/2, [any, any], [atom, list(int)]).
+:- spec_post(user:number_codes/2, [any, any], [int, list(int)]).
 
 :- spec_pre(user:halt/1, [int]).
 % no spec_post
