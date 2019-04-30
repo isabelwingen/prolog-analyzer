@@ -12,9 +12,13 @@
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
 
 (defmethod process-edge :specvar [env edge]
-  (let [dest (uber/dest edge)
-        src (uber/src edge)]
-    (dom/add-type-to-dom env dest (utils/get-dom-of-term env src) {:overwrite true})))
+  (let [specvar (uber/dest edge)
+        term (uber/src edge)
+        specvar-dom (utils/get-dom-of-term env specvar (r/->AnySpec))
+        term-dom (utils/get-dom-of-term env term (r/->AnySpec))]
+    (-> env
+        (dom/add-type-to-dom specvar term-dom {:overwrite true})
+        (dom/add-type-to-dom term specvar-dom {:overwrite true}))))
 
 (defmethod process-edge :complex-specvar [env edge]
   (let [term (uber/src edge)
