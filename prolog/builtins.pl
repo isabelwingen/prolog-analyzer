@@ -558,7 +558,7 @@
 :- spec_post(lists:prefix/2, [any,any], [list(specvar(X)), list(specvar(X))]).
 
 :- spec_pre(lists:select/3,  [any, maybe(list(any)), maybe(list(any))]).
-:- spec_post(lists:select/3, [any,any,any], [specvar(X), list(specvar(X)), list(specvar(X))]).
+:- spec_post(lists:select/3, [any,any,any], [compatible(X), and([list(union(X)),compatible(Y)]), and([list(union(X)),compatible(Y)])]).
 
 :- spec_pre(lists:selectchk/3,  [any, maybe(list(any)), maybe(list(any))]).
 :- spec_post(lists:selectchk/3, [any,any,any], [specvar(X), list(specvar(X)), list(specvar(X))]).
