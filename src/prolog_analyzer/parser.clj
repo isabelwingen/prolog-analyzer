@@ -106,6 +106,13 @@
 (defmethod transform-spec :specvar [{n :name}]
   (r/->SpecvarSpec n))
 
+(defmethod transform-spec :union [{n :name}]
+  (r/->UnionSpec n))
+
+(defmethod transform-spec :compatible [{n :name}]
+  (r/->CompatibleSpec n))
+
+
 (defmethod transform-spec :userdef [{n :name arglist :arglist}]
   (assoc (r/->UserDefinedSpec n) :arglist (map transform-spec arglist)))
 

@@ -22,6 +22,8 @@
 
 (def USERDEFINED :user-defined)
 (def SPECVAR :specvar)
+(def UNION :union)
+(def COMPATIBLE :compatible)
 (def ERROR :error)
 
 (def AND :and)
@@ -498,11 +500,7 @@
   spec
   (spec-type [spec] AND)
   (next-steps [spec term defs overwrite?]
-    (if-let [suitable-spec (intersect spec (initial-spec term) defs overwrite?)]
-      (if (= AND (spec-type suitable-spec))
-        (interleave (repeat (count (.arglist suitable-spec)) term) (.arglist suitable-spec))
-        [term suitable-spec])
-      []))
+    (interleave (repeat term) arglist))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
@@ -631,6 +629,28 @@
   (intersect [spec other-spec defs] other-spec)
   printable
   (to-string [x] (str "Specvar(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
+
+(defrecord UnionSpec [name]
+  spec
+  (spec-type [spec] UNION)
+  (next-steps [spec term defs] [])
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?] other-spec)
+  (intersect [spec other-spec defs] other-spec)
+  printable
+  (to-string [x] (str "Union(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
+
+(defrecord CompatibleSpec [name]
+  spec
+  (spec-type [spec] COMPATIBLE)
+  (next-steps [spec term defs] [])
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?] other-spec)
+  (intersect [spec other-spec defs] other-spec)
+  printable
+  (to-string [x] (str "Compatible(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
+
+
 
 
 (defrecord VarTerm [name]
@@ -814,48 +834,43 @@
 
 (defn replace-specvar-name-with-value [spec specvar-name replace-value]
   (case+ (spec-type spec)
-    SPECVAR
-    (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
+         (SPECVAR,UNION,COMPATIBLE)
+         (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
-    (OR,AND) (-> spec
-                 (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
-                 (update :arglist set))
+         (OR,AND) (-> spec
+                      (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
+                      (update :arglist set))
 
-    (USERDEFINED, COMPOUND, TUPLE)
-    (-> spec
-        (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
-        (update :arglist (partial apply vector)))
-    LIST
-    (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
+         (USERDEFINED, COMPOUND, TUPLE)
+         (-> spec
+             (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
+             (update :arglist (partial apply vector)))
+         LIST
+         (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
 
-    spec
-    ))
+         spec
+         ))
 
 
 (defn replace-specvars-with-spec [type specvar-name replace-spec]
   (case+ (spec-type type)
-    SPECVAR
-    (if (= specvar-name (:name type)) replace-spec type)
+         (SPECVAR,UNION,COMPATIBLE) (if (= specvar-name (:name type)) replace-spec type)
 
-    (OR,AND) (-> type
-                 (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
-                 (update :arglist set))
+         (OR,AND) (-> type
+                      (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+                      (update :arglist set))
 
-    (USERDEFINED, COMPOUND, TUPLE)
-    (-> type
-        (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
-        (update :arglist (partial apply vector)))
-
-    LIST
-    (update type :type #(replace-specvars-with-spec % specvar-name replace-spec))
-
-    type
-    ))
+         (USERDEFINED, COMPOUND, TUPLE) (-> type
+                                            (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+                                            (update :arglist (partial apply vector)))
+         LIST (update type :type #(replace-specvars-with-spec % specvar-name replace-spec))
+         type
+         ))
 
 
 (defn find-specvars [spec]
   (case+ (spec-type spec)
-         SPECVAR [spec]
+         (SPECVAR,UNION,COMPATIBLE) [spec]
          (OR, AND, COMPOUND, TUPLE) (set (reduce concat (map find-specvars (.arglist spec))))
          USERDEFINED (if (contains? spec :arglist) (set (reduce concat (map find-specvars (:arglist spec)))) [])
          LIST (find-specvars (.type spec))
@@ -889,10 +904,14 @@
       :default (= child (intersect parent child defs))))
 
 (defn has-specvars [spec]
-  (or (= SPECVAR (spec-type spec))
-      (some has-specvars (:arglist spec))
-      (some->> (:type spec)
-               has-specvars)))
+  (or
+   (= SPECVAR (spec-type spec))
+   (= UNION (spec-type spec))
+   (= COMPATIBLE (spec-type spec))
+   (some has-specvars (:arglist spec))
+   (some->> (:type spec)
+            has-specvars)))
+
 
 (defn replace-specvars-with-any [spec]
   (let [used-specvars (find-specvars spec)
@@ -920,7 +939,3 @@
   (if (nil? spec)
     true
     (= ANY (spec-type spec))))
-
-
-
-                                        ;---------------------------------------------------------------------------

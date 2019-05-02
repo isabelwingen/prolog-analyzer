@@ -49,7 +49,8 @@ spec(ground).
 spec(nonvar).
 spec(any).
 spec(specvar(X)) :- var(X),!.
-spec(specvar(X)) :- compound(X), \+ ground(X), spec(X).
+spec(compatible(X)) :- var(X),!.
+spec(union(X)) :- var(X),!.
 
 % Definition of spec predicates
 spec(atomic).

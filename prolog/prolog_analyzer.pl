@@ -341,10 +341,23 @@ spec_to_string(compound(Compound),String) :-
     Compound =.. [Functor|Arglist],
     spec_to_string(Arglist,Inner),
     multi_string_concat(["{:type :compound :functor \"",Functor,"\" :arglist ",Inner,"}"],String).
+
 spec_to_string(specvar(X),String) :-
     !,
     spec_to_string(X,Inner),
     multi_string_concat(["{:type :specvar :name \"",Inner,"\"}"],String).
+spec_to_string(compatible(X),String) :-
+    !,
+    spec_to_string(X,Inner),
+    multi_string_concat(["{:type :compatible :name \"",Inner,"\"}"],String).
+
+spec_to_string(union(X),String) :-
+    !,
+    spec_to_string(X,Inner),
+    multi_string_concat(["{:type :union :name \"",Inner,"\"}"],String).
+
+
+
 spec_to_string(Userdefspec,String) :-
     compound(Userdefspec),
     Userdefspec =.. [Name|Arglist],
@@ -569,7 +582,7 @@ user:term_expansion(A,A) :-
 user:term_expansion(Term, Layout1, Ids, Out, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),!,
     term_expander(Term),
-    ((Term = ':-'(module(_));Term=':-'(module(_,_))) -> Out=Term; Out= []).
+    ((Term = ':-'(module(_));Term=':-'(module(_,_))) -> Out=Term; Out= Term).
 
 close_orphaned_stream :-
     (retract(edn_stream(_,S)) -> close(S); true).

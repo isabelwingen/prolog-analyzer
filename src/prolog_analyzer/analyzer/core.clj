@@ -30,8 +30,8 @@
   (let [specvars (->> premise
                       (conj condition)
                       (reduce #(concat %1 (r/find-specvars %2)) #{})
-                      set
-                      (map :name))
+                      (map :name)
+                      set)
         ids (repeatedly gensym)
         uuid-map (apply hash-map (interleave specvars ids))
         new-condition (map #(reduce-kv r/replace-specvar-name-with-value % uuid-map) condition)
@@ -106,7 +106,8 @@
 (defn evaluate-goal-post-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
   (let [goal-specs (some->> data
                             (utils/get-specs-of-pred [module goal-name arity])
-                            (:post-specs))
+                            (:post-specs)
+                            (map replace-specvars-with-uuid))
         term (goal-args->tuple arglist)
         ]
     (if (empty? goal-specs)

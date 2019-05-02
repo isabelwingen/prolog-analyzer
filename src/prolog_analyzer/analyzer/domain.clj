@@ -29,6 +29,7 @@
                           (update :arglist (partial map replace-var-with-any))
                           (update :arglist set))
          (r/TUPLE, r/COMPOUND) (update spec :arglist (partial map replace-var-with-any))
+         r/USERDEFINED (if (:arglist spec) (update spec :arglist (partial map replace-var-with-any)) spec)
          r/LIST (update spec :type replace-var-with-any)
          spec))
 
@@ -40,16 +41,12 @@
 
 (defn add-type-to-dom
   ([env term type {overwrite? :overwrite :as options}]
-   (let [new-type (r/replace-specvars-with-any type)
-         dom (or (utils/get-dom-of-term env term) (initial-dom term))
-         old-type (if overwrite? (replace-var-with-any dom) dom)
-         defs (utils/get-user-defined-specs env)]
-     (case+ (r/spec-type type)
-            r/AND (reduce #(add-type-to-dom %1 term %2 options) env (:arglist type))
-            r/SPECVAR (-> env
-                          (uber/add-nodes term)
-                          (uber/add-attr term :dom (r/intersect new-type old-type defs))
-                          (uber/add-edges [term type {:relation :specvar}]))
+   (case+ (r/spec-type type)
+          r/AND (reduce #(add-type-to-dom %1 term %2 options) env (:arglist type))
+          (let [new-type (r/replace-specvars-with-any type)
+                dom (or (utils/get-dom-of-term env term) (initial-dom term))
+                old-type (if overwrite? (replace-var-with-any dom) dom)
+                defs (utils/get-user-defined-specs env)]
             (-> env
                 (uber/add-nodes term)
                 (uber/add-attr term :dom (r/intersect new-type old-type defs))))))
@@ -151,15 +148,14 @@
     env))
 
 (defn- fill-dom-of-next-steps [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [next (apply hash-map (r/next-steps spec term (utils/get-user-defined-specs env) overwrite?))]
-    (if (and (= r/LIST (r/term-type term)) (= r/VAR (:tail term)) (not overwrite?) (not initial?) (= r/ANY (utils/get-dom-of-term env term (r/->AnySpec))))
-      (reduce (fn [e [t s]] (fill-dom e t s options)) env (dissoc next (:tail term)))
-      (reduce (fn [e [t s]] (fill-dom e t s options)) env next))))
+  (let [next (partition 2 (r/next-steps spec term (utils/get-user-defined-specs env) overwrite?))]
+    (reduce (fn [e [t s]] (fill-dom e t s options)) env next)))
 
 (defmulti fill-dom (fn [env term spec options] [(if (= r/VAR (r/term-type term)) :var :nonvar) (case+ (r/spec-type spec)
                                                                                                      r/ANY :any
                                                                                                      r/USERDEFINED :userdefined
-                                                                                                     r/SPECVAR :specvar
+                                                                                                     r/UNION :union
+                                                                                                     r/COMPATIBLE :compatible
                                                                                                      r/VAR :var
                                                                                                      r/LIST :compound-or-list
                                                                                                      r/COMPOUND :compound-or-list
@@ -177,13 +173,20 @@
     (fill-dom rel term transformed-definition options)
     ))
 
-(defmethod fill-dom [:var :specvar] [env term spec options]
-  (let [step1 (-> env
-                  (fill-dom term (r/initial-spec term) options)
-                  (uber/add-attr term :was-var true)
-                  (uber/add-edges [term spec {:relation :specvar}])
-                  (add-to-artifical-term term spec options))]
-    (add-type-to-dom step1 spec (utils/get-dom-of-term step1 term))))
+(defmethod fill-dom [:var :union] [env term spec options]
+  (-> env
+         (fill-dom term (r/initial-spec term) options)
+         (uber/add-attr term :was-var true)
+         (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :union}])
+         (add-to-artifical-term term spec options)))
+
+(defmethod fill-dom [:var :compatible] [env term spec options]
+  (-> env
+      (fill-dom term (r/initial-spec term) options)
+      (uber/add-attr term :was-var true)
+      (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :compatible}])
+      (add-to-artifical-term term spec options)))
+
 
 (defmethod fill-dom [:var :var] [env term spec {initial? :initial :as options}]
   (cond
@@ -281,11 +284,22 @@
         rel (if (r/has-specvars spec) (apply uber/add-edges env [term spec {:relation :complex-specvar}] edges) env)]
     (fill-dom rel term transformed-definition options)))
 
+(defmethod fill-dom [:nonvar :union] [env term spec options]
+  (-> env
+      (fill-dom term (r/initial-spec term) options)
+      (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :union}])))
+
+(defmethod fill-dom [:nonvar :compatible] [env term spec options]
+  (-> env
+      (fill-dom term (r/initial-spec term) options)
+      (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :compatible}])))
+
 (defmethod fill-dom [:nonvar :specvar] [env term spec options]
   (let [step1 (fill-dom env term (r/initial-spec term) options)
         step2 (add-type-to-dom step1 spec (utils/get-dom-of-term step1 term) options)
         step3 (uber/add-edges step2 [term spec {:relation :specvar}])]
     step3))
+
 
 (defmethod fill-dom [:nonvar :var] [env term spec {initial? :initial overwrite? :overwrite :as options}]
   (if initial?
