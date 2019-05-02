@@ -84,9 +84,10 @@
 :- spec_pre(user:term_variables/2, [any, var]).
 :- spec_post(user:term_variables/2, [any, any], [any, list(var)]).
 
-:- spec_pre(user:sort/2, [list(specvar(X)), list(specvar(X))]).
+:- spec_pre(user:sort/2, [list(union(X)), list(compatible(X))]).
 :- spec_pre(user:sort/2, [list(any), var]).
-:- spec_post(user:sort/2, [any, any], [list(specvar(X)), list(specvar(X))]).
+:- spec_post(user:sort/2, [any, any], [and([list(union(_X)), compatible(Y)]), 
+                                        compatible(Y)]).
 
 :- spec_pre(user:sub_atom/5, [atom, maybe(int), maybe(int), maybe(int), maybe(atom)]).
 :- spec_post(user:sub_atom/5, [any, any, any, any, any], [atom, int, int, int, atom]).
@@ -220,14 +221,14 @@
 % no spec post
 
 :- spec_pre(user:'='/2, [any, any]).
-:- spec_post(user:'='/2, [any, any], [specvar(X), specvar(X)]).
+:- spec_post(user:'='/2, [any, any], [compatible(X), compatible(X)]).
 % no spec post
 
 :- spec_pre(user:'\\='/2, [any, any]).
 % no spec post
 
 :- spec_pre(user:'=='/2, [any, any]).
-:- spec_post(user:'=='/2, [any, any], [specvar(X), specvar(X)]).
+:- spec_post(user:'=='/2, [any, any], [compatible(X), compatible(X)]).
 
 :- spec_pre(user:'\\=='/2, [any, any]).
 % no spec post
@@ -425,7 +426,7 @@
 % no spec post
 
 :- spec_pre(user:member/2, [any, maybe(list(any))]).
-:- spec_post(user:member/2, [any,any], [specvar(X), list(specvar(X))]).
+:- spec_post(user:member/2, [any,any], [compatible(X), list(union(X))]).
 
 %    11.3.56 current_prolog_flag/2   ISO
 %    11.3.206 set_prolog_flag/2   ISO
@@ -453,59 +454,59 @@
 :- declare_spec(ordset(specvar(_Type))).
 :- define_spec(ordset(specvar(X)), list(specvar(X))). %% TODO: this would make a great deferred spec
 
-:- spec_pre(avl:avl_to_list/2,   [avl_tree(specvar(Key), specvar(Value)), maybe(list(pair(specvar(Key), specvar(Value))))]).
-:- spec_post(avl:avl_to_list/2,  [any, any], [avl_tree(specvar(Key), specvar(Value)), list(pair(specvar(Key), specvar(Value)))]).
+:- spec_pre(avl:avl_to_list/2,   [avl_tree(union(Key), union(Value)), maybe(list(pair(compatible(Key), compatible(Value))))]).
+:- spec_post(avl:avl_to_list/2,  [any, any], [avl_tree(union(Key), union(Value)), list(pair(compatible(Key), compatible(Value)))]).
 
-:- spec_pre(avl:avl_domain/2,   [avl_tree(specvar(Key), specvar(_Value)), maybe(list(specvar(Key)))]).
-:- spec_post(avl:avl_domain/2,  [any, any], [avl_tree(specvar(Key), specvar(_Value)), list(specvar(Key))]).
+:- spec_pre(avl:avl_domain/2,   [avl_tree(union(Key), union(_Value)), maybe(list(compatible(Key)))]).
+:- spec_post(avl:avl_domain/2,  [any, any], [avl_tree(union(Key), union(_Value)), list(compatible(Key))]).
 
-:- spec_pre(avl:avl_fetch/2,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value))]).
+:- spec_pre(avl:avl_fetch/2,  [compatible(Key), avl_tree(union(Key), union(_Value))]).
 % no spec post
 
-:- spec_pre(avl:avl_fetch/3,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value))]).
-:- spec_post(avl:avl_fetch/3, [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value)]).
+:- spec_pre(avl:avl_fetch/3,  [compatible(Key), avl_tree(union(Key), union(Value)), maybe(compatible(Value))]).
+:- spec_post(avl:avl_fetch/3, [any, any, any], [compatible(Key), avl_tree(union(Key), union(Value)), compatible(Value)]).
 
-:- spec_pre(avl:avl_height/2,  [avl_tree(specvar(_Key), specvar(_Value)), maybe(integer)]).
-:- spec_post(avl:avl_height/2, [any, any], [avl_tree(specvar(_Key), specvar(_Value)), integer]).
+:- spec_pre(avl:avl_height/2,  [avl_tree(union(_Key), union(_Value)), maybe(integer)]).
+:- spec_post(avl:avl_height/2, [any, any], [avl_tree(union(_Key), union(_Value)), integer]).
 
-:- spec_pre(avl:avl_max/2,  [avl_tree(specvar(_Key), specvar(_Value)), any]).
-:- spec_post(avl:avl_max/2, [any, any], [avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_max/2,  [avl_tree(union(_Key), union(_Value)), any]).
+:- spec_post(avl:avl_max/2, [any, any], [avl_tree(union(Key), union(_Value)), compatible(Key)]).
 
-:- spec_pre(avl:avl_max/3,  [avl_tree(specvar(_Key), specvar(_Value)), any, any]).
-:- spec_post(avl:avl_max/3, [any, any, any], [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_pre(avl:avl_max/3,  [avl_tree(union(_Key), union(_Value)), any, any]).
+:- spec_post(avl:avl_max/3, [any, any, any], [avl_tree(union(Key), union(Value)), compatible(Key), compatible(Value)]).
 
-:- spec_pre(avl:avl_min/2,  [avl_tree(specvar(_Key), specvar(_Value)), any]).
-:- spec_post(avl:avl_min/2, [any, any], [avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_min/2,  [avl_tree(union(_Key), union(_Value)), any]).
+:- spec_post(avl:avl_min/2, [any, any], [avl_tree(union(Key), union(_Value)), compatible(Key)]).
 
-:- spec_pre(avl_min/3,  [avl_tree(specvar(_Key), specvar(_Value)), any, any]).
-:- spec_post(avl:avl_min/3, [any, any, any], [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_pre(avl_min/3,  [avl_tree(union(_Key), union(_Value)), any, any]).
+:- spec_post(avl:avl_min/3, [any, any, any], [avl_tree(union(Key), union(Value)), compatible(Key), compatible(Value)]).
 
-:- spec_pre(avl:avl_member/2,  [var, avl_tree(specvar(_Key), specvar(_Value))]).
-:- spec_post(avl:avl_member/2,  [any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value))]).
+:- spec_pre(avl:avl_member/2,  [var, avl_tree(union(_Key), union(_Value))]).
+:- spec_post(avl:avl_member/2,  [any, any], [compatible(Key), avl_tree(union(Key), union(_Value))]).
 
-:- spec_pre(avl:avl_member/3,  [var, avl_tree(specvar(_Key), specvar(_Value)), any]).
-:- spec_post(avl:avl_member/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value)]).
+:- spec_pre(avl:avl_member/3,  [var, avl_tree(union(_Key), union(_Value)), any]).
+:- spec_post(avl:avl_member/3,  [any, any, any], [compatible(Key), avl_tree(union(Key), union(Value)), compatible(Value)]).
 
-:- spec_pre(avl:avl_next/3,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), maybe(specvar(Key))]).
-:- spec_post(avl:avl_next/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_next/3,  [compatible(Key), avl_tree(union(Key), union(_Value)), maybe(compatible(Key))]).
+:- spec_post(avl:avl_next/3,  [any, any, any], [compatible(Key), avl_tree(union(Key), union(_Value)), compatible(Key)]).
 
-:- spec_pre(avl:avl_next/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value))]).
-:- spec_post(avl:avl_next/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_pre(avl:avl_next/4,  [compatible(Key), avl_tree(union(Key), union(Value)), maybe(compatible(Key)), maybe(compatible(Value))]).
+:- spec_post(avl:avl_next/4, [any, any, any, any], [compatible(Key), avl_tree(union(Key), union(Value)), compatible(Key), compatible(Value)]).
 
-:- spec_pre(avl:avl_prev/3,  [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), maybe(specvar(Key))]).
-:- spec_post(avl:avl_prev/3,  [any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(_Value)), specvar(Key)]).
+:- spec_pre(avl:avl_prev/3,  [compatible(Key), avl_tree(union(Key), union(_Value)), maybe(compatible(Key))]).
+:- spec_post(avl:avl_prev/3,  [any, any, any], [compatible(Key), avl_tree(union(Key), union(_Value)), compatible(Key)]).
 
-:- spec_pre(avl:avl_prev/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value))]).
-:- spec_post(avl:avl_prev/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value)]).
+:- spec_pre(avl:avl_prev/4,  [compatible(Key), avl_tree(union(Key), union(Value)), maybe(compatible(Key)), maybe(compatible(Value))]).
+:- spec_post(avl:avl_prev/4, [any, any, any, any], [compatible(Key), avl_tree(union(Key), union(Value)), compatible(Key), compatible(Value)]).
 
 
-:- spec_pre(avl:avl_range/2,  [avl_tree(specvar(_Key), specvar(Value)), maybe(list(specvar(Value)))]).
-:- spec_post(avl:avl_range/2, [any, any],  [avl_tree(specvar(_Key), specvar(Value)), list(specvar(Value))]).
+:- spec_pre(avl:avl_range/2,  [avl_tree(union(_Key), and([union(_Value),compatible(Valy)])), maybe(compatible(Valy))]).
+:- spec_post(avl:avl_range/2, [any, any],  [avl_tree(union(_Key), and([union(_Value),compatible(Valy)])), compatible(Valy)]).
 
-:- spec_pre(avl:avl_size/2,  [avl_tree(specvar(_Key), specvar(_Value)), maybe(integer)]).
-:- spec_post(avl:avl_size/2, [any, any], [avl_tree(specvar(_Key), specvar(_Value)), integer]).
+:- spec_pre(avl:avl_size/2,  [avl_tree(union(_Key), union(_Value)), maybe(integer)]).
+:- spec_post(avl:avl_size/2, [any, any], [avl_tree(union(_Key), union(_Value)), integer]).
 
-% crazy
+% crazy %% TODO
 :- spec_pre(avl:avl_store/4,  [ground, avl_tree(specvar(_Key), specvar(_Value)), any, avl_tree(specvar(_Key2), specvar(_Value2))]).
 :- spec_post(avl:avl_store/4, [any, any, any, any], [specvar(NewKey), avl_tree(specvar(Key), specvar(Value)), specvar(NewValue),
                                                  avl_tree(one_of([specvar(NewKey), specvar(Key)]),
@@ -539,61 +540,62 @@
 :- spec_post(user:is_list/1, [any], [list(any)]).
 
 :- spec_pre(user:memberchk/2, [any, maybe(list(any))]).
-:- spec_post(user:memberchk/2, [any,any], [specvar(X), list(specvar(X))]).
+:- spec_post(user:memberchk/2, [any,any], [compatible(X), list(union(X))]).
 
-:- spec_pre(user:msort/2, [list(specvar(X)), list(specvar(X))]).
+:- spec_pre(user:msort/2, [list(union(X)), list(compatible(X))]).
 :- spec_pre(user:msort/2, [list(any), var]).
-:- spec_post(user:msort/2, [any, any], [list(specvar(X)), list(specvar(X))]).
+:- spec_post(user:msort/2, [any, any], [and([list(union(_X)), compatible(Y)]), 
+                                        compatible(Y)]).
 
 :- spec_pre(lists:append/2,  [list(list(any)), maybe(list(any))]).
-:- spec_post(lists:append/2,  [any, any], [list(list(any)), list(any)]).
+:- spec_post(lists:append/2,  [any, any], [list(list(union(X))), list(compatible(X))]).
 
 :- spec_pre(lists:flatten/2,  [list(list(any)), maybe(list(any))]).
 :- spec_post(lists:flatten/2,  [any, any], [list(list(any)), list(any)]).
 
 :- spec_pre(append/3,  [maybe(list(any)), maybe(list(any)), maybe(list(any))]).
-:- spec_post(append/3, [any,any,any], [list(specvar(X)), list(specvar(Y)), list(one_of([specvar(X), specvar(Y)]))]).
+:- spec_post(append/3, [any,any,any], [list(union(X)), list(union(X)), list(compatible(X))]).
 
 :- spec_pre(lists:prefix/2,  [maybe(list(any)), maybe(list(any))]).
-:- spec_post(lists:prefix/2, [any,any], [list(specvar(X)), list(specvar(X))]).
+:- spec_post(lists:prefix/2, [any,any], [list(union(X)), list(union(X))]).
 
 :- spec_pre(lists:select/3,  [any, maybe(list(any)), maybe(list(any))]).
-:- spec_post(lists:select/3, [any,any,any], [compatible(X), and([list(union(X)),compatible(Y)]), and([list(union(X)),compatible(Y)])]).
+:- spec_post(lists:select/3, [any,any,any], [compatible(X), and([list(union(X)),compatible(Y)]), compatible(Y)]).
 
 :- spec_pre(lists:selectchk/3,  [any, maybe(list(any)), maybe(list(any))]).
-:- spec_post(lists:selectchk/3, [any,any,any], [specvar(X), list(specvar(X)), list(specvar(X))]).
+:- spec_post(lists:selectchk/3, [any,any,any], [compatible(X), and([list(union(X)),compatible(Y)]), compatible(Y)]).
 
 :- spec_pre(lists:delete/3,  [maybe(list(any)), any, maybe(list(any))]).
-:- spec_post(lists:delete/3,  [any,any,any], [list(specvar(X)), specvar(X), list(specvar(X))]).
+:- spec_post(lists:delete/3,  [any,any,any], [and([list(union(X)), compatible(Y)]), compatible(X), compatible(Y)]).
 
 :- spec_pre(lists:nth0/3,  [maybe(int), maybe(list(any)), any]).
-:- spec_post(lists:nth0/3,  [any,any,any], [int, list(specvar(X)), specvar(X)]).
+:- spec_post(lists:nth0/3,  [any,any,any], [int, list(union(X)), compatible(X)]).
 
 :- spec_pre(lists:nth1/3,  [maybe(int), maybe(list(any)), any]).
-:- spec_post(lists:nth1/3,  [any,any,any], [int, list(specvar(X)), specvar(X)]).
+:- spec_post(lists:nth1/3,  [any,any,any], [int, list(union(X)), compatible(X)]).
 
 :- spec_pre(lists:nth0/4,  [maybe(int), maybe(list(any)), any, maybe(list(any))]).
-:- spec_post(lists:nth0/4,  [any,any,any,any], [int, list(specvar(X)), specvar(X), list(specvar(X))]).
+:- spec_post(lists:nth0/4,  [any,any,any,any], [int, and([list(union(X)), compatible(Y)]), compatible(X), compatible(Y)]).
 
 :- spec_pre(lists:nth1/4,  [maybe(int), maybe(list(any)), any, maybe(list(any))]).
-:- spec_post(lists:nth1/4,  [any,any,any,any], [int, list(specvar(X)), specvar(X), list(specvar(X))]).
+:- spec_post(lists:nth1/4,  [any,any,any,any], [int, and([list(union(X)), compatible(Y)]), compatible(X), compatible(Y)]).
 
 :- spec_pre(lists:proper_length/2, [list(any), maybe(int)]).
 :- spec_post(lists:proper_length/2, [any, any], [list(any), int]).
 
-:- spec_pre(lists:reverse/2, [maybe(list(specvar(X))), list(specvar(X))]).
-:- spec_pre(lists:reverse/2, [list(specvar(X)), maybe(list(specvar(X)))]).
-:- spec_post(lists:reverse/2, [any, any], [list(specvar(X)), list(specvar(X))]).
+:- spec_pre(lists:reverse/2, [maybe(and([list(union(_X)), compatible(Y)])), compatible(Y)]).
+:- spec_pre(lists:reverse/2, [compatible(Y), maybe(and([list(union(_X)), compatible(Y)]))]).
+:- spec_post(lists:reverse/2, [any, any], [and([list(union(_X)), compatible(Y)]), compatible(Y)]).
 
-:- spec_pre(lists:permutation/2, [maybe(list(specvar(X))), list(specvar(X))]).
-:- spec_pre(lists:permutation/2, [list(specvar(X)), maybe(list(specvar(X)))]).
-:- spec_post(lists:permutation/2, [any, any], [list(specvar(X)), list(specvar(X))]).
+:- spec_pre(lists:permutation/2, [maybe(and([list(union(_X)), compatible(Y)])), compatible(Y)]).
+:- spec_pre(lists:permutation/2, [compatible(Y), maybe(and([list(union(_X)), compatible(Y)]))]).
+:- spec_post(lists:permutation/2, [any, any], [and([list(union(_X)), compatible(Y)]), compatible(Y)]).
 
 :- spec_pre(lists:max_member/2, [any, list(any)]).
-:- spec_post(lists:max_member/2, [any,any], [specvar(X), list(specvar(X))]).
+:- spec_post(lists:max_member/2, [any,any], [compatible(X), list(union(X))]).
 
 :- spec_pre(lists:min_member/2, [any, list(any)]).
-:- spec_post(lists:min_member/2, [any,any], [specvar(X), list(specvar(X))]).
+:- spec_post(lists:min_member/2, [any,any], [compatible(X), list(union(X))]).
 
 :- spec_pre(lists:sum_list/2, [list(number), maybe(number)]).
 :- spec_post(lists:sum_list/2, [any,any], [list(number), number]).
