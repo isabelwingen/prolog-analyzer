@@ -4,7 +4,7 @@
             [ubergraph.core :as uber]
             [loom.graph]
             [loom.attr]
-            [clojure.pprint :refer [pprint]]
+            [clojure.pprint :refer [pprint print-table]]
             [clojure.string]))
 
 
@@ -23,29 +23,13 @@
       (apply print-in-columns ns strs))))
 
 (defn print-nodes [graph]
-  (let [nodes (utils/get-terms graph)
-        max-length (->> nodes
-                        (map r/to-string)
-                        (map count)
-                        (apply max)
-                        (+ 2))]
-    (doseq [node nodes]
-      (print "\t")
-      (let [attrs (uber/attrs graph node)
-            ks (keys attrs)]
-        (if (empty? attrs)
-          (print-in-columns [max-length] (r/to-string node) "Nothing")
-          (doseq [key ks]
-            (if (= key (first ks))
-              (print-in-columns [max-length] (r/to-string node) key)
-              (print-in-columns [(+ 2 max-length)] "" key))
-            (let [value (get attrs key)]
-              (cond
-                (satisfies? prolog-analyzer.records/spec value) (print-in-columns [(+ 4 max-length) 15] "" (str (:origin value)) (r/to-string value))
-                (sequential? value) (doseq [val (get attrs key)]
-                                      (print-in-columns [(+ 4 max-length) 15] "" (str (:origin val)) (r/to-string val)))
-                :else (print-in-columns [(+ 4 max-length)] "" (get attrs key))))))
-      (println "-------------------------------------------")))))
+  (let [nodes (utils/get-terms graph)]
+    (->> nodes
+         (remove #(= "[]" (r/to-string %)))
+         (map #(hash-map
+                :term (r/to-string %)
+                :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
+         (print-table [:term :dom]))))
 
 (defn print-edges [graph]
   (let [edges (uber/edges graph)
@@ -61,13 +45,12 @@
                              (map count)
                              (apply max)
                              (+ 5))]
-    (doseq [edge edges]
-      (print "\t")
-      (print-in-columns [max-src-length 4 max-dest-length]
-                        (r/to-string (uber/src edge))
-                        "->"
-                        (r/to-string (uber/dest edge))
-                        (str (uber/attrs graph edge))))))
+    (->> edges
+        (map #(hash-map
+               :src (r/to-string (uber/src %))
+               :dest (r/to-string (uber/dest %))
+               :attrs (str (uber/attrs graph %))))
+        print-table)))
 
 (defn- arti-term? [term]
   (.startsWith (str (:name term)) "A__"))
@@ -77,7 +60,7 @@
       (and (arti-term? (:head term)) (arti-term? (:tail term)))
       (and ((complement nil?) (:arglist term)) (some #(arti-term? %) (:arglist term)))))
 
-
+(print-table [{:a 1 :b 2 :c 3} {:b 5 :a 7 :c "dog"}])
 
 (defn pretty-print-graph [title graph]
   (println title)
@@ -92,6 +75,7 @@
     (when (> edg-num 0)
       (print-edges graph))
     (println "---------------------\n")))
+
 
 (defn short-print [title graph]
   ;(println title)
@@ -130,7 +114,6 @@
       (doseq [t error-terms]
         (println (tinker-error-message graph t))
         (println)))
-    (println "--------------------\n")
     ))
 
 (defn print-type-information [title graph]
@@ -143,29 +126,28 @@
         other-terms (->> graph
                          (utils/get-terms)
                          (remove contains-arti-term?)
-                       ;  (remove (set error-terms))
                          (remove #(nil? (uber/attr graph % :index))))]
-    (doseq [t other-terms]
-      (print-in-columns [50] (r/to-string t) (r/to-string (utils/get-dom-of-term graph t (r/->AnySpec)))))
+    (->> other-terms
+         (map #(hash-map
+                :term (r/to-string %)
+                :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
+         (print-table [:dom :term]))
     (println)
     (doseq [t error-terms]
-      (println (tinker-error-message graph t) "\n"))
-    (println "---------------------------------\n")))
+      (println (tinker-error-message graph t) "\n"))))
 
 (defn print-with-indices [title graph]
   (println title "\n")
-  (let [error-terms (->> graph
-                         (utils/get-terms)
-                         (remove contains-arti-term?)
-                         (remove #(nil? (utils/get-dom-of-term graph %)))
-                         (filter #(r/error-spec? (utils/get-dom-of-term graph %))))
-        other-terms (->> graph
-                         (utils/get-terms)
-                         (remove contains-arti-term?)
-                         (remove #(nil? (uber/attr graph % :index))))]
-    (doseq [t other-terms]
-      (print-in-columns [50 10] (r/to-string t) (str (uber/attr graph t :index)) (r/to-string (utils/get-dom-of-term graph t (r/->AnySpec)))))
-    (println)
-    (doseq [t error-terms]
-      (println (tinker-error-message graph t) "\n"))
-    (println "---------------------------------\n")))
+  (->> graph
+       (utils/get-terms)
+       (remove contains-arti-term?)
+       (remove #(nil? (utils/get-dom-of-term graph %)))
+       (remove #(= "[]" (r/to-string %)))
+       (filter #(or (uber/attr graph % :index)
+                     (uber/attr graph % :indices)))
+       (map #(hash-map
+              :term (r/to-string %)
+              :index (str (uber/attr graph % :index))
+              :indices (str (uber/attr graph % :indices))
+              :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
+       (print-table [:term :dom :index :indices])))
