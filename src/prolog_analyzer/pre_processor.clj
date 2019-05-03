@@ -6,37 +6,42 @@
 
 
 
-(defn- set-correct-goal-module [pred->module-map caller-module {goal-name :goal arity :arity goal-module :module :as goal}]
+(defn- set-correct-goal-module [pred->module-map {goal-name :goal arity :arity goal-module :module :as goal}]
   (if (= "self" goal-module)
     (assoc goal :module (get pred->module-map goal-name "user"))
     goal))
 
-(defn calculate-pred-to-module-map [data caller-module]
-  (let [imports (-> data
-                        (get-in [:imports caller-module])
-                        (assoc "user" :all)
-                        (assoc caller-module :all))
-        used-preds (->> (select-keys data [:pre-specs :post-specs :preds])
-                        vals
-                        (mapcat keys)
-                        (group-by first))]
-    (->> imports
-         (reduce-kv (fn [m k v] (if (= :all v)
-                                 (concat m (get used-preds k))
-                                 (concat m v)))
-                    [])
-         set
-         (group-by second)
-         (reduce-kv #(assoc %1 %2 (first (first %3))) {}))))
 
+(defn- calculate-pred-to-module-map [pred->module-maps caller-module imports]
+  (let [used-modules (-> imports
+                         (get caller-module)
+                         (assoc "user" :all)
+                         (assoc caller-module :all))
+        import-all-modules (reduce-kv #(if (= :all %3) (conj %1 %2) %1) [] used-modules)
+        weak-mappings (->> (select-keys pred->module-maps import-all-modules)
+                           vals
+                           (apply merge))
+        strong-mappings (->> (select-keys pred->module-maps (keys (apply dissoc used-modules import-all-modules)))
+                             (reduce-kv (fn [m k v] (assoc m k (select-keys v (get used-modules k)))) {})
+                             vals
+                             (apply merge))]
+    (merge weak-mappings strong-mappings)))
+
+(defn calculate-pred-to-module-maps [data]
+  (let [m (->> (select-keys data [:pre-specs :post-specs :preds])
+               (vals)
+               (mapcat keys)
+               (group-by first)
+               (reduce-kv (fn [m k v] (assoc m k (reduce #(assoc %1 (second %2) (first %2)) {} v))) {}))]
+    (reduce #(assoc %1 %2 (calculate-pred-to-module-map %1 %2 (:imports data))) m (keys m))))
 
 (defn set-correct-modules [data]
-  (reduce
-   (fn [result [[source-module & _ :as pred-id] clause-number]]
-     (let [pred->module-map (calculate-pred-to-module-map data source-module)]
-       (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module pred->module-map source-module)))))
-   data
-   (utils/get-clause-identities data)))
+  (let [pred->module-maps (calculate-pred-to-module-maps data)]
+    (reduce
+     (fn [result [[source-module & _ :as pred-id] clause-number]]
+       (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module (get pred->module-maps source-module)))))
+     data
+     (utils/get-clause-identities data))))
 
 (defn- maybe-spec [spec]
   (cond
@@ -132,10 +137,10 @@
 
 (defn pre-process-single [data]
   (log/debug "Start Pre Process Single")
-  (-> data
-      mark-self-calling-clauses
-      transform-args-to-term-records
-      add-any-pre-specs
-      add-any-post-specs
-      set-correct-modules
-      ))
+  (time (-> data
+            mark-self-calling-clauses
+            transform-args-to-term-records
+            add-any-pre-specs
+            add-any-post-specs
+            set-correct-modules
+            )))

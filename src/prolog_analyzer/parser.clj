@@ -33,23 +33,25 @@
 (defmulti call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
+  (log/debug "Call prolog")
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
                   "['" file "'],"
                   "prolog_analyzer:close_orphaned_stream,"
                   "halt.")
-        {err :err} (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv)))]
+        {err :err} (time (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv))))]
     err))
 
 (defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file edn-file]
+  (log/debug "Call prolog")
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
                   "['" file "'],"
                   "prolog_analyzer:close_orphaned_stream,"
                   "halt.")
-        {err :err} (sh/sh prolog-exe "--goal" goal "--noinfo" :env (into {} (System/getenv)))]
+        {err :err} (time (sh/sh prolog-exe "--goal" goal "--noinfo" :env (into {} (System/getenv))))]
     err))
 
 
@@ -179,13 +181,12 @@
                                              (apply hash-map)))) {})))
 
 (defn order-imports [{module-mapping :module imports :use-module :as data}]
-  (let [libs (filter :lib imports)
-        non-libs-all (->> imports
-                         (remove :lib)
-                         (filter #(= :all (:preds %)))
-                         (map #(assoc % :module (get module-mapping (:path %))))
-                         (map #(select-keys % [:module :in]))
-                         (reduce #(assoc-in %1 [(:in %2) (:module %2)] :all) {}))
+  (let [non-libs-all (->> imports
+                          (remove :lib)
+                          (filter #(= :all (:preds %)))
+                          (map #(assoc % :module (get module-mapping (:path %))))
+                          (map #(select-keys % [:module :in]))
+                          (reduce #(assoc-in %1 [(:in %2) (:module %2)] :all) {}))
         non-libs (->> imports
                       (remove :lib)
                       (remove #(= :all (:preds %)))
@@ -193,14 +194,22 @@
                       (map #(select-keys % [:module :preds :in]))
                       (reduce #(assoc-in %1 [(:in %2) (:module %2)] (->> %2
                                                                          :preds
-                                                                         (map (partial cons (:module %2)))
-                                                                         (map (partial apply vector))
-                                                                         set)) {}))]
+                                                                         (map first)
+                                                                         set)) {}))
+        libs (->> imports
+                  (filter :lib)
+                  (remove #(= :all (:preds %)))
+                  (reduce #(assoc-in %1 [(:in %2) (:lib %2)] (->> %2
+                                                                  :preds
+                                                                  (map first)
+                                                                  set)) {}))
+        libs-all (->> imports
+                      (filter :lib)
+                      (filter #(= :all (:preds %)))
+                      (reduce #(assoc-in %1 [(:in %2) (:lib %2)] :all) {}))]
     (-> data
         (dissoc :use-module)
-        (assoc :libs (map :lib libs))
-        (assoc :imports-all non-libs-all)
-        (assoc :imports (merge-with into non-libs non-libs-all)))))
+        (assoc :imports (merge-with into non-libs-all non-libs libs-all libs)))))
 
 (defn- format-and-clean-up [data]
   (log/debug "Start formatting of edn")
@@ -226,9 +235,8 @@
     (let [built-in (-> built-in-edn
                        transform-to-edn
                        format-and-clean-up
-                       pre-processor/pre-process-single
                        (dissoc :error-msg))]
-      (merge-with into data built-in)
+      (pre-processor/pre-process-single (merge-with into data built-in))
       )))
 
 (defn process-edn
@@ -237,7 +245,6 @@
    (->> edn
         transform-to-edn
         format-and-clean-up
-        pre-processor/pre-process-single
         add-built-ins
         )))
 

@@ -537,7 +537,7 @@ term_expander(':-'(module(Module,_))) :-
 term_expander(':-'(use_module(library(Lib)))) :-
     !,
     prolog_load_context(module, Module),
-    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\"}}"],Result),
+    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\" :in \"",Module,"\" :preds :all}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
 term_expander(':-'(use_module(UsedModule))) :-
@@ -550,10 +550,12 @@ term_expander(':-'(use_module(UsedModule))) :-
     multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\" :in \"",Module,"\" :preds :all}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
-term_expander(':-'(use_module(library(Lib),_))) :-
+term_expander(':-'(use_module(library(Lib),Preds))) :-
     !,
     prolog_load_context(module, Module),
-    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\"}}"],Result),
+    maplist(transform_pred_list,Preds,PredsAsString),
+    join(", ",PredsAsString,PQ),
+    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\" :in \"",Module,"\" :preds [",PQ,"]}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
 term_expander(':-'(use_module(UsedModule,Preds))) :-
