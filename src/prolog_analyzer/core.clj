@@ -12,20 +12,19 @@
   ([edn]
    (->> edn
         parser/process-edn
-        (analyzer/complete-analysis my-pp/better-print))
+        (analyzer/complete-analysis my-pp/print-with-indices))
    (<╯°□°>╯︵┻━┻)
     )
    ([dialect term-expander file prolog-exe]
     (if (.isDirectory (io/file file))
       (->> file
            (parser/process-prolog-directory dialect term-expander prolog-exe)
-           (analyzer/complete-analysis my-pp/better-print))
+           (analyzer/complete-analysis my-pp/print-with-indices))
       (->> file
            (parser/process-prolog-file dialect term-expander prolog-exe)
-           (analyzer/complete-analysis my-pp/better-print)
+           (analyzer/complete-analysis my-pp/print-with-indices)
            ))
   ; (<╯°□°>╯︵┻━┻)
     ))
 
   (def sic "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1")
-
