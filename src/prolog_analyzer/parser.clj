@@ -189,6 +189,8 @@
 
 (defn add-built-ins [data]
   (log/debug "Add built-ins")
+  (when (.exists (io/file (get-edn-file-name "prolog/builtins.pl")))
+    (io/delete-file (get-edn-file-name "prolog/builtins.pl")))
   (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl")
   (let [built-in (-> "/home/isabel/Studium/prolog-analyzer/prolog/builtins.pl"
                      get-edn-file-name
@@ -202,7 +204,6 @@
 (defn process-edn
   ([edn] (process-edn "swipl" edn))
   ([dialect edn]
-   (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl")
    (->> edn
         transform-to-edn
         format-and-clean-up
