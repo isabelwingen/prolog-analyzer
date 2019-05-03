@@ -135,7 +135,6 @@
       (sut/->IntegerSpec)                (sut/->VarSpec)                                    :error
       (sut/->IntegerSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
       (sut/->IntegerSpec)                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->IntegerSpec)                (sut/->SpecvarSpec "X")                            (sut/->IntegerSpec)
       (sut/->IntegerSpec)                (sut/->AnySpec)                                    (sut/->IntegerSpec)
 
       (sut/->FloatSpec)                (sut/->FloatSpec)                                  (sut/->FloatSpec)
@@ -155,7 +154,6 @@
       (sut/->FloatSpec)                (sut/->VarSpec)                                    :error
       (sut/->FloatSpec)                (sut/make-spec:user-defined "atomOrInt")           :error
       (sut/->FloatSpec)                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->FloatSpec)                (sut/->SpecvarSpec "X")                            (sut/->FloatSpec)
       (sut/->FloatSpec)                (sut/->AnySpec)                                    (sut/->FloatSpec)
 
       (sut/->NumberSpec)                (sut/->NumberSpec)                                 (sut/->NumberSpec)
@@ -174,7 +172,6 @@
       (sut/->NumberSpec)                (sut/->VarSpec)                                    :error
       (sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->IntegerSpec)
       (sut/->NumberSpec)                (sut/make-spec:user-defined "atomOrVar")           :error
-     (sut/->NumberSpec)                (sut/->SpecvarSpec "X")                            (sut/->NumberSpec)
       (sut/->NumberSpec)                (sut/->AnySpec)                                    (sut/->NumberSpec)
 
 
@@ -193,7 +190,6 @@
       (sut/->ExactSpec "cake")                (sut/->VarSpec)                                    :error
       (sut/->ExactSpec "cake")                (sut/make-spec:user-defined "atomOrInt")           (sut/->ExactSpec "cake")
       (sut/->ExactSpec "cake")                (sut/make-spec:user-defined "atomOrVar")           (sut/->ExactSpec "cake")
-      (sut/->ExactSpec "cake")                (sut/->SpecvarSpec "X")                            (sut/->ExactSpec "cake")
       (sut/->ExactSpec "cake")                (sut/->AnySpec)                                    (sut/->ExactSpec "cake")
 
 
@@ -211,7 +207,6 @@
       (sut/->AtomSpec)                (sut/->VarSpec)                                    :error
       (sut/->AtomSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->AtomSpec)
       (sut/->AtomSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
-      (sut/->AtomSpec)                (sut/->SpecvarSpec "X")                            (sut/->AtomSpec)
       (sut/->AtomSpec)                (sut/->AnySpec)                                    (sut/->AtomSpec)
 
       (sut/->StringSpec)                (sut/->StringSpec)                                 (sut/->StringSpec)
@@ -227,7 +222,6 @@
       (sut/->StringSpec)                (sut/->VarSpec)                                    :error
       (sut/->StringSpec)                (sut/make-spec:user-defined "atomOrInt")           :error
       (sut/->StringSpec)                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->StringSpec)                (sut/->SpecvarSpec "X")                            (sut/->StringSpec)
       (sut/->StringSpec)                (sut/->AnySpec)                                    (sut/->StringSpec)
 
 
@@ -243,7 +237,6 @@
       (sut/->AtomicSpec)                (sut/->VarSpec)                                    :error
       (sut/->AtomicSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
       (sut/->AtomicSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
-      (sut/->AtomicSpec)                (sut/->SpecvarSpec "X")                            (sut/->AtomicSpec)
       (sut/->AtomicSpec)                (sut/->AnySpec)                                    (sut/->AtomicSpec)
 
 
@@ -258,7 +251,6 @@
       (sut/->CompoundSpec nil '())                (sut/->VarSpec)                                    :error
       (sut/->CompoundSpec nil '())                (sut/make-spec:user-defined "atomOrInt")           :error
       (sut/->CompoundSpec nil '())                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->CompoundSpec nil '())                (sut/->SpecvarSpec "X")                            (sut/->CompoundSpec nil '())
       (sut/->CompoundSpec nil '())                (sut/->AnySpec)                                    (sut/->CompoundSpec nil '())
 
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])     (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])
@@ -274,7 +266,6 @@
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->VarSpec)                                    :error
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/make-spec:user-defined "atomOrInt")           :error
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->SpecvarSpec "X")                            (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])
       (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])                (sut/->AnySpec)                                    (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])
 
 
@@ -290,7 +281,6 @@
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->VarSpec)                                    :error
       (sut/->ListSpec (sut/->FloatSpec))                (sut/make-spec:user-defined "atomOrInt")           :error
       (sut/->ListSpec (sut/->FloatSpec))                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->ListSpec (sut/->FloatSpec))                (sut/->SpecvarSpec "X")                            (sut/->ListSpec (sut/->FloatSpec))
       (sut/->ListSpec (sut/->FloatSpec))                (sut/->AnySpec)                                    (sut/->ListSpec (sut/->FloatSpec))
 
       (sut/->EmptyListSpec)                (sut/->EmptyListSpec)                              (sut/->EmptyListSpec)
@@ -300,7 +290,6 @@
       (sut/->EmptyListSpec)                (sut/->VarSpec)                                    :error
       (sut/->EmptyListSpec)                (sut/make-spec:user-defined "atomOrInt")           :error
       (sut/->EmptyListSpec)                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->EmptyListSpec)                (sut/->SpecvarSpec "X")                            (sut/->EmptyListSpec)
       (sut/->EmptyListSpec)                (sut/->AnySpec)                                    (sut/->EmptyListSpec)
 
 
@@ -312,7 +301,6 @@
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/->VarSpec)                                    :error
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/make-spec:user-defined "atomOrInt")           :error
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/make-spec:user-defined "atomOrVar")           :error
-      (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/->SpecvarSpec "X")                            (sut/->TupleSpec [(sut/->AtomSpec)])
       (sut/->TupleSpec [(sut/->AtomSpec)])                (sut/->AnySpec)                                    (sut/->TupleSpec [(sut/->AtomSpec)])
 
       (sut/->GroundSpec)                (sut/->GroundSpec)                                 (sut/->GroundSpec)
@@ -320,14 +308,12 @@
       (sut/->GroundSpec)                (sut/->VarSpec)                                    :error
       (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
       (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
-      (sut/->GroundSpec)                (sut/->SpecvarSpec "X")                            (sut/->GroundSpec)
       (sut/->GroundSpec)                (sut/->AnySpec)                                    (sut/->GroundSpec)
 
       (sut/->NonvarSpec)                (sut/->NonvarSpec)                                 (sut/->NonvarSpec)
       (sut/->NonvarSpec)                (sut/->VarSpec)                                    :error
       (sut/->NonvarSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
       (sut/->NonvarSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
-      (sut/->NonvarSpec)                (sut/->SpecvarSpec "X")                            (sut/->NonvarSpec)
       (sut/->NonvarSpec)                (sut/->AnySpec)                                    (sut/->NonvarSpec)
 
 
@@ -339,12 +325,7 @@
 
       (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
       (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
-      (sut/make-spec:user-defined "atomOrInt")                (sut/->SpecvarSpec "X")                            (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
       (sut/make-spec:user-defined "atomOrInt")                (sut/->AnySpec)                                    (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
-
-      (sut/->SpecvarSpec "Y")                (sut/->SpecvarSpec "Y")                            (sut/->AnySpec)
-      (sut/->SpecvarSpec "Y")                (sut/->SpecvarSpec "X")                            (sut/->AnySpec)
-      (sut/->SpecvarSpec "Y")                (sut/->AnySpec)                                    (sut/->AnySpec)
 
       (sut/->AnySpec)                (sut/->AnySpec)                                    (sut/->AnySpec)
 
@@ -366,7 +347,6 @@
     (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->AndSpec #{(sut/->AtomicSpec) (sut/->GroundSpec)}) (sut/->IntegerSpec)
     (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->AndSpec #{(sut/->FloatSpec) (sut/->GroundSpec)}) :error
     (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->AnySpec) (sut/->IntegerSpec)
-    (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->SpecvarSpec "X") (sut/->IntegerSpec)
 
     ))
 
