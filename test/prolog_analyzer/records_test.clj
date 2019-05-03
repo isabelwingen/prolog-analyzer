@@ -323,9 +323,9 @@
       (sut/->VarSpec)                (sut/->SpecvarSpec "X")                            (sut/->VarSpec)
       (sut/->VarSpec)                (sut/->AnySpec)                                    (sut/->VarSpec)
 
-      (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrInt")           (sut/make-spec:user-defined "atomOrInt")
       (sut/make-spec:user-defined "atomOrInt")                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
-      (sut/make-spec:user-defined "atomOrInt")                (sut/->AnySpec)                                    (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/make-spec:user-defined "atomOrInt")                (sut/->AnySpec)                                    (sut/make-spec:user-defined "atomOrInt")
 
       (sut/->AnySpec)                (sut/->AnySpec)                                    (sut/->AnySpec)
 
