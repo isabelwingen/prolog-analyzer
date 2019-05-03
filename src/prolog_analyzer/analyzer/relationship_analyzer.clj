@@ -20,24 +20,53 @@
         (dom/add-type-to-dom specvar term-dom {:overwrite true})
         (dom/add-type-to-dom term specvar-dom {:overwrite true}))))
 
+(defn- mark-as-changed [env edge]
+  (if-let [counter (uber/attr env edge :changed)]
+    (-> env
+        (uber/remove-attr edge :changed)
+        (uber/add-attr edge :changed (inc counter)))
+    (uber/add-attr env edge :changed 0)))
+
+(defn- reset-union [env edge]
+  (let [specvar (uber/dest edge)
+        term (uber/src edge)
+        others (-> env (uber/attrs specvar) (dissoc :dom) (dissoc :compatible) (dissoc term) vals)
+        new-dom (-> (apply hash-set (utils/get-dom-of-term env term) others)
+                    r/->OneOfSpec
+                    (r/simplify-or (utils/get-user-defined-specs env)))]
+    (-> env
+        (uber/remove-attr specvar :dom)
+        (uber/add-attr specvar :dom new-dom)
+        (uber/remove-attr specvar :compatible)
+        (uber/add-attr specvar :compatible new-dom)
+        (uber/remove-attr specvar term)
+        (uber/add-attr specvar term (utils/get-dom-of-term env term))
+        (mark-as-changed edge))))
+
 (defmethod process-edge :union [env edge]
   (let [specvar (uber/dest edge)
         term (uber/src edge)
         term-dom (utils/get-dom-of-term env term)
+        before-dom (uber/attr env specvar term)
         specvar-dom (utils/get-dom-of-term env specvar term-dom)
         new-dom (r/simplify-or (r/->OneOfSpec (hash-set term-dom specvar-dom)) (utils/get-user-defined-specs env))]
-    (if (nil? term-dom)
-      env
-      (-> env
-          (uber/remove-attr specvar :dom)
-          (uber/add-attr specvar :dom new-dom)))))
+    (cond (nil? term-dom)            env
+          (nil? before-dom)          (-> env
+                                         (uber/remove-attr specvar :dom)
+                                         (uber/add-attr specvar :dom new-dom)
+                                         (uber/remove-attr specvar term)
+                                         (uber/add-attr specvar term term-dom))
+          (not= before-dom term-dom)  (reset-union env edge)
+          :else                       env)))
 
 (defmethod process-edge :compatible [env edge]
   (let [specvar (uber/dest edge)
         term (uber/src edge)
         specvar-dom (utils/get-dom-of-term env specvar (r/->AnySpec))
         compatible (or (uber/attr env specvar :compatible) specvar-dom)
-        step1 (dom/add-type-to-dom env term compatible {:overwrite true})
+        step1 (-> env
+                  (dom/add-type-to-dom term compatible {:overwrite true})
+                  (dom/add-type-to-dom term specvar-dom {:overwrite true}))
         new-term-dom (utils/get-dom-of-term step1 term (r/->AnySpec))]
     (-> step1
         (uber/remove-attr specvar :compatible)
@@ -108,19 +137,40 @@
   (= env other-env))
 
 
+(defn- apply-edges [env edges]
+  (reduce process-edge env edges))
+
 (defn- step [env]
-  (reduce process-edge env (uber/edges env)))
+  (let [{unions :union compatibles :compatible :as m} (group-by #(uber/attr env % :relation) (uber/edges env))
+        other-edges (-> m (dissoc :union) (dissoc :compatible) vals flatten)]
+    (-> env
+        (apply-edges other-edges)
+        (apply-edges unions)
+        (apply-edges compatibles))))
+
+(defn clean-up [env]
+  (let [specvar-nodes (->> env
+                           uber/edges
+                           (filter #(or (= :union (uber/attr env % :relation))
+                                        (= :compatible (uber/attr env % :relation))))
+                           (map uber/dest)
+                           set)]
+    (reduce
+     #(uber/set-attrs %1 %2 (select-keys (uber/attrs %1 %2) [:dom :compatible]))
+     env
+     specvar-nodes)))
 
 
 (defn fixpoint-analysis [env]
   (log/debug "Start Fixpoint Analysis")
-  (loop [in env
-         counter 0]
-    (let [next (step in)]
-      (if (same in next)
-        (do (log/debug "Fixpoint Analysis is done") next)
-        (if (> counter 50)
-          (do
-            (log/error "infinite loop?")
-            next)
-          (recur next (inc counter)))))))
+  (clean-up
+   (loop [in env
+          counter 0]
+     (let [next (step in)]
+       (if (same in next)
+         (do (log/debug "Fixpoint Analysis is done") next)
+         (if (> counter 50)
+           (do
+             (log/error "infinite loop?")
+             next)
+           (recur next (inc counter))))))))

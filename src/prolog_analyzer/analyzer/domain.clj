@@ -255,7 +255,6 @@
            uber/dest))
 
 (defmethod fill-dom [:var :list] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (log/debug (str (r/to-string term) " " (r/to-string spec)))
   (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))
         generated-var (r/->VarTerm (gensym "T__"))]
     (if-let [artificial-type (get-artificial-type env term)]
@@ -345,7 +344,6 @@
     (add-type-to-dom env term (ALREADY-NONVAR))))
 
 (defn fill-dom-nonvar-compound-or-list [env term spec options]
-  (log/debug (str (r/to-string term) " " (r/to-string spec)))
   (-> env
       (add-type-to-dom term spec options)
       (fill-dom-of-next-steps term spec options)))
