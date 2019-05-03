@@ -79,6 +79,12 @@
              r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom))) {:overwrite overwrite})
              env))))
 
+(defmethod process-edge :has-type [env edge]
+  (let [list (uber/src edge)
+        list-type (uber/dest edge)
+        type-dom (utils/get-dom-of-term env list-type (r/->AnySpec))]
+    (dom/fill-env-for-term-with-spec env list (r/->ListSpec type-dom))))
+
 
 (defmethod process-edge :arg-at-pos [env edge]
   (let [compound (uber/dest edge)

@@ -157,9 +157,9 @@
                                                                                                      r/UNION :union
                                                                                                      r/COMPATIBLE :compatible
                                                                                                      r/VAR :var
-                                                                                                     r/LIST :compound-or-list
-                                                                                                     r/COMPOUND :compound-or-list
-                                                                                                     r/TUPLE :compound-or-list
+                                                                                                     r/LIST :list
+                                                                                                     r/COMPOUND :compound
+                                                                                                     r/TUPLE :tuple
                                                                                                      r/ERROR :error
                                                                                                      :default)]))
 
@@ -206,34 +206,68 @@
         (-> env
             (add-type-to-dom term spec options)
             (fill-dom-of-next-steps term spec options)
-                                        ;(add-to-artifical-term term spec options)
+            (add-to-artifical-term term spec options)
 
             )]
     res))
 
-(defmethod fill-dom [:var :compound-or-list] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
+(defn fill-dom-compound-or-list [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
     (if initial?
       (-> env
           (remove-vars-from-dom term)
-      ;    (create-artifical-term term spec options)
-          (process-filling-for-var-term term spec options)
-          )
+          (process-filling-for-var-term term spec options))
       (if overwrite?
-        (-> env
-         ;   (create-artifical-term term spec options)
-            (process-filling-for-var-term term spec options))
+        (process-filling-for-var-term env term spec options)
         (if (r/var-spec? (utils/get-dom-of-term env term))
           (add-type-to-dom env term (CANNOT-GROUND))
           (if (r/any-spec? (utils/get-dom-of-term env term))
             (-> env
                 (uber/add-nodes term)
                 (uber/add-attr term :assumed-type spec)
-                                        ;    (create-artifical-term term spec options)
                 (process-filling-for-var-term term spec options))
-            (-> env
-                                        ;   (create-artifical-term term spec options)
-                (process-filling-for-var-term term spec options))))))))
+            (process-filling-for-var-term env term spec options)))))))
+
+(defmethod fill-dom [:var :compound] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
+  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
+    (if (nil? (.functor spec))
+      (-> env
+          (fill-dom-compound-or-list term spec options)
+          (uber/add-attr term :is-compound true))
+      (-> env
+          (create-artifical-term term spec options)
+          (uber/add-attr term :functor (.functor spec))
+          (uber/add-attr term :is-compound true)
+          (fill-dom-compound-or-list term spec options)))))
+
+(defmethod fill-dom [:var :tuple] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
+  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
+    (-> env
+        (create-artifical-term term spec options)
+        (uber/add-attr term :is-tuple true)
+        (fill-dom-compound-or-list term spec options))))
+
+(defn- get-artificial-type [env term]
+  (some->> term
+           (uber/out-edges env)
+           (filter #(= :has-type (uber/attr env % :relation)))
+           first
+           uber/dest))
+
+(defmethod fill-dom [:var :list] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
+  (log/debug (str (r/to-string term) " " (r/to-string spec)))
+  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))
+        generated-var (r/->VarTerm (gensym "T__"))]
+    (if-let [artificial-type (get-artificial-type env term)]
+      (-> env
+          (fill-dom-compound-or-list term spec options)
+          (fill-dom artificial-type (.type spec) options))
+      (-> env
+          (uber/add-attr term :is-list true)
+          (uber/add-edges [term generated-var {:relation :has-type}])
+          (fill-dom-compound-or-list term spec options)
+          (fill-dom generated-var (.type spec) {:initial true})))))
+
 
 (defmethod fill-dom [:var :default] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
@@ -310,10 +344,15 @@
         (add-children term))
     (add-type-to-dom env term (ALREADY-NONVAR))))
 
-(defmethod fill-dom [:nonvar :compound-or-list] [env term spec {overwrite? :overwrite :as options}]
+(defn fill-dom-nonvar-compound-or-list [env term spec options]
+  (log/debug (str (r/to-string term) " " (r/to-string spec)))
   (-> env
       (add-type-to-dom term spec options)
       (fill-dom-of-next-steps term spec options)))
+
+(defmethod fill-dom [:nonvar :compound] [env term spec options] (fill-dom-nonvar-compound-or-list env term spec options))
+(defmethod fill-dom [:nonvar :list] [env term spec options] (fill-dom-nonvar-compound-or-list env term spec options))
+(defmethod fill-dom [:nonvar :tuple] [env term spec options] (fill-dom-nonvar-compound-or-list env term spec options))
 
 (defmethod fill-dom [:nonvar :default] [env term spec {overwrite? :overwrite :as options}]
   (if (check-if-valid term spec)
