@@ -20,6 +20,30 @@
         (dom/add-type-to-dom specvar term-dom {:overwrite true})
         (dom/add-type-to-dom term specvar-dom {:overwrite true}))))
 
+(defmethod process-edge :union [env edge]
+  (let [specvar (uber/dest edge)
+        term (uber/src edge)
+        term-dom (utils/get-dom-of-term env term)
+        specvar-dom (utils/get-dom-of-term env specvar term-dom)
+        new-dom (r/simplify-or (r/->OneOfSpec (hash-set term-dom specvar-dom)) (utils/get-user-defined-specs env))]
+    (if (nil? term-dom)
+      env
+      (-> env
+          (uber/remove-attr specvar :dom)
+          (uber/add-attr specvar :dom new-dom)))))
+
+(defmethod process-edge :compatible [env edge]
+  (let [specvar (uber/dest edge)
+        term (uber/src edge)
+        specvar-dom (utils/get-dom-of-term env specvar (r/->AnySpec))
+        compatible (or (uber/attr env specvar :compatible) specvar-dom)
+        step1 (dom/add-type-to-dom env term compatible {:overwrite true})
+        new-term-dom (utils/get-dom-of-term step1 term (r/->AnySpec))]
+    (-> step1
+        (uber/remove-attr specvar :compatible)
+        (uber/add-attr specvar :compatible new-term-dom))))
+
+
 (defmethod process-edge :complex-specvar [env edge]
   (let [term (uber/src edge)
         userdef (uber/dest edge)
