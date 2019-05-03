@@ -461,7 +461,7 @@
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
      (ANY, NONVAR, GROUND) spec
-     USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+     USERDEFINED (userdef->ground other-spec defs overwrite?)
      SPECVAR spec
      VAR (if overwrite? spec (DISJOINT spec other-spec))
      ERROR other-spec
