@@ -331,9 +331,9 @@
                  (is (= expected-dom
                         (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (r/->VarSpec)
-               (r/->VarTerm "X") (r/->IntegerSpec) r/DISJOINT
+               (r/->VarTerm "X") (r/->IntegerSpec) (r/DISJOINT (r/->IntegerSpec) (r/->VarSpec))
                (r/->VarTerm "X") (r/->AnySpec) (r/->VarSpec)
-               (r/->VarTerm "X") (r/make-spec:user-defined "blob") r/DISJOINT
+               (r/->VarTerm "X") (r/make-spec:user-defined "blob") (r/DISJOINT (r/->ExactSpec "blob") (r/->VarSpec))
                (r/->VarTerm "X") (r/->SpecvarSpec "X") (r/->VarSpec)
                )
 
@@ -410,7 +410,7 @@
                (r/->VarTerm "Y") (r/->GroundSpec) (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
 
 
-               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite false} r/DISJOINT
+               (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite false} (r/DISJOINT (r/->IntegerSpec) (r/->VarSpec))
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial false :overwrite true} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite false} (r/->IntegerSpec)
                (r/->VarTerm "Y") (r/->VarSpec) (r/->IntegerSpec) {:initial true :overwrite true} (r/->IntegerSpec)
