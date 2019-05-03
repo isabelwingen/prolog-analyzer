@@ -27,28 +27,25 @@
   (if (.exists (io/file clojure-file))
     (read-string (str \[ (clojure.string/replace (slurp clojure-file) "\\" "\\\\") \]))
     (do
-      (log/warn "No .edn file was created")
+      (log/warn clojure-file " No .edn file was created")
       [])))
 
-(defmulti call-prolog (fn [dialect term-expander prolog-exe file] dialect))
+(defmulti call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
 
-(defmethod call-prolog "swipl" [dialect term-expander prolog-exe file]
-  (let [clojure-file (get-edn-file-name file)
-        path-to-analyzer (str "'" term-expander "'")
+(defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
+  (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
-                  "set_file('" clojure-file "'),"
+                  "set_file('" edn-file "'),"
                   "['" file "'],"
                   "prolog_analyzer:close_orphaned_stream,"
                   "halt.")
         {err :err} (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv)))]
     err))
 
-(defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file]
-  (let [current-hash (hash (slurp file))
-        clojure-file (get-edn-file-name file)
-        path-to-analyzer (str "'" term-expander "'")
+(defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file edn-file]
+  (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
-                  "set_file('" clojure-file "'),"
+                  "set_file('" edn-file "'),"
                   "['" file "'],"
                   "prolog_analyzer:close_orphaned_stream,"
                   "halt.")
@@ -196,17 +193,17 @@
 
 (defn add-built-ins [data]
   (log/debug "Add built-ins")
-  (when (.exists (io/file (get-edn-file-name "prolog/builtins.pl")))
-    (io/delete-file (get-edn-file-name "prolog/builtins.pl")))
-  (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl")
-  (let [built-in (-> "/home/isabel/Studium/prolog-analyzer/prolog/builtins.pl"
-                     get-edn-file-name
-                     transform-to-edn
-                     format-and-clean-up
-                     pre-processor/pre-process-single
-                     (dissoc :error-msg))]
-    (merge-with into data built-in)
-    ))
+  (let [built-in-edn (get-edn-file-name "prolog/builtins.pl")]
+    (when (.exists (io/file built-in-edn))
+      (io/delete-file built-in-edn))
+    (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl" built-in-edn)
+    (let [built-in (-> built-in-edn
+                       transform-to-edn
+                       format-and-clean-up
+                       pre-processor/pre-process-single
+                       (dissoc :error-msg))]
+      (merge-with into data built-in)
+      )))
 
 (defn process-edn
   ([edn] (process-edn "swipl" edn))
@@ -219,23 +216,25 @@
         )))
 
 (defn process-prolog-file [dialect term-expander prolog-exe file-name]
-  (when (.exists (io/file (get-edn-file-name file-name)))
-    (io/delete-file (get-edn-file-name file-name)))
-  (call-prolog dialect term-expander prolog-exe file-name)
-  (process-edn dialect (get-edn-file-name file-name)))
+  (let [edn-file (get-edn-file-name file-name)]
+    (when (.exists (io/file edn-file))
+      (io/delete-file edn-file))
+    (call-prolog dialect term-expander prolog-exe file-name edn-file)
+    (process-edn dialect edn-file)))
 
 (defn process-prolog-directory [dialect term-expander prolog-exe dir-name]
-  (when (.exists (io/file (get-edn-file-name dir-name)))
-    (io/delete-file (get-edn-file-name dir-name)))
-  (let [prolog-files (->> dir-name
-                          io/file
-                          (tree-seq #(.isDirectory %) #(.listFiles %))
-                          (remove #(.isDirectory %))
-                          (map #(.getPath %))
-                          (map str)
-                          (filter #(.endsWith % ".pl"))
+  (let [edn-file (get-edn-file-name dir-name)]
+    (when (.exists (io/file edn-file))
+      (io/delete-file edn-file))
+    (let [prolog-files (->> dir-name
+                            io/file
+                            (tree-seq #(.isDirectory %) #(.listFiles %))
+                            (remove #(.isDirectory %))
+                            (map #(.getPath %))
+                            (map str)
+                            (filter #(.endsWith % ".pl"))
 
-                          )]
-    (doseq [pl prolog-files]
-      (call-prolog dialect term-expander prolog-exe pl))
-    (process-edn dialect (get-edn-file-name dir-name))))
+                            )]
+      (doseq [pl prolog-files]
+        (call-prolog dialect term-expander prolog-exe pl edn-file))
+      (process-edn dialect edn-file))))
