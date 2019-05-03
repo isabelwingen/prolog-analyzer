@@ -502,6 +502,11 @@ get_stream(Module,Stream) :-
     open(ClojureFile,append,Stream),
     assert(edn_stream(Module,Stream)).
 
+transform_pred_list(Pred/Arity,R) :-
+    !,
+    multi_string_concat(["[\"",Pred,"\", ",Arity,"]"],R).
+
+
 term_expander(end_of_file) :- !,
     prolog_load_context(module,Module),
     (retract(edn_stream(Module,Stream)) -> close(Stream); true).
@@ -542,7 +547,7 @@ term_expander(':-'(use_module(UsedModule))) :-
     working_directory(Current,ModulePath),
     absolute_file_name(UsedModule,Path),
     working_directory(_,Current),
-    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\"}}"],Result),
+    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\" :in \"",Module,"\" :preds :all}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
 term_expander(':-'(use_module(library(Lib),_))) :-
@@ -551,14 +556,16 @@ term_expander(':-'(use_module(library(Lib),_))) :-
     multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\"}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
-term_expander(':-'(use_module(UsedModule,_))) :-
+term_expander(':-'(use_module(UsedModule,Preds))) :-
     !,
     prolog_load_context(module, Module),
     prolog_load_context(directory,ModulePath),
     working_directory(Current,ModulePath),
     absolute_file_name(UsedModule,Path),
     working_directory(_,Current),
-    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\"}}"],Result),
+    maplist(transform_pred_list,Preds,PredsAsString),
+    join(", ",PredsAsString,PQ),
+    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\" :in \"",Module,"\" :preds [",PQ,"]}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
 term_expander(_) :-

@@ -177,6 +177,31 @@
                                              (map #(-> % (dissoc :module) (dissoc :name) (dissoc :arity)))
                                              (interleave (range))
                                              (apply hash-map)))) {})))
+
+(defn order-imports [{module-mapping :module imports :use-module :as data}]
+  (let [libs (filter :lib imports)
+        non-libs-all (->> imports
+                         (remove :lib)
+                         (filter #(= :all (:preds %)))
+                         (map #(assoc % :module (get module-mapping (:path %))))
+                         (map #(select-keys % [:module :in]))
+                         (reduce #(assoc-in %1 [(:in %2) (:module %2)] :all) {}))
+        non-libs (->> imports
+                      (remove :lib)
+                      (remove #(= :all (:preds %)))
+                      (map #(assoc % :module (get module-mapping (:path %))))
+                      (map #(select-keys % [:module :preds :in]))
+                      (reduce #(assoc-in %1 [(:in %2) (:module %2)] (->> %2
+                                                                         :preds
+                                                                         (map (partial cons (:module %2)))
+                                                                         (map (partial apply vector))
+                                                                         set)) {}))]
+    (-> data
+        (dissoc :use-module)
+        (assoc :libs (map :lib libs))
+        (assoc :imports-all non-libs-all)
+        (assoc :imports (merge-with into non-libs non-libs-all)))))
+
 (defn- format-and-clean-up [data]
   (log/debug "Start formatting of edn")
   (-> data
@@ -188,6 +213,7 @@
       (update :inv-spec order-specs)
       (update :pred order-preds)
       (update :module (partial apply merge))
+      order-imports
       (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
       ))
 

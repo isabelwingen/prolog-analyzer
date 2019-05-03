@@ -6,27 +6,37 @@
 
 
 
-(defn- set-correct-goal-module [pred->module-map {goal-name :goal arity :arity goal-module :module :as goal}]
+(defn- set-correct-goal-module [pred->module-map caller-module {goal-name :goal arity :arity goal-module :module :as goal}]
   (if (= "self" goal-module)
     (assoc goal :module (get pred->module-map goal-name "user"))
     goal))
 
-(defn- calculate-pred-to-module-map [data]
-  (->> (select-keys data [:pre-specs :post-specs :preds])
-       vals
-       (mapcat keys)
-       (group-by second)
-       (reduce-kv #(assoc %1 %2 (first (first %3))) {})))
+(defn calculate-pred-to-module-map [data caller-module]
+  (let [imports (-> data
+                        (get-in [:imports caller-module])
+                        (assoc "user" :all)
+                        (assoc caller-module :all))
+        used-preds (->> (select-keys data [:pre-specs :post-specs :preds])
+                        vals
+                        (mapcat keys)
+                        (group-by first))]
+    (->> imports
+         (reduce-kv (fn [m k v] (if (= :all v)
+                                 (concat m (get used-preds k))
+                                 (concat m v)))
+                    [])
+         set
+         (group-by second)
+         (reduce-kv #(assoc %1 %2 (first (first %3))) {}))))
 
-(defn- set-correct-modules [data]
-  (let [pred->module-map (calculate-pred-to-module-map data)]
-    (loop [clause-keys (utils/get-clause-identities data)
-           result data]
-      (if (empty? clause-keys)
-        result
-        (let [[[source-module & _ :as pred-id] clause-number] (first clause-keys)]
-          (recur (rest clause-keys) (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module pred->module-map)))))
-        ))))
+
+(defn set-correct-modules [data]
+  (reduce
+   (fn [result [[source-module & _ :as pred-id] clause-number]]
+     (let [pred->module-map (calculate-pred-to-module-map data source-module)]
+       (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module pred->module-map source-module)))))
+   data
+   (utils/get-clause-identities data)))
 
 (defn- maybe-spec [spec]
   (cond

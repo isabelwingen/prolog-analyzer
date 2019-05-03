@@ -60,8 +60,6 @@
       (and (arti-term? (:head term)) (arti-term? (:tail term)))
       (and ((complement nil?) (:arglist term)) (some #(arti-term? %) (:arglist term)))))
 
-(print-table [{:a 1 :b 2 :c 3} {:b 5 :a 7 :c "dog"}])
-
 (defn pretty-print-graph [title graph]
   (println title)
   (println)
@@ -150,4 +148,5 @@
               :index (str (uber/attr graph % :index))
               :indices (str (uber/attr graph % :indices))
               :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
-       (print-table [:term :dom :index :indices])))
+       (print-table [:term :dom :index :indices]))
+  (println))
