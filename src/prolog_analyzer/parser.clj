@@ -136,6 +136,12 @@
        (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
        ))
 
+
+(defn- simple-simplify-or [spec]
+  (if (= 1 (count (.arglist spec)))
+    (first (.arglist spec))
+    spec))
+
 (defn- create-post-spec-map [post-specs]
   (->> post-specs
        (group-by first)
@@ -144,6 +150,7 @@
                                              (map (partial apply r/to-tuple-spec))
                                              set
                                              r/->OneOfSpec
+                                             simple-simplify-or
                                              ))) {})))
 
 (defn order-post-specs [specs]

@@ -21,8 +21,8 @@ data
                       [(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))]
                       [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]
                       ]
-          :post-specs [[[(r/->VarSpec)  (r/->ListSpec (r/->IntegerSpec))]
-                        [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]]]
+          :post-specs {[(r/->VarSpec)  (r/->ListSpec (r/->IntegerSpec))]
+                       (r/->TupleSpec [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))])}
           :inv-specs [[(r/->AnySpec) (r/->GroundSpec)]]}
          (sut/get-specs-of-pred ["spec_test" "member_int" 2] data))))
 
