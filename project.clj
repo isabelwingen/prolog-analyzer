@@ -14,6 +14,7 @@
   :plugins [[jonase/eastwood "0.3.5"]]
   :main ^:skip-aot prolog-analyzer.core
   :target-path "target/%s"
+  :jvm-opts ["-Xms2g" "-Xmx6g"]
   :profiles {:uberjar {:aot :all}
              :dev {:dependencies [[org.clojure/test.check "0.9.0"]]
                    :plugins []}})
