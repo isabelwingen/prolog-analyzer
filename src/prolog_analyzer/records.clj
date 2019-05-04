@@ -439,11 +439,11 @@
   (let [resolved (if (= USERDEFINED (spec-type spec))
                    (resolve-definition-with-parameters spec defs)
                    spec)]
-    (if (contains-vars? spec defs #{})
+    (if (contains-vars? spec defs alread-done)
       (if (nil? (:arglist resolved))
         (intersect (->GroundSpec) resolved defs overwrite?)
         (update resolved :arglist (partial reduce (fn [done new] (conj done (helper:userdef->ground new defs overwrite? (set (conj done new))))) [])))
-      resolved)))
+      spec)))
 
 
 
