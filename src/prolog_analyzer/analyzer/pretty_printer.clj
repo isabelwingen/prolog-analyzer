@@ -60,9 +60,7 @@
       (and (arti-term? (:head term)) (arti-term? (:tail term)))
       (and ((complement nil?) (:arglist term)) (some #(arti-term? %) (:arglist term)))))
 
-(defn pretty-print-graph [title graph]
-  (println title)
-  (println)
+(defn pretty-print-graph [graph]
   (let [nodes (utils/get-terms graph)
         nd-num (count nodes)
         edges (uber/edges graph)
@@ -75,9 +73,7 @@
     (println "---------------------\n")))
 
 
-(defn short-print [title graph]
-  ;(println title)
-  (println)
+(defn short-print [graph]
   (let [error-terms (->> graph
                          (utils/get-terms)
                          (remove contains-arti-term?)
@@ -99,9 +95,7 @@
        (uber/attr env term :indices)
        ))
 
-(defn better-print [title graph]
-  (println title)
-  (println)
+(defn better-print [graph]
   (let [error-terms (->> graph
                          (utils/get-terms)
                          (remove contains-arti-term?)
@@ -114,8 +108,7 @@
         (println)))
     ))
 
-(defn print-type-information [title graph]
-  (println title "\n")
+(defn print-type-information [graph]
   (let [error-terms (->> graph
                         (utils/get-terms)
                         (remove contains-arti-term?)
@@ -134,8 +127,7 @@
     (doseq [t error-terms]
       (println (tinker-error-message graph t) "\n"))))
 
-(defn print-with-indices [title graph]
-  (println title "\n")
+(defn print-with-indices [graph]
   (->> graph
        (utils/get-terms)
        (remove contains-arti-term?)

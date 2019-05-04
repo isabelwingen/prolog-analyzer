@@ -162,11 +162,11 @@
       rel/fixpoint-analysis
       ))
 
-(defn complete-analysis [printer data]
+(defn complete-analysis [data]
   (log/debug "Start analysis")
   (when (empty? (utils/get-pred-identities data))
     (log/debug "No predicates found"))
-  (doseq [pred-id (utils/get-pred-identities data)
+  (for [pred-id (utils/get-pred-identities data)
           clause-number (utils/get-clause-identities-of-pred pred-id data)]
     (let [pre-spec (do
                      (log/debug (str pred-id))
@@ -178,6 +178,5 @@
                            set
                            r/->OneOfSpec)
                       (:specs data)))]
-      ;(log/debug (str "Clause: " [clause-number (r/to-string pre-spec)]))
-      (printer (str pred-id " " clause-number " ## " (r/to-string pre-spec)) (analyzing data (utils/get-clause pred-id clause-number data) pre-spec))
+      (analyzing data (utils/get-clause pred-id clause-number data) pre-spec)
       )))
