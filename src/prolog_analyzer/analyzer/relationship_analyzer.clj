@@ -101,7 +101,7 @@
                       uber/src)
         tail-dom (or (utils/get-dom-of-term env tail) (r/->AnySpec))
         overwrite true]
-    (if (nil? tail-dom)
+    (if (nil? tail)
       (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]) {:overwrite overwrite})
       (case+ (r/spec-type tail-dom)
              r/TUPLE (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(cons head-dom %)) {:overwrite overwrite})
