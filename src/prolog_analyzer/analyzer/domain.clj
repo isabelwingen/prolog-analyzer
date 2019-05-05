@@ -318,8 +318,8 @@
     (if (r/has-specvars spec)
       (-> env
           (uber/add-edges [term spec {:relation :complex-userdef}])
-          (fill-dom term (r/replace-specvars-with-any transformed-definition) options)))
-    (fill-dom env term transformed-definition options)))
+          (fill-dom term (r/replace-specvars-with-any transformed-definition) options))
+      (fill-dom env term transformed-definition options))))
 
 (defmethod fill-dom [:nonvar :union] [env term spec options]
   (-> env
@@ -367,8 +367,7 @@
 
 (defn fill-env-for-term-with-spec
   ([env term spec options]
-   (-> env
-       (fill-dom term spec options)))
+   (fill-dom env term spec options))
   ([env term spec]
    (fill-env-for-term-with-spec env term spec {:initial false})))
 
