@@ -155,28 +155,26 @@
       ))
 
 
-(defn analyzing [data {arglist :arglist body :body :as clause} pre-spec]
+(defn analyzing [data {arglist :arglist body :body :as clause} pre-spec pred-id]
   (-> (initial-env data arglist pre-spec)
+      (uber/add-attr :ENVIRONMENT :pred-id pred-id)
       (evaluate-body data body)
       add-relationships
       rel/fixpoint-analysis
       ))
 
 (defn complete-analysis [data]
-  (log/debug "Start analysis")
+  ;(log/debug "Start analysis")
   (when (empty? (utils/get-pred-identities data))
-    (log/debug "No predicates found"))
+    (println (pr-str "No predicates found")))
   (for [pred-id (utils/get-pred-identities data)
-          clause-number (utils/get-clause-identities-of-pred pred-id data)]
-    (let [pre-spec (do
-                     (log/debug (str pred-id))
-                     (r/simplify-or
-                      (->> (utils/get-specs-of-pred pred-id data)
-                           :pre-specs
-                           (map replace-specvars-with-uuid)
-                           (map r/->TupleSpec)
-                           set
-                           r/->OneOfSpec)
-                      (:specs data)))]
-      (analyzing data (utils/get-clause pred-id clause-number data) pre-spec)
-      )))
+        clause-number (utils/get-clause-identities-of-pred pred-id data)]
+    (let [pre-spec (r/simplify-or
+                    (->> (utils/get-specs-of-pred pred-id data)
+                         :pre-specs
+                         (map replace-specvars-with-uuid)
+                         (map r/->TupleSpec)
+                         set
+                         r/->OneOfSpec)
+                    (:specs data))]
+      (analyzing data (utils/get-clause pred-id clause-number data) pre-spec (conj pred-id clause-number)))))

@@ -181,7 +181,7 @@
     (if (= r/COMPOUND (r/spec-type compound-dom))
       (if (>= pos (count (:arglist compound-dom)))
         (do
-          (log/debug (str "ERROR found: Found a compound with size " (count (:arglist compound-dom)) " but need at least size " (inc pos)))
+          (println (pr-str "ERROR found: Found a compound with size " (count (:arglist compound-dom)) " but need at least size " (inc pos)))
           env)
         (dom/fill-env-for-term-with-spec env compound (update compound-dom :arglist #(assoc (apply vector %) pos part-dom)) {:overwrite true}))
       env)))
@@ -224,15 +224,14 @@
 
 
 (defn fixpoint-analysis [env]
-  (log/debug "Start Fixpoint Analysis")
   (clean-up
    (loop [in env
           counter 0]
      (let [next (step in)]
        (if (same in next)
-         (do (log/debug "Fixpoint Analysis is done") next)
+          next
          (if (> counter 50)
            (do
-             (log/error "infinite loop?")
+             (println (pr-str "Infinite loop at " (uber/attr env :ENVIRONMENT :pred-id)))
              next)
            (recur next (inc counter))))))))

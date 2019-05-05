@@ -136,11 +136,11 @@
           (utils/get-clause-identities data)))
 
 (defn pre-process-single [data]
-  (log/debug "Start Pre Process Single")
-  (time (-> data
-            mark-self-calling-clauses
-            transform-args-to-term-records
-            add-any-pre-specs
-            add-any-post-specs
-            set-correct-modules
-            )))
+  (println (pr-str "Start Pre Process Single"))
+  (-> data
+        mark-self-calling-clauses
+        transform-args-to-term-records
+        add-any-pre-specs
+        add-any-post-specs
+        set-correct-modules
+        ))

@@ -1013,3 +1013,10 @@
   (if (nil? spec)
     true
     (= ANY (spec-type spec))))
+
+
+(defn record-type [type]
+  (cond
+    (nil? type) nil
+    (satisfies? spec type) (spec-type spec)
+    :else (term-type spec)))

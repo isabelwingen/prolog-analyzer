@@ -8,20 +8,6 @@
             [clojure.string]))
 
 
-(defn print-in-two-columns [n str1 str2]
-  (let [diff (- n (count str1))]
-    (print str1)
-    (doseq [x (range 0 diff)] (print " "))
-    (println str2)))
-
-(defn print-in-columns [[n & ns] str & strs]
-  (let [diff (- n (count str))]
-    (print str)
-    (doseq [x (range 0 diff)] (print " "))
-    (if (nil? ns)
-      (println (clojure.string/join " " strs))
-      (apply print-in-columns ns strs))))
-
 (defn print-nodes [graph]
   (let [nodes (utils/get-terms graph)]
     (->> nodes
@@ -73,17 +59,6 @@
     (println "---------------------\n")))
 
 
-(defn short-print [graph]
-  (let [error-terms (->> graph
-                         (utils/get-terms)
-                         (remove contains-arti-term?)
-                         (filter #(r/error-spec? (utils/get-dom-of-term graph %))))]
-    (if (empty? error-terms)
-      (println "No errors found")
-      (doseq [t error-terms]
-        (print-in-columns [20] (r/to-string t) (r/to-string (or (utils/get-dom-of-term graph t) (r/->AnySpec))))))
-    (println "----------------------\n")))
-
 
 (defn- tinker-error-message [env term]
   (str ":( There was an ERROR in term "
@@ -128,6 +103,7 @@
       (println (tinker-error-message graph t) "\n"))))
 
 (defn print-with-indices [graph]
+  (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
   (->> graph
        (utils/get-terms)
        (remove contains-arti-term?)
@@ -142,3 +118,37 @@
               :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
        (print-table [:term :dom :index :indices]))
   (println))
+
+(defn derecordize
+  "Returns a data structure equal (using clojure.core/=) to the
+  original value with all records converted to plain maps."
+  [v]
+  (cond
+    (record? v) (derecordize (into {} v))
+    (list? v) (map derecordize v)
+    (vector? v) (mapv derecordize v)
+    (set? v) (set (map derecordize v))
+    (map? v) (zipmap (map derecordize (keys v)) (map derecordize (vals v)))
+    :else v))
+
+
+(defn record-type [t]
+  (cond
+    (satisfies? prolog-analyzer.records/spec t) (assoc t :record-type (r/spec-type t))
+    (satisfies? prolog-analyzer.records/term t) (assoc t :record-type (r/term-type t))
+    :else t))
+
+(defn transform-record-to-map [spec]
+  (clojure.walk/postwalk #(if (record? %) (into {} (record-type %)) %) spec))
+
+(defn print-type-analysis [graph]
+  (->> graph
+       (utils/get-terms)
+       (filter #(or (uber/attr graph % :index)
+                    (uber/attr graph % :indices)))
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (uber/attr graph %2 :dom))) {})
+       pr-str
+       println))
+
+
+(map transform-record-to-map [(r/->AnySpec) (r/->IntegerSpec)])

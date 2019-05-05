@@ -33,18 +33,18 @@
 (defmulti call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
-  (log/debug "Call prolog")
+  (println (pr-str "Call prolog"))
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
                   "['" file "'],"
                   "prolog_analyzer:close_orphaned_stream,"
                   "halt.")
-        {err :err} (time (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv))))]
+        {err :err} (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv)))]
     err))
 
 (defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file edn-file]
-  (log/debug "Call prolog")
+  (println (pr-str "Call prolog"))
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
@@ -212,7 +212,7 @@
         (assoc :imports (merge-with into non-libs-all non-libs libs-all libs)))))
 
 (defn- format-and-clean-up [data]
-  (log/debug "Start formatting of edn")
+  (println (pr-str "Start formatting of edn"))
   (-> data
       (group-by-and-apply :type (partial map :content))
       (update :define-spec order-define-specs)
@@ -227,7 +227,7 @@
       ))
 
 (defn add-built-ins [data]
-  (log/debug "Add built-ins")
+  (println (pr-str "Add built-ins"))
   (let [built-in-edn (get-edn-file-name "prolog/builtins.pl")]
     (when (.exists (io/file built-in-edn))
       (io/delete-file built-in-edn))
