@@ -67,7 +67,7 @@
 :- spec_pre(user:number_chars/2, [int, list(atom)]).
 :- spec_pre(user:number_chars/2, [int, var]).
 :- spec_pre(user:number_chars/2, [var, list(atom)]).
-:- spec_post(user:number_chars/2, [any, any], [atom, list(atom)]).
+:- spec_post(user:number_chars/2, [any, any], [int, list(atom)]).
 
 :- spec_pre(user:number_codes/2, [int, list(int)]).
 :- spec_pre(user:number_codes/2, [int, var]).
