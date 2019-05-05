@@ -436,11 +436,12 @@
 
 (defn contains-vars?
   [spec defs already-resolved]
-  (let [new-resolved (conj already-resolved spec)]
+  (let [new-resolved (conj already-resolved spec)
+        working (if (:arglist spec) spec (resolve-definition-with-parameters spec defs))]
     (if (= USERDEFINED (spec-type spec))
       (if (contains? already-resolved spec)
         false
-        (->> (resolve-definition-with-parameters spec defs)
+        (->> working
              :arglist
              (remove #(contains? already-resolved %))
              (remove #(= spec %))
@@ -448,15 +449,21 @@
       (or (= VAR (spec-type spec))
           (some #(contains-vars? % defs new-resolved) (:arglist spec))))))
 
+
+
 (defn helper:userdef->ground [spec defs overwrite? alread-done]
   (let [resolved (if (= USERDEFINED (spec-type spec))
                    (resolve-definition-with-parameters spec defs)
-                   spec)]
-    (if (contains-vars? spec defs alread-done)
-      (if (nil? (:arglist resolved))
-        (intersect (->GroundSpec) resolved defs overwrite?)
-        (update resolved :arglist (partial reduce (fn [done new] (conj done (helper:userdef->ground new defs overwrite? (set (conj done new))))) [])))
-      spec)))
+                   spec)
+        working (if (:arglist spec) spec resolved)
+        return (if (contains-vars? spec defs #{})
+                 (if (nil? (:arglist working))
+                   (intersect (->GroundSpec) working defs overwrite?)
+                   (update working :arglist (partial reduce (fn [done new] (conj done (helper:userdef->ground new defs overwrite? (set (conj done new))))) [])))
+                 spec)]
+    (if (= OR (spec-type return))
+      (simplify-or return defs)
+      return)))
 
 
 

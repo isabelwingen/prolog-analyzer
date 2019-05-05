@@ -306,7 +306,7 @@
       (sut/->GroundSpec)                (sut/->GroundSpec)                                 (sut/->GroundSpec)
       (sut/->GroundSpec)                (sut/->NonvarSpec)                                 (sut/->GroundSpec)
       (sut/->GroundSpec)                (sut/->VarSpec)                                    :error
-      (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/->OneOfSpec #{(sut/->IntegerSpec) (sut/->AtomSpec)})
+      (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrInt")           (sut/make-spec:user-defined "atomOrInt")
       (sut/->GroundSpec)                (sut/make-spec:user-defined "atomOrVar")           (sut/->AtomSpec)
       (sut/->GroundSpec)                (sut/->AnySpec)                                    (sut/->GroundSpec)
 
@@ -349,7 +349,3 @@
     (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)}) (sut/->AnySpec) (sut/->IntegerSpec)
 
     ))
-
-(let [a (sut/->AnySpec)
-      b (sut/->AndSpec #{(sut/->AnySpec) (sut/->IntegerSpec)})]
-  (sut/intersect b a test-defs))
