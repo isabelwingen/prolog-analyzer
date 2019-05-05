@@ -9,6 +9,7 @@
             ))
 
 
+
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
 
 (defmethod process-edge :specvar [env edge]
@@ -59,6 +60,7 @@
           (not= before-dom term-dom)  (reset-union env edge)
           :else                       env)))
 
+
 (defmethod process-edge :compatible [env edge]
   (let [specvar (uber/dest edge)
         term (uber/src edge)
@@ -72,15 +74,60 @@
         (uber/remove-attr specvar :compatible)
         (uber/add-attr specvar :compatible new-term-dom))))
 
+(defn find-placeholders [spec]
+  (case+ (r/spec-type spec)
+         r/PLACEHOLDER [spec]
+         (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (reduce concat (map find-placeholders (.arglist spec))))
+         r/USERDEFINED (if (contains? spec :arglist) (set (reduce concat (map find-placeholders (:arglist spec)))) [])
+         r/LIST (find-placeholders (.type spec))
+         #{}))
 
-(defmethod process-edge :complex-specvar [env edge]
-  (let [term (uber/src edge)
-        userdef (uber/dest edge)
-        used-specvars (map uber/dest (uber/out-edges env userdef))
-        replace-map (reduce #(assoc %1 (:name %2) (or (utils/get-dom-of-term env %2) %2)) {} used-specvars)
-        new-spec (reduce-kv r/replace-specvars-with-spec userdef replace-map)]
-    (dom/fill-env-for-term-with-spec env term new-spec)
-    ))
+
+(defn- process-unions-in-complex-userdef [env edge-id type-map]
+  (let [unions (->> type-map
+                    (group-by :inner-spec)
+                    (reduce-kv #(assoc %1 (r/->SpecvarSpec (:name %2)) (map :alias %3)) {})
+                    (reduce-kv #(assoc %1 %2 (r/simplify-or (r/->OneOfSpec (set %3)) (utils/get-user-defined-specs env))) {}))
+        name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id "_" (:name %2)))) {} (keys unions))]
+    (reduce-kv
+     #(-> %1
+          (uber/add-nodes %3)
+          (uber/remove-attr %3 :dom)
+          (uber/add-attr %3 :dom (get unions %2))
+          (uber/add-edges [%3 %2 {:relation :union}]))
+     env
+     name-mapping))
+  )
+
+(defn- process-compas-in-complex-userdef [env edge-id type-map]
+  (let [compas (->> type-map
+                    (group-by :inner-spec)
+                    (reduce-kv #(assoc %1 (r/->SpecvarSpec (:name %2)) (map :alias %3)) {})
+                    (reduce-kv #(assoc %1 %2 (r/simplify-and (r/->AndSpec (set %3)) (utils/get-user-defined-specs env) {:overwrite true})) {}))
+        name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id "_" (:name %2)))) {} (keys compas))]
+    (reduce-kv
+     #(-> %1
+          (uber/add-nodes %3)
+          (uber/remove-attr %3 :dom)
+          (uber/add-attr %3 :dom (get compas %2))
+          (uber/add-edges [%3 %2 {:relation :compatible}]))
+     env
+     name-mapping))
+  )
+
+(defmethod process-edge :complex-userdef [env edge]
+  (let [userdef-spec (r/replace-union-and-comp-with-placeholder (uber/dest edge))
+        edge-id (or (uber/attr env edge :id) (gensym "ID_"))
+        term (uber/src edge)
+        intersect (r/intersect (utils/get-dom-of-term env term (r/->AnySpec)) userdef-spec (utils/get-user-defined-specs env))
+        placeholders (map #(if (:alias %) % (assoc % :alias (r/->AnySpec))) (find-placeholders intersect))
+        {us :union cs :compatible} (group-by #(r/spec-type (:inner-spec %)) placeholders)
+        ]
+    (-> env
+        (uber/add-attr edge :id edge-id)
+        (process-unions-in-complex-userdef edge-id us)
+        (process-compas-in-complex-userdef edge-id cs)
+        )))
 
 
 (defmethod process-edge :artificial [env edge]
@@ -108,11 +155,21 @@
              r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom))) {:overwrite overwrite})
              env))))
 
+(defn- extract-type [env spec]
+  (case+ (r/spec-type spec)
+         r/LIST (.type spec)
+         r/TUPLE (r/simplify-or (r/->OneOfSpec (.arglist spec)) (utils/get-user-defined-specs env))
+         (r/->AnySpec)))
+
 (defmethod process-edge :has-type [env edge]
   (let [list (uber/src edge)
+        list-dom (utils/get-dom-of-term env list (r/->AnySpec))
+        new-type-dom (extract-type env list-dom)
         list-type (uber/dest edge)
         type-dom (utils/get-dom-of-term env list-type (r/->AnySpec))]
-    (dom/fill-env-for-term-with-spec env list (r/->ListSpec type-dom))))
+    (-> env
+        (dom/fill-env-for-term-with-spec list-type new-type-dom)
+        (dom/fill-env-for-term-with-spec list (r/->ListSpec type-dom)))))
 
 
 (defmethod process-edge :arg-at-pos [env edge]
@@ -136,6 +193,11 @@
 (defn- same [env other-env]
   (= env other-env))
 
+(-> (uber/digraph)
+    (uber/add-nodes :a :b)
+    (uber/add-edges [:a :b])
+    (uber/remove-nodes :b)
+    (uber/edges))
 
 (defn- apply-edges [env edges]
   (reduce process-edge env edges))

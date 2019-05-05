@@ -30,6 +30,7 @@
 (def OR :one-of)
 
 (def ANY :any)
+(def PLACEHOLDER :placeholder)
 
 (declare to-arglist)
 (declare empty-list?)
@@ -121,6 +122,7 @@
            (VAR, ANY) spec
            (AND, OR) (intersect other-spec spec defs)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs)
+           PLACEHOLDER (intersect other-spec spec defs)
            ERROR other-spec
            SPECVAR spec
            (DISJOINT spec other-spec)))
@@ -142,6 +144,7 @@
            TUPLE (if (empty? (.arglist other-spec)) spec (DISJOINT spec other-spec))
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            ERROR other-spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            SPECVAR spec
@@ -160,6 +163,7 @@
            (STRING, ATOMIC, GROUND, NONVAR, ANY) spec
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            ERROR other-spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            SPECVAR spec
@@ -180,6 +184,7 @@
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            SPECVAR spec
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            ERROR other-spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            (DISJOINT spec other-spec)))
@@ -198,6 +203,7 @@
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            SPECVAR spec
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            ERROR other-spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            (DISJOINT spec other-spec)
@@ -217,6 +223,7 @@
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            SPECVAR spec
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            ERROR other-spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            (DISJOINT spec other-spec)
@@ -236,6 +243,7 @@
            (INTEGER, FLOAT) other-spec
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            SPECVAR spec
            ERROR other-spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
@@ -259,6 +267,7 @@
            SPECVAR spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            ERROR other-spec
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            (DISJOINT spec other-spec)))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
@@ -279,6 +288,7 @@
            SPECVAR spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            ERROR other-spec
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            (DISJOINT spec other-spec)))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
@@ -328,6 +338,7 @@
            SPECVAR spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            ERROR other-spec
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            (DISJOINT spec other-spec)))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
@@ -367,6 +378,7 @@
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            SPECVAR spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            ERROR other-spec
            (DISJOINT spec other-spec)))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
@@ -413,6 +425,7 @@
            SPECVAR spec
            VAR (if overwrite? spec (DISJOINT spec other-spec))
            ERROR other-spec
+           PLACEHOLDER (intersect other-spec spec defs overwrite?)
            (DISJOINT spec other-spec)))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
@@ -652,7 +665,26 @@
   printable
   (to-string [x] (str "Compatible(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
+(defn simplify-and-without-intersect [type]
+  (->> type
+       :arglist
+       (mapcat #(if (= AND (spec-type %)) (:arglist %) [%]))
+       set
+       ->AndSpec))
 
+
+(defrecord PlaceholderSpec [inner-spec]
+  spec
+  (spec-type [spec] PLACEHOLDER)
+  (next-steps [spec term defs] [])
+  (next-steps [spec term defs overwrite?] [])
+  (intersect [spec other-spec defs overwrite?]
+    (case+ (spec-type other-spec)
+           ANY spec
+           (assoc spec :alias other-spec)))
+  (intersect [spec other-spec defs] (intersect spec other-spec defs false))
+  printable
+  (to-string [x] (str "Placeholder(" (to-string inner-spec) ")")))
 
 
 (defrecord VarTerm [name]
@@ -869,6 +901,38 @@
          type
          ))
 
+(defn replace-union-and-comp-with-specvar [type]
+  (case+ (spec-type type)
+         (UNION,COMPATIBLE) (->SpecvarSpec (.name type))
+
+         (OR,AND) (-> type
+                      (update :arglist (partial map replace-union-and-comp-with-specvar))
+                      (update :arglist set))
+
+         (USERDEFINED, COMPOUND, TUPLE) (-> type
+                                            (update :arglist (partial map replace-union-and-comp-with-specvar))
+                                            (update :arglist (partial apply vector)))
+
+         LIST (update type :type replace-union-and-comp-with-specvar)
+
+         type))
+
+(defn replace-union-and-comp-with-placeholder [type]
+  (case+ (spec-type type)
+         (UNION,COMPATIBLE) (->PlaceholderSpec type)
+
+         (OR,AND) (-> type
+                      (update :arglist (partial map replace-union-and-comp-with-placeholder))
+                      (update :arglist set))
+
+         (USERDEFINED, COMPOUND, TUPLE) (-> type
+                                            (update :arglist (partial map replace-union-and-comp-with-placeholder))
+                                            (update :arglist (partial apply vector)))
+
+         LIST (update type :type replace-union-and-comp-with-placeholder)
+
+         type))
+
 
 (defn find-specvars [spec]
   (case+ (spec-type spec)
@@ -919,6 +983,7 @@
   (let [used-specvars (find-specvars spec)
         replace-map (reduce #(assoc %1 (:name %2) (->AnySpec)) {} used-specvars)]
     (reduce-kv replace-specvars-with-spec spec replace-map)))
+
 
 (defn length-of-list-term [{head :head tail :tail :as list}]
   (cond
