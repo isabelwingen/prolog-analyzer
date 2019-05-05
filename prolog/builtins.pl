@@ -86,7 +86,7 @@
 
 :- spec_pre(user:sort/2, [list(union(X)), list(compatible(X))]).
 :- spec_pre(user:sort/2, [list(any), var]).
-:- spec_post(user:sort/2, [any, any], [and([list(union(_X)), compatible(Y)]), 
+:- spec_post(user:sort/2, [any, any], [and([list(union(_X)), compatible(Y)]),
                                         compatible(Y)]).
 
 :- spec_pre(user:sub_atom/5, [atom, maybe(int), maybe(int), maybe(int), maybe(atom)]).
@@ -194,6 +194,7 @@
                                               compound(atan2(arithmetic_expression, arithmetic_expression)),
                                               compound(sqrt(arithmetic_expression)),
                                               compound(log(arithmetic_expression)),
+                                              compound(log(arithmetic_expression,arithmetic_expression)), % Allowed in sicstus, but not in SWI
                                               compound(exp(arithmetic_expression)),
                                               compound(arithmetic_expression ** arithmetic_expression),
                                               compound(arithmetic_expression ^ arithmetic_expression),
@@ -507,29 +508,29 @@
 :- spec_post(avl:avl_size/2, [any, any], [avl_tree(union(_Key), union(_Value)), integer]).
 
 % crazy %% TODO
-:- spec_pre(avl:avl_store/4,  [ground, avl_tree(specvar(_Key), specvar(_Value)), any, avl_tree(specvar(_Key2), specvar(_Value2))]).
-:- spec_post(avl:avl_store/4, [any, any, any, any], [specvar(NewKey), avl_tree(specvar(Key), specvar(Value)), specvar(NewValue),
-                                                 avl_tree(one_of([specvar(NewKey), specvar(Key)]),
-                                                          one_of([specvar(NewValue), specvar(Value)]))]).
+:- spec_pre(avl:avl_store/4,  [ground, avl_tree(any, any), any, avl_tree(any, any)]).
+:- spec_post(avl:avl_store/4, [any, any, any, any], [any, avl_tree(any, any), any,
+                                                 avl_tree(one_of([any, any]),
+                                                          one_of([any, any]))]).
 
-:- spec_pre(avl:avl_delete/4,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
-:- spec_post(avl:avl_delete/4, [any, any, any, any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_pre(avl:avl_delete/4,  [any, avl_tree(any, any), maybe(any), maybe(avl_tree(any, any))]).
+:- spec_post(avl:avl_delete/4, [any, any, any, any], [any, avl_tree(any, any), any, avl_tree(any, any)]).
 
-:- spec_pre(avl:avl_del_max/4,  [avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
-:- spec_post(avl:avl_del_max/4, [any,any,any,any],  [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_pre(avl:avl_del_max/4,  [avl_tree(any, any), maybe(any), maybe(any), maybe(avl_tree(any, any))]).
+:- spec_post(avl:avl_del_max/4, [any,any,any,any],  [avl_tree(any, any), any, any, avl_tree(any, any)]).
 
-:- spec_pre(avl:avl_del_min/4,  [avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Key)), maybe(specvar(Value)), maybe(avl_tree(specvar(Key), specvar(Value)))]).
-:- spec_post(avl:avl_del_min/4, [any,any,any,any],  [avl_tree(specvar(Key), specvar(Value)), specvar(Key), specvar(Value), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_pre(avl:avl_del_min/4,  [avl_tree(any, any), maybe(any), maybe(any), maybe(avl_tree(any, any))]).
+:- spec_post(avl:avl_del_min/4, [any,any,any,any],  [avl_tree(any, any), any, any, avl_tree(any, any)]).
 
 :- spec_pre(avl:ord_list_to_avl/2,  [ordset(pair), any]).
-:- spec_post(avl:ord_list_to_avl/2, [any,any], [ordset(pair(specvar(Key), specvar(Value))), avl_tree(specvar(Key), specvar(Value))]).
+:- spec_post(avl:ord_list_to_avl/2, [any,any], [ordset(pair(any, any)), avl_tree(any, any)]).
 
-:- spec_pre(avl:avl_change/5,  [specvar(Key), avl_tree(specvar(Key), specvar(Value)), maybe(specvar(Value)),
-                                          maybe(avl_tree(specvar(Key), one_of([specvar(Value), specvar(Value2)]))),
-                                          maybe(specvar(Value2))]).
-:- spec_post(avl:avl_change/5, [any,any,any,any,any], [specvar(Key), avl_tree(specvar(Key), specvar(Value)), specvar(Value),
-                                                  avl_tree(specvar(Key), one_of([specvar(Value), specvar(Value2)])),
-                                                  specvar(Value2)]).
+:- spec_pre(avl:avl_change/5,  [any, avl_tree(any, any), maybe(any),
+                                          maybe(avl_tree(any, one_of([any, any]))),
+                                          maybe(any)]).
+:- spec_post(avl:avl_change/5, [any,any,any,any,any], [any, avl_tree(any, any), any,
+                                                  avl_tree(any, one_of([any, any])),
+                                                  any]).
 
 
 
@@ -544,7 +545,7 @@
 
 :- spec_pre(user:msort/2, [list(union(X)), list(compatible(X))]).
 :- spec_pre(user:msort/2, [list(any), var]).
-:- spec_post(user:msort/2, [any, any], [and([list(union(_X)), compatible(Y)]), 
+:- spec_post(user:msort/2, [any, any], [and([list(union(_X)), compatible(Y)]),
                                         compatible(Y)]).
 
 :- spec_pre(lists:append/2,  [list(list(any)), maybe(list(any))]).
