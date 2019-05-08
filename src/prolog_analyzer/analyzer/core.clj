@@ -60,6 +60,7 @@
   (->> env
        utils/get-terms
        (filter #(nil? (utils/get-dom-of-term env %)))
+       (filter #(satisfies? prolog-analyzer.records/term %))
        (reduce #(dom/add-type-to-dom %1 %2 (r/->AnySpec)) env)))
 
 (defmethod add-relationships-aux :default [env _]
