@@ -11,7 +11,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-type-analysis res)))
+    (my-pp/print-with-indices res)))
 
 (defn -main
   "Start analyzing of source file"
@@ -19,7 +19,7 @@
    (print-result
     (->> edn
          parser/process-edn
-         analyzer/complete-analysis))
+         analyzer/complete-analysis-parallel))
    (<╯°□°>╯︵┻━┻)
     )
    ([dialect term-expander file prolog-exe]
@@ -27,11 +27,11 @@
      (if (.isDirectory (io/file file))
        (->> file
             (parser/process-prolog-directory dialect term-expander prolog-exe)
-            analyzer/complete-analysis
+            analyzer/complete-analysis-parallel
             )
        (->> file
             (parser/process-prolog-file dialect term-expander prolog-exe)
-            analyzer/complete-analysis
+            analyzer/complete-analysis-parallel
             )))
     (<╯°□°>╯︵┻━┻)
      ))

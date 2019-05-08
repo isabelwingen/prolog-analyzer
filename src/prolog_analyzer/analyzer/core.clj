@@ -178,3 +178,21 @@
                          r/->OneOfSpec)
                     (:specs data))]
       (analyzing data (utils/get-clause pred-id clause-number data) pre-spec (conj pred-id clause-number)))))
+
+(defn complete-analysis-parallel [data]
+  ;(log/debug "Start analysis")
+  (when (empty? (utils/get-pred-identities data))
+    (println (pr-str "No predicates found")))
+  (let [tasks (for [pred-id (utils/get-pred-identities data)
+                    clause-number (utils/get-clause-identities-of-pred pred-id data)]
+                (let [pre-spec (r/simplify-or
+                                (->> (utils/get-specs-of-pred pred-id data)
+                                     :pre-specs
+                                     (map replace-specvars-with-uuid)
+                                     (map r/->TupleSpec)
+                                     set
+                                     r/->OneOfSpec)
+                                (:specs data))]
+                  {:pred-id pred-id :clause-number clause-number :pre-spec pre-spec :title (conj pred-id clause-number)}
+                  ))]
+    (pmap (fn [{pred-id :pred-id clause-number :clause-number pre-spec :pre-spec title :title}] (analyzing data (utils/get-clause pred-id clause-number data) pre-spec title)) tasks)))
