@@ -19,7 +19,7 @@
    (print-result
     (->> edn
          parser/process-edn
-         analyzer/complete-analysis-parallel))
+         analyzer/global-analysis))
    (<╯°□°>╯︵┻━┻)
     )
    ([dialect term-expander file prolog-exe]
@@ -27,13 +27,16 @@
      (if (.isDirectory (io/file file))
        (->> file
             (parser/process-prolog-directory dialect term-expander prolog-exe)
-            analyzer/complete-analysis-parallel
+            analyzer/global-analysis
             )
        (->> file
             (parser/process-prolog-file dialect term-expander prolog-exe)
-            analyzer/complete-analysis-parallel
+            analyzer/global-analysis
             )))
-    (<╯°□°>╯︵┻━┻)
-     ))
+ ;   (<╯°□°>╯︵┻━┻)
+    ))
 
   (def sic "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1")
+   (def term-expander "prolog/prolog_analyzer.pl")
+
+   (-main "swipl" term-expander "prolog/playground.pl" "swipl")

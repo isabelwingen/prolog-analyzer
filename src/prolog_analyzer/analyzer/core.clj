@@ -56,6 +56,12 @@
    (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) arglist)))
 
 
+(defn- remove-nil-doms [env]
+  (->> env
+       utils/get-terms
+       (filter #(nil? (utils/get-dom-of-term env %)))
+       (reduce #(dom/add-type-to-dom %1 %2 (r/->AnySpec)) env)))
+
 (defmethod add-relationships-aux :default [env _]
   env)
 
@@ -154,12 +160,12 @@
       (add-index-to-input-arguments arglist)
       ))
 
-
 (defn analyzing [data {arglist :arglist body :body :as clause} pre-spec pred-id]
   (-> (initial-env data arglist pre-spec)
       (uber/add-attr :ENVIRONMENT :pred-id pred-id)
       (evaluate-body data body)
       add-relationships
+      remove-nil-doms
       rel/fixpoint-analysis
       ))
 
@@ -180,7 +186,6 @@
       (analyzing data (utils/get-clause pred-id clause-number data) pre-spec (conj pred-id clause-number)))))
 
 (defn complete-analysis-parallel [data]
-  ;(log/debug "Start analysis")
   (when (empty? (utils/get-pred-identities data))
     (println (pr-str "No predicates found")))
   (let [tasks (for [pred-id (utils/get-pred-identities data)
@@ -193,6 +198,60 @@
                                      set
                                      r/->OneOfSpec)
                                 (:specs data))]
-                  {:pred-id pred-id :clause-number clause-number :pre-spec pre-spec :title (conj pred-id clause-number)}
+                  {:clause (utils/get-clause pred-id clause-number data) :pre-spec pre-spec :title (conj pred-id clause-number)}
                   ))]
-    (pmap (fn [{pred-id :pred-id clause-number :clause-number pre-spec :pre-spec title :title}] (analyzing data (utils/get-clause pred-id clause-number data) pre-spec title)) tasks)))
+    (pmap (fn [{clause :clause pre-spec :pre-spec title :title}] (analyzing data clause pre-spec title)) tasks)))
+
+
+(defn- create-post-spec [env]
+  (let [indexed-terms (->> env
+                           utils/get-terms
+                           (filter #(uber/attr env % :index)))
+        premise (->> indexed-terms
+                     (map #(uber/attrs env %))
+                     (sort-by :index)
+                     (map :dom)
+                     (apply r/to-tuple-spec))
+        condition (->> indexed-terms
+                       (map #(assoc (uber/attrs env %) :pre (r/maybe-spec (r/initial-spec %))))
+                       (sort-by :index)
+                       (map :pre)
+                       (apply vector))]
+    {condition premise}))
+
+(defn- create-post-spec-premise [env]
+  (->> env
+       utils/get-terms
+       (filter #(uber/attr env % :index))
+       (map #(uber/attrs env %))
+       (sort-by :index)
+       (map :dom)
+       (apply r/to-tuple-spec)))
+
+
+(defn- valid-env? [env]
+  (->> env
+       utils/get-terms
+       (map (partial utils/get-dom-of-term env))
+       (every? (complement r/error-spec?))))
+
+
+(defn process-predicate-envs [data pred-id envs]
+  (if (every? valid-env? envs)
+    (let [post-specs-map (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) (get data :spec)) (map create-post-spec envs))]
+      (update-in data [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) post-specs-map)))
+    data))
+
+
+(defn- add-new-knowledge [data envs]
+  (->> envs
+       (group-by #(apply vector (drop-last (uber/attr % :ENVIRONMENT :pred-id))))
+       (reduce-kv process-predicate-envs data)))
+
+
+(defn global-analysis [data]
+  (let [envs (complete-analysis-parallel data)
+        new-data (add-new-knowledge data envs)]
+    (if (= data new-data)
+      envs
+      (global-analysis new-data))))

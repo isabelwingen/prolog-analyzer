@@ -43,17 +43,11 @@
      data
      (utils/get-clause-identities data))))
 
-(defn- maybe-spec [spec]
-  (cond
-    (:arglist spec) (r/->OneOfSpec #{(r/->VarSpec) (update spec :arglist (partial map (fn [x] (r/->AnySpec))))})
-    (:type spec) (r/->OneOfSpec #{(r/->VarSpec) (assoc spec :type (r/->AnySpec))})
-    :else (if (r/any-spec? spec) spec (r/->OneOfSpec #{(r/->VarSpec) spec}))))
-
 (defn- create-pre-spec [pred-id data]
   (->> data
        (utils/get-clauses-of-pred pred-id)
        (map :arglist)
-       (map (partial map (comp maybe-spec r/initial-spec)))
+       (map (partial map (comp r/maybe-spec r/initial-spec)))
        (map (partial apply vector))
        (apply vector)
        ))

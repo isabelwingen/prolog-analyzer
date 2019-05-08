@@ -1020,3 +1020,9 @@
     (nil? type) nil
     (satisfies? spec type) (spec-type spec)
     :else (term-type spec)))
+
+(defn maybe-spec [spec]
+  (cond
+    (:arglist spec) (->OneOfSpec #{(->VarSpec) (update spec :arglist (partial map (fn [x] (->AnySpec))))})
+    (:type spec) (->OneOfSpec #{(->VarSpec) (assoc spec :type (->AnySpec))})
+    :else (if (any-spec? spec) spec (->OneOfSpec #{(->VarSpec) spec}))))
