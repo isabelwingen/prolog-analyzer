@@ -14,26 +14,32 @@
   (doseq [res results]
     (my-pp/print-with-indices res)))
 
-(defn -main
-  "Start analyzing of source file"
+(defn run
   ([edn]
    (print-result
     (->> edn
          parser/process-edn
          global/global-analysis
-         ))
+         )))
+  ([dialect term-expander file prolog-exe]
+   (print-result
+    (if (.isDirectory (io/file file))
+      (->> file
+           (parser/process-prolog-directory dialect term-expander prolog-exe)
+           global/global-analysis
+           )
+      (->> file
+           (parser/process-prolog-file dialect term-expander prolog-exe)
+           global/global-analysis
+           )))))
+
+(defn -main
+  "Start analyzing of source file"
+  ([edn]
+   (run edn)
    (<╯°□°>╯︵┻━┻)
     )
    ([dialect term-expander file prolog-exe]
-    (print-result
-     (if (.isDirectory (io/file file))
-       (->> file
-            (parser/process-prolog-directory dialect term-expander prolog-exe)
-            global/global-analysis
-            )
-       (->> file
-            (parser/process-prolog-file dialect term-expander prolog-exe)
-            global/global-analysis
-            )))
+    (run dialect term-expander file prolog-exe)
     (<╯°□°>╯︵┻━┻)
     ))

@@ -43,6 +43,3 @@ jobs:
 
       # run tests!
       - run: lein test
-
-      # run example
-      - run: lein run "swipl" "prolog/prolog_analyzer.pl" "resources" "swipl"
