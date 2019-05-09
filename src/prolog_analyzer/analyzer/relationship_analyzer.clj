@@ -6,6 +6,8 @@
             [clojure.tools.logging :as log]
             [loom.attr]
             [loom.graph]
+            [ubergraph.protocols]
+
             ))
 
 
@@ -32,7 +34,7 @@
   (let [specvar (uber/dest edge)
         term (uber/src edge)
         others (-> env (uber/attrs specvar) (dissoc :dom) (dissoc :compatible) (dissoc term) vals)
-        new-dom (-> (apply hash-set (utils/get-dom-of-term env term) others)
+        new-dom (-> (apply hash-set (utils/get-dom-of-term env term (r/->AnySpec)) others)
                     r/->OneOfSpec
                     (r/simplify-or (utils/get-user-defined-specs env)))]
     (-> env
@@ -41,13 +43,13 @@
         (uber/remove-attr specvar :compatible)
         (uber/add-attr specvar :compatible new-dom)
         (uber/remove-attr specvar term)
-        (uber/add-attr specvar term (utils/get-dom-of-term env term))
+        (uber/add-attr specvar term (utils/get-dom-of-term env term (r/->AnySpec)))
         (mark-as-changed edge))))
 
 (defmethod process-edge :union [env edge]
   (let [specvar (uber/dest edge)
         term (uber/src edge)
-        term-dom (utils/get-dom-of-term env term)
+        term-dom (utils/get-dom-of-term env term nil)
         before-dom (uber/attr env specvar term)
         specvar-dom (utils/get-dom-of-term env specvar term-dom)
         new-dom (r/simplify-or (r/->OneOfSpec (hash-set term-dom specvar-dom)) (utils/get-user-defined-specs env))]
@@ -134,19 +136,19 @@
   (let [normal (uber/src edge)
         artifical (uber/dest edge)]
     (-> env
-        (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical))
-        (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal)))))
+        (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical (r/->AnySpec)))
+        (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal (r/->AnySpec))))))
 
 (defmethod process-edge :is-head [env edge]
   (let [list (uber/dest edge)
         head (uber/src edge)
-        head-dom (utils/get-dom-of-term env head)
+        head-dom (utils/get-dom-of-term env head (r/->AnySpec))
         tail (some->> list
                       (uber/in-edges env)
                       (filter #(= :is-tail (uber/attr env % :relation)))
                       first
                       uber/src)
-        tail-dom (or (utils/get-dom-of-term env tail) (r/->AnySpec))
+        tail-dom (utils/get-dom-of-term env tail (r/->AnySpec))
         overwrite true]
     (if (nil? tail)
       (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]) {:overwrite overwrite})
@@ -158,7 +160,7 @@
 (defn- extract-type [env spec]
   (case+ (r/spec-type spec)
          r/LIST (.type spec)
-         r/TUPLE (r/simplify-or (r/->OneOfSpec (.arglist spec)) (utils/get-user-defined-specs env))
+         r/TUPLE (if (empty? (.arglist spec)) (r/->AnySpec) (r/simplify-or (r/->OneOfSpec (.arglist spec)) (utils/get-user-defined-specs env)))
          (r/->AnySpec)))
 
 (defmethod process-edge :has-type [env edge]
@@ -175,8 +177,8 @@
 (defmethod process-edge :arg-at-pos [env edge]
   (let [compound (uber/dest edge)
         part (uber/src edge)
-        part-dom (utils/get-dom-of-term env part)
-        compound-dom (or (utils/get-dom-of-term env compound) (r/->AnySpec))
+        part-dom (utils/get-dom-of-term env part (r/->AnySpec))
+        compound-dom (utils/get-dom-of-term env compound (r/->AnySpec))
         pos (uber/attr env edge :pos)]
     (if (= r/COMPOUND (r/spec-type compound-dom))
       (if (>= pos (count (:arglist compound-dom)))
@@ -192,12 +194,6 @@
 
 (defn- same [env other-env]
   (= env other-env))
-
-(-> (uber/digraph)
-    (uber/add-nodes :a :b)
-    (uber/add-edges [:a :b])
-    (uber/remove-nodes :b)
-    (uber/edges))
 
 (defn- apply-edges [env edges]
   (reduce process-edge env edges))

@@ -16,7 +16,7 @@
   (uber/attr env :ENVIRONMENT :user-defined-specs))
 
 (defn- var-domain [env term]
-  (let [dom-type (r/spec-type (utils/get-dom-of-term env term))]
+  (let [dom-type (r/spec-type (utils/get-dom-of-term env term (r/->AnySpec)))]
     (contains? #{r/VAR r/ANY} dom-type)))
 
 (declare fill-env-for-term-with-spec)
@@ -44,7 +44,7 @@
    (case+ (r/spec-type type)
           r/AND (reduce #(add-type-to-dom %1 term %2 options) env (:arglist type))
           (let [new-type (r/replace-specvars-with-any type)
-                dom (or (utils/get-dom-of-term env term) (initial-dom term))
+                dom (utils/get-dom-of-term env term (initial-dom term))
                 old-type (if overwrite? (replace-var-with-any dom) dom)
                 defs (utils/get-user-defined-specs env)]
             (-> env
@@ -104,7 +104,7 @@
     (= r/VAR (r/spec-type spec))))
 
 (defn- remove-vars-from-dom [env term]
-  (if (and (uber/has-node? env term) (r/var-spec? (utils/get-dom-of-term env term)))
+  (if (and (uber/has-node? env term) (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec))))
     (uber/add-attr env term :dom (r/->AnySpec))
     env))
 
@@ -139,7 +139,7 @@
                                  r/TUPLE (apply r/to-head-tail-list (repeatedly (count arglist) (fn [] (r/->VarTerm (str (gensym ART_PREFIX))))))
                                  )]
       (-> env
-          (fill-dom artificial-term (or (utils/get-dom-of-term env term) (r/->AnySpec)) {:initial true :overwrite true})
+          (fill-dom artificial-term (utils/get-dom-of-term env term (r/->AnySpec)) {:initial true :overwrite true})
           (uber/add-edges [term artificial-term {:relation :artificial}])))))
 
 (defn- add-to-artifical-term [env term spec options]
@@ -192,12 +192,12 @@
 
 (defmethod fill-dom [:var :var] [env term spec {initial? :initial :as options}]
   (cond
-    (nil? (utils/get-dom-of-term env term)) (add-type-to-dom env term spec options)
-    (r/var-spec? (utils/get-dom-of-term env term)) env
-    (r/any-spec? (utils/get-dom-of-term env term)) (-> env
-                                                       (uber/add-nodes term)
-                                                       (uber/add-attr term :assumed-type spec)
-                                                       (add-type-to-dom term spec options))
+    (nil? (utils/get-dom-of-term env term nil)) (add-type-to-dom env term spec options)
+    (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec))) env
+    (r/any-spec? (utils/get-dom-of-term env term (r/->AnySpec))) (-> env
+                                                                     (uber/add-nodes term)
+                                                                     (uber/add-attr term :assumed-type spec)
+                                                                     (add-type-to-dom term spec options))
     :else (if initial?
             (-> env
                 (uber/add-attr term :was-var true))
@@ -221,9 +221,9 @@
           (process-filling-for-var-term term spec options))
       (if overwrite?
         (process-filling-for-var-term env term spec options)
-        (if (r/var-spec? (utils/get-dom-of-term env term))
+        (if (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
           (add-type-to-dom env term (CANNOT-GROUND))
-          (if (r/any-spec? (utils/get-dom-of-term env term))
+          (if (r/any-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
             (-> env
                 (uber/add-nodes term)
                 (uber/add-attr term :assumed-type spec)
@@ -278,9 +278,9 @@
           (process-filling-for-var-term term spec options))
       (if overwrite? ;; mode overwrite -> grounding ok
         (process-filling-for-var-term env term spec options)
-        (if (r/var-spec? (utils/get-dom-of-term env term))
+        (if (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
           (process-filling-for-var-term env term spec options)
-          (if (r/any-spec? (utils/get-dom-of-term env term))
+          (if (r/any-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
             (-> env
                 (uber/add-nodes term)
                 (uber/add-attr term :assumed-type spec)
@@ -297,20 +297,20 @@
                                            :else :single)))
 
 (defmethod add-children :list [env {head :head tail :tail}]
-  (let [head-env (if (utils/get-dom-of-term env head) env (fill-env-for-term-with-spec env head (r/->AnySpec) {:initial true}))
-        tail-env (if (utils/get-dom-of-term env tail) head-env (fill-env-for-term-with-spec env tail (r/->AnySpec) {:initial true}))]
+  (let [head-env (if (utils/get-dom-of-term env head (r/->AnySpec)) env (fill-env-for-term-with-spec env head (r/->AnySpec) {:initial true}))
+        tail-env (if (utils/get-dom-of-term env tail (r/->AnySpec)) head-env (fill-env-for-term-with-spec env tail (r/->AnySpec) {:initial true}))]
     tail-env))
 
 (defmethod add-children :compound [env {arglist :arglist}]
-  (reduce #(if (utils/get-dom-of-term %1 %2) %1 (fill-env-for-term-with-spec %1 %2 (r/->AnySpec) {:initial true})) env arglist))
+  (reduce #(if (utils/get-dom-of-term %1 %2 nil) %1 (fill-env-for-term-with-spec %1 %2 (r/->AnySpec) {:initial true})) env arglist))
 
 (defmethod add-children :default [env _] env)
 
 (defmethod fill-dom [:nonvar :any] [env term spec options]
   (add-children
-   (if (nil? (utils/get-dom-of-term env term))
-     (add-type-to-dom env term (r/->AnySpec) options)
-     env)
+   (if (utils/get-dom-of-term env term nil)
+     env
+     (add-type-to-dom env term (r/->AnySpec) options))
    term))
 
 (defmethod fill-dom [:nonvar :userdefined] [env term spec options]
@@ -384,7 +384,7 @@
                                                 :other)))
 
 (defmethod spec-valid? :compound [env {functor-term :functor :as term} {functor-spec :functor :as spec}]
-  (if-let [dom (utils/get-dom-of-term env term)]
+  (if-let [dom (utils/get-dom-of-term env term nil)]
     (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
       false
       (and
@@ -398,7 +398,7 @@
 
 
 (defmethod spec-valid? :list [env term spec]
-  (if-let [dom (utils/get-dom-of-term env term)]
+  (if-let [dom (utils/get-dom-of-term env term nil)]
     (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
       false
       (and
@@ -407,7 +407,7 @@
     (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env)))))) ;;TODO: if dom is nil, is the result false?
 
 (defmethod spec-valid? :other [env term spec]
-  (if-let [dom (utils/get-dom-of-term env term)]
+  (if-let [dom (utils/get-dom-of-term env term nil)]
     (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
       false
       (not (r/error-spec? (r/intersect dom spec (get-defs-from-env env)))))

@@ -5,7 +5,8 @@
             [loom.graph]
             [loom.attr]
             [clojure.pprint :refer [pprint print-table]]
-            [clojure.string]))
+            [clojure.string]
+            [clojure.walk]))
 
 
 (defn print-nodes [graph]
@@ -65,30 +66,17 @@
        (r/to-string term)
        "!\n"
        "This is the error message:\n"
-       (r/to-string (or (utils/get-dom-of-term env term) (r/->AnySpec)))
+       (r/to-string (utils/get-dom-of-term env term (r/->AnySpec)))
        "\n"
        (uber/attr env term :indices)
        ))
-
-(defn better-print [graph]
-  (let [error-terms (->> graph
-                         (utils/get-terms)
-                         (remove contains-arti-term?)
-                         (remove #(nil? (utils/get-dom-of-term graph %)))
-                         (filter #(r/error-spec? (utils/get-dom-of-term graph %))))]
-    (if (empty? error-terms)
-      (println ":) No errors found")
-      (doseq [t error-terms]
-        (println (tinker-error-message graph t))
-        (println)))
-    ))
 
 (defn print-type-information [graph]
   (let [error-terms (->> graph
                         (utils/get-terms)
                         (remove contains-arti-term?)
-                        (remove #(nil? (utils/get-dom-of-term graph %)))
-                        (filter #(r/error-spec? (utils/get-dom-of-term graph %))))
+                        (remove #(nil? (utils/get-dom-of-term graph % nil)))
+                        (filter #(r/error-spec? (utils/get-dom-of-term graph % (r/->AnySpec)))))
         other-terms (->> graph
                          (utils/get-terms)
                          (remove contains-arti-term?)
@@ -107,7 +95,7 @@
   (->> graph
        (utils/get-terms)
        (remove contains-arti-term?)
-       (remove #(nil? (utils/get-dom-of-term graph %)))
+       (remove #(nil? (utils/get-dom-of-term graph % nil)))
        (remove #(= "[]" (r/to-string %)))
        (filter #(or (uber/attr graph % :index)
                      (uber/attr graph % :indices)))
@@ -151,4 +139,5 @@
        println))
 
 
-(map transform-record-to-map [(r/->AnySpec) (r/->IntegerSpec)])
+(defn print-basics [graph]
+  (println (uber/attr graph :ENVIRONMENT :pred-id)))

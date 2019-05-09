@@ -72,7 +72,7 @@
 
 (defn calculate-and-get-dom
   ([initial? term spec]
-   (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec {:initial initial?}) term))
+   (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term spec {:initial initial?}) term (r/->AnySpec)))
   ([term spec]
    (calculate-and-get-dom false term spec)))
 
@@ -135,7 +135,7 @@
   (is (= (r/->IntegerSpec) (calculate-and-get-dom (r/->IntegerTerm 2) (r/->AtomicSpec))))
   (is (= (r/->FloatSpec) (calculate-and-get-dom (r/->FloatTerm 2.0) (r/->AtomicSpec))))
   (are [term]
-      (r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->AtomSpec)) term))
+      (r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->AtomSpec)) term (r/->AnySpec)))
     (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     )
@@ -153,12 +153,6 @@
     )
   )
 
-(calculate-and-get-dom (r/->VarTerm "X") (r/->AtomSpec))
-(-> test-env
-    ;(sut/add-type-to-dom (r/->VarTerm "X") (r/->AnySpec))
-    (sut/add-type-to-dom (r/->VarTerm "X") (r/->AtomSpec))
-    (utils/get-dom-of-term (r/->VarTerm "X")))
-
 ;;TODO: what is the initial spec of an atom? ExactSpec or AtomSpec? How handle intersectioning with exact?
 ;; Current Status: Value of atom is lost, intersect with exact always yields a result, check later, if it matches with the original value
 (deftest fill-env-test:exact
@@ -167,7 +161,7 @@
     (r/->AtomTerm "cake")
     )
   (are [term]
-      (r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->ExactSpec "cake")) term))
+      (r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->ExactSpec "cake")) term (r/->AnySpec)))
     (r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
     (r/->AtomTerm "nocake")
@@ -249,7 +243,7 @@
                (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])
                )
   (are [term]
-      (r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])) term))
+      (r/error-spec? (utils/get-dom-of-term (sut/fill-env-for-term-with-spec test-env term (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])) term (r/->AnySpec)))
     (r/->EmptyListTerm)
     (r/->ListTerm (r/->FloatTerm 2.5) (r/->EmptyListTerm))
     (r/->CompoundTerm "foo" [(r/->AtomTerm "foo")])
@@ -316,7 +310,7 @@
   (do-template [term spec expected-dom]
                (let [mod-env (sut/add-type-to-dom test-env (r/->VarTerm "X") (r/->GroundSpec))]
                  (is (= expected-dom
-                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and already nonvar: " (r/to-string term) " " (r/to-string spec))))
+                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term (r/->AnySpec))) (str "not initial and already nonvar: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (sut/ALREADY-NONVAR)
                (r/->VarTerm "X") (r/->IntegerSpec) (r/->IntegerSpec)
                (r/->VarTerm "X") (r/->AnySpec) (r/->GroundSpec)
@@ -329,7 +323,7 @@
   (do-template [term spec expected-dom]
                (let [mod-env (sut/add-type-to-dom test-env (r/->VarTerm "X") (r/->VarSpec))]
                  (is (= expected-dom
-                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term)) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
+                        (utils/get-dom-of-term (sut/fill-env-for-term-with-spec mod-env term spec {:initial false}) term (r/->AnySpec))) (str "not initial and dom is var: " (r/to-string term) " " (r/to-string spec))))
                (r/->VarTerm "X") (r/->VarSpec) (r/->VarSpec)
                (r/->VarTerm "X") (r/->IntegerSpec) (r/DISJOINT (r/->IntegerSpec) (r/->VarSpec))
                (r/->VarTerm "X") (r/->AnySpec) (r/->VarSpec)
@@ -347,7 +341,7 @@
                        (-> test-env
                            (sut/fill-env-for-term-with-spec term first-spec {:initial true})
                            (sut/fill-env-for-term-with-spec term second-spec {:initial true})
-                           (utils/get-dom-of-term term))
+                           (utils/get-dom-of-term term (r/->AnySpec)))
                        :origin))
                    (str (r/to-string term) " " (r/to-string first-spec) " " (r/to-string second-spec)))
 
@@ -365,7 +359,7 @@
                       (dissoc
                        (-> test-env
                            (sut/fill-env-for-term-with-spec term spec options)
-                           (utils/get-dom-of-term term))
+                           (utils/get-dom-of-term term (r/->AnySpec)))
                        :origin))
                    (str (clojure.string/join " " [(r/to-string term) (r/to-string spec) (str options)])))
 
@@ -400,7 +394,7 @@
                        (-> test-env
                            (sut/add-type-to-dom term spec1)
                            (sut/fill-env-for-term-with-spec term spec2 options)
-                           (utils/get-dom-of-term term))
+                           (utils/get-dom-of-term term (r/->AnySpec)))
                        :origin))
                    (str (clojure.string/join " " ["expected:" (r/to-string expected-dom) " result: " (r/to-string term) (r/to-string spec1) (r/to-string spec2) (str options)])))
 

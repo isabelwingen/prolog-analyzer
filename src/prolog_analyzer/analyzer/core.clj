@@ -1,18 +1,13 @@
 (ns prolog-analyzer.analyzer.core
   (:require
-   [prolog-analyzer.parser :refer [process-prolog-file]] ;; used only during development
    [prolog-analyzer.analyzer.domain :as dom]
    [prolog-analyzer.analyzer.relationship-analyzer :as rel]
    [prolog-analyzer.records :as r]
    [prolog-analyzer.utils :as utils]
-   [prolog-analyzer.analyzer.pretty-printer :as my-pp]
    [ubergraph.core :as uber]
    [ubergraph.protocols]
    [loom.graph]
    [loom.attr]
-   [clojure.set]
-   [clojure.pprint :as pp]
-   [clojure.tools.logging :as log]
    [clojure.tools.namespace.repl :refer [refresh]]
    ))
 
@@ -59,7 +54,7 @@
 (defn- remove-nil-doms [env]
   (->> env
        utils/get-terms
-       (filter #(nil? (utils/get-dom-of-term env %)))
+       (filter #(nil? (utils/get-dom-of-term env % nil)))
        (filter #(satisfies? prolog-analyzer.records/term %))
        (reduce #(dom/add-type-to-dom %1 %2 (r/->AnySpec)) env)))
 
@@ -67,7 +62,6 @@
   env)
 
 (defn add-relationships [env]
-  ;(log/debug "Add Relationships")
   (reduce #(add-relationships-aux %1 %2) env (utils/get-terms env)))
 
 (defn- goal-args->tuple [arglist]
@@ -89,10 +83,10 @@
       env)))
 
 (defn- valid? [env term spec]
-  (let [old-dom (utils/get-dom-of-term env term)
+  (let [old-dom (utils/get-dom-of-term env term (r/->AnySpec))
         new-dom (-> env
                     (dom/fill-env-for-term-with-spec term spec)
-                    (utils/get-dom-of-term term))]
+                    (utils/get-dom-of-term term (r/->AnySpec)))]
     (= old-dom new-dom)))
 
 (defn condition-fullfilled? [env {head :head tail :tail :as head-tail-list} [conditions p]]
@@ -146,7 +140,6 @@
       (set-indices goal data)))
 
 (defn evaluate-body [env data body]
-  ;(log/debug "Evaluate Body")
   (reduce (partial evaluate-goal data) env body))
 
 (defn- add-index-to-input-arguments [env arglist]
@@ -154,7 +147,6 @@
 
 
 (defn initial-env [data arglist pre-spec]
-  ;(log/debug "Initialize Env")
   (-> (uber/digraph)
       (uber/add-nodes-with-attrs [:ENVIRONMENT {:user-defined-specs (get data :specs)}])
       (dom/fill-env-for-term-with-spec (apply r/to-head-tail-list arglist) pre-spec {:initial true})
@@ -170,7 +162,6 @@
       ))
 
 (defn complete-analysis [data]
-  ;(log/debug "Start analysis")
   (when (empty? (utils/get-pred-identities data))
     (println (pr-str "No predicates found")))
   (for [pred-id (utils/get-pred-identities data)
@@ -201,48 +192,3 @@
                   {:clause (utils/get-clause pred-id clause-number data) :pre-spec pre-spec :title (conj pred-id clause-number)}
                   ))]
     (pmap (fn [{clause :clause pre-spec :pre-spec title :title}] (analyzing data clause pre-spec title)) tasks)))
-
-
-(defn- create-post-spec [env]
-  (let [indexed-terms (->> env
-                           utils/get-terms
-                           (filter #(uber/attr env % :index)))
-        premise (->> indexed-terms
-                     (map #(uber/attrs env %))
-                     (sort-by :index)
-                     (map :dom)
-                     (map #(if (nil? %) (r/->AnySpec) %))
-                     (apply r/to-tuple-spec))
-        condition (->> indexed-terms
-                       (map #(assoc (uber/attrs env %) :pre (r/maybe-spec (r/initial-spec %))))
-                       (sort-by :index)
-                       (map :pre)
-                       (apply vector))]
-    {condition premise}))
-
-(defn- valid-env? [env]
-  (->> env
-       utils/get-terms
-       (map #(utils/get-dom-of-term env % (r/->AnySpec)))
-       (every? (complement r/error-spec?))))
-
-
-(defn process-predicate-envs [data pred-id envs]
-  (if (every? valid-env? envs)
-    (let [post-specs-map (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) (get data :spec)) (map create-post-spec envs))]
-      (update-in data [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) post-specs-map)))
-    data))
-
-
-(defn- add-new-knowledge [data envs]
-  (->> envs
-       (group-by #(apply vector (drop-last (uber/attr % :ENVIRONMENT :pred-id))))
-       (reduce-kv process-predicate-envs data)))
-
-
-(defn global-analysis [data]
-  (let [envs (complete-analysis-parallel data)
-        new-data (add-new-knowledge data envs)]
-    (if (= data new-data)
-      envs
-      (global-analysis new-data))))

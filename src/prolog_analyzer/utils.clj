@@ -52,15 +52,10 @@
 (defn get-user-defined-specs [env]
   (uber/attr env :ENVIRONMENT :user-defined-specs))
 
-(defn get-dom-of-term
-  ([env term]
-   (if (uber/has-node? env term)
-     (uber/attr env term :dom)
-     nil))
-  ([env term default]
-   (if (uber/has-node? env term)
-     (or (uber/attr env term :dom) default)
-     default)))
+(defn get-dom-of-term [env term default]
+  (if (uber/has-node? env term)
+    (or (uber/attr env term :dom) default)
+    default))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to

@@ -51,4 +51,4 @@ data
 
 (deftest get-dom-of-term-test
   (is (= [{:spec :integer} {:spec :any}] (sut/get-dom-of-term (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :integer} {:spec :any}]}]))
-                                                              :a))))
+                                                              :a (r/->AnySpec)))))
