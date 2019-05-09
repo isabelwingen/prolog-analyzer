@@ -166,7 +166,6 @@
       (uber/add-attr :ENVIRONMENT :pred-id pred-id)
       (evaluate-body data body)
       add-relationships
-      remove-nil-doms
       rel/fixpoint-analysis
       ))
 
@@ -224,7 +223,7 @@
 (defn- valid-env? [env]
   (->> env
        utils/get-terms
-       (map (partial utils/get-dom-of-term env (r/->AnySpec)))
+       (map #(utils/get-dom-of-term env % (r/->AnySpec)))
        (every? (complement r/error-spec?))))
 
 
