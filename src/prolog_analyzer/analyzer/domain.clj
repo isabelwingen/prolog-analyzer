@@ -105,7 +105,9 @@
 
 (defn- remove-vars-from-dom [env term]
   (if (and (uber/has-node? env term) (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec))))
-    (uber/add-attr env term :dom (r/->AnySpec))
+    (-> env
+        (uber/remove-attr env term :dom)
+        (uber/add-attr env term :dom (r/->AnySpec)))
     env))
 
 (def ART_PREFIX "A__")
@@ -297,9 +299,11 @@
                                            :else :single)))
 
 (defmethod add-children :list [env {head :head tail :tail}]
-  (let [head-env (if (utils/get-dom-of-term env head (r/->AnySpec)) env (fill-env-for-term-with-spec env head (r/->AnySpec) {:initial true}))
-        tail-env (if (utils/get-dom-of-term env tail (r/->AnySpec)) head-env (fill-env-for-term-with-spec env tail (r/->AnySpec) {:initial true}))]
-    tail-env))
+  (let [head-env (fn [e] (if (utils/get-dom-of-term e head nil) e (fill-env-for-term-with-spec e head (r/->AnySpec) {:initial true})))
+        tail-env (fn [e] (if (utils/get-dom-of-term e tail nil) e (fill-env-for-term-with-spec e tail (r/->AnySpec) {:initial true})))]
+    (-> env
+        head-env
+        tail-env)))
 
 (defmethod add-children :compound [env {arglist :arglist}]
   (reduce #(if (utils/get-dom-of-term %1 %2 nil) %1 (fill-env-for-term-with-spec %1 %2 (r/->AnySpec) {:initial true})) env arglist))

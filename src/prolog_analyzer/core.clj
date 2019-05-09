@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [prolog-analyzer.parser :as parser]
             [prolog-analyzer.analyzer.core :as analyzer]
+            [prolog-analyzer.analyzer.global-analysis :as global]
             [prolog-analyzer.analyzer.pretty-printer :as my-pp]
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
@@ -11,7 +12,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-type-analysis res)))
+    (my-pp/print-basics res)))
 
 (defn -main
   "Start analyzing of source file"
@@ -19,7 +20,8 @@
    (print-result
     (->> edn
          parser/process-edn
-         analyzer/global-analysis))
+         global/global-analysis
+         ))
    (<╯°□°>╯︵┻━┻)
     )
    ([dialect term-expander file prolog-exe]
@@ -27,11 +29,11 @@
      (if (.isDirectory (io/file file))
        (->> file
             (parser/process-prolog-directory dialect term-expander prolog-exe)
-            analyzer/global-analysis
+            global/global-analysis
             )
        (->> file
             (parser/process-prolog-file dialect term-expander prolog-exe)
-            analyzer/global-analysis
+            global/global-analysis
             )))
     (<╯°□°>╯︵┻━┻)
     ))
