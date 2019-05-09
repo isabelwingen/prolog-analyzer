@@ -10,18 +10,14 @@
    ))
 
 (defn- create-post-spec [env]
-  (let [indexed-terms (->> env
-                           utils/get-terms
-                           (filter #(uber/attr env % :index)))
-        premise (->> indexed-terms
+  (let [arglist (uber/attr env :ENVIRONMENT :arglist)
+        premise (->> arglist
                      (map #(uber/attrs env %))
-                     (sort-by :index)
                      (map :dom)
                      (map #(if (nil? %) (r/->AnySpec) %))
                      (apply r/to-tuple-spec))
-        condition (->> indexed-terms
+        condition (->> arglist
                        (map #(assoc (uber/attrs env %) :pre (r/maybe-spec (r/initial-spec %))))
-                       (sort-by :index)
                        (map :pre)
                        (apply vector))]
     {condition premise}))
