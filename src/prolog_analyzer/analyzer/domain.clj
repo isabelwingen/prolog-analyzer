@@ -106,8 +106,8 @@
 (defn- remove-vars-from-dom [env term]
   (if (and (uber/has-node? env term) (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec))))
     (-> env
-        (uber/remove-attr env term :dom)
-        (uber/add-attr env term :dom (r/->AnySpec)))
+        (uber/remove-attr term :dom)
+        (uber/add-attr term :dom (r/->AnySpec)))
     env))
 
 (def ART_PREFIX "A__")

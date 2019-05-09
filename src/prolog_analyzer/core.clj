@@ -12,7 +12,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-basics res)))
+    (my-pp/print-with-indices res)))
 
 (defn -main
   "Start analyzing of source file"
