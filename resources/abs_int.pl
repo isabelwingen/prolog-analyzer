@@ -37,8 +37,6 @@
 :- define_spec(state_list,list(state_list_element)).
 :- define_spec(state,one_of([atom(t),compound(t(atom,atom,atom,state,state))])).
 
-:- spec_pre(int_expr/4,[one_of([cst,expr,compound(neg(expr)),id]),state,var,int]).
-:- spec_post(int_expr/4,[one_of([cst,expr,compound(neg(expr)),id]),state,var,int],[ground,state,atom,int]).
 int_expr(cst(Val),_,AbsVal,Line) :- !,
   alpha(Val,AbsVal),
   log("%t is abstracted to %t.",[Val,AbsVal],info,abs_int,Line).
@@ -58,8 +56,6 @@ int_expr(id(A),_,X,Line) :-
     log("%t is undefined",[id(A)],error,abs_int,Line).
 
 
-:- spec_pre(int_pred/5,[pred,state,var,one_of([var,atom]),int]).
-:- spec_post(int_pred/5,[pred,state,var,var,int],[pred,state,state,atom,int]).
 int_pred(pred(Op,A,B),State,StateOut,ValOut,Line) :-
   int_expr(A,State,ValA,Line),
   int_expr(B,State,ValB,Line),
@@ -70,8 +66,6 @@ int_pred(not(P),State,State,Val,Line) :-
   int_expr(P,State,PVal,Line),
   abs_not(PVal,Val).
 
-:- spec_pre(start_int/4,[list(int),any,list(atom),var]).
-:- spec_post(start_int/4,[list(int),any,list(atom),var],[list(int),any,list(atom),state]).
 start_int(Code,Path,Options,A) :-
   process_file(Code,Path,Options,AST),
   log(AST),
@@ -79,10 +73,6 @@ start_int(Code,Path,Options,A) :-
   int(AST,State,StateOut),
   assoc_to_list(StateOut,A).
 
-:- spec_pre(int/3,[any,state,var]).
-:- spec_pre(int/3,[any,state,var]).
-:- spec_post(int/3,[block,state,var],[block,state,state]).
-:- spec_post(int/3,[statement,state,var],[statement,state,state]).
 int([],State,State).
 int([H|T],State,StateOut) :-
   int(H,State,StateT),
@@ -100,9 +90,6 @@ int(Statement,A,A) :- % int ist gefailt
 int(_,A,A) :- !,% int ist gefailt
     log("Could not process",error,abs_int,0).
 
-:- spec_pre(int2/3,[statement,state,var]).
-:- spec_pre(int2/3,[block,state,var]).
-:- spec_post(int2/3,[statement,state,var],[statement,state,state]).
 int2(skip(_),State,State).
 
 % Es gibt keinen State, der den If- *oder* den Else-Block wahr machen würde -> Fehler
@@ -152,16 +139,11 @@ int2(print(Line,Expr),State,State) :-
   int_expr(Expr,State,Val,Line),
   log(Val).
 
-
-:- spec_pre(int_if/4,[block,one_of([block,skip]),ground,var]).
-:- spec_post(int_if/4,[block,one_of([block,skip]),ground,var],[block,one_of([block,skip]),ground,state]).
 int_if(If,_,(true,StateIn),StateOut) :-
   int(If,StateIn,StateOut).
 int_if(_,Else,(false,StateIn),StateOut) :-
   int(Else,StateIn,StateOut).
 
-:- spec_pre(int_while/5,[int,pred,block,state,var]).
-:- spec_post(int_while/5,[int,pred,block,state,var],[int,pred,block,state,state]).
 int_while(Line,Pred,Block,StateIn,StateOut) :-
   fixpoint_loop_body(Line,Pred,Block,StateIn,LoopState),
   findall(StateOut,int_pred(Pred,LoopState,StateOut,false,Line),StatesWherePredIsFalse),
@@ -169,7 +151,6 @@ int_while(Line,Pred,Block,StateIn,StateOut) :-
     -> log("found endless loop",error,abs_int,Line),StateOut=StateIn;
    merge_list_of_states(StatesWherePredIsFalse,StateOut)).
 
-:-spec_pre(fixpoint_loop_body/5,[int,pred,any,state,var]).
 fixpoint_loop_body(Line,Pred,_Block,StateIn,StateIn) :-
   % Es gibt keinen State, der die Eintrittsbedingung wahr macht
   findall(StateOut,int_pred(Pred,StateIn,StateOut,true,Line),[]),!,
@@ -186,8 +167,6 @@ fixpoint_loop_body(Line,Pred,Block,StateIn,ResultState) :-
   (StateAfterLoop = StateIn -> ResultState = StateAfterLoop
                             ;  fixpoint_loop_body(Line,Pred,Block,StateAfterLoop,ResultState)).
 
-:- spec_pre(merge_list_of_states/2,[list(state),var]).
-:- spec_post(merge_list_of_states/2,[list(state),var],[list(state),state]).
 merge_list_of_states([H],H).
 merge_list_of_states([H|T],S) :-
   merge_list_of_states(T,ST),
@@ -204,14 +183,10 @@ merge_keys([Key|Keys],State1,State2,Current,Out) :-
   put_assoc(Key,Current,Val,NewState),
   merge_keys(Keys,State1,State2,NewState,Out).
 
-:- spec_pre(abs_int/3,[any,var,list(atom)]).
-:- spec_post(abs_int/3,[any,var,list(atom)],[any,list(state),list(atom)]).
 abs_int(F,StateList,Options) :-
   read_file_to_codes(F, Code, []),
   start_int(Code,F,Options,StateList),!.
 
-:- spec_pre(abs_int/2,[any,var]).
-:- spec_post(abs_int/2,[any,var],[any,state_list]).
 abs_int(F,StateList) :-
   read_file_to_codes(F, Code, []),
   start_int(Code,F,[],StateList),!.

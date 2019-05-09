@@ -8,7 +8,7 @@ jobs:
     docker:
       # specify the version you desire here
       - image: circleci/clojure:lein-2.7.1
-      
+
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
       # documented at https://circleci.com/docs/2.0/circleci-images/
@@ -20,7 +20,7 @@ jobs:
       LEIN_ROOT: "true"
       # Customize the JVM maximum heap limit
       JVM_OPTS: -Xmx3200m
-    
+
     steps:
       - checkout
       - run:
@@ -40,6 +40,9 @@ jobs:
           paths:
             - ~/.m2
           key: v1-dependencies-{{ checksum "project.clj" }}
-        
+
       # run tests!
       - run: lein test
+
+      # run example
+      - run: lein run "swipl" "prolog/prolog_analyzer.pl" "resources" "swipl"

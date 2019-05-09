@@ -7,7 +7,7 @@ foo(X,Y) :-
     bar(X,Y),
     int(X).
 
-:- spec_pre(bar/2,[][int,int]).
+:- spec_pre(bar/2,[int,int]).
 :- spec_pre(bar/2,[atom,atom]).
 bar(X,X).
 
@@ -26,6 +26,7 @@ filter([_|L],X) :-
 is_var(X) :-
     var(X).
 
+% should fail
 test_is_var(A) :-
     int(A),
     is_var(A).
