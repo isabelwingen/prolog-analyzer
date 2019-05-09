@@ -11,7 +11,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-with-indices res)))
+    (my-pp/print-type-analysis res)))
 
 (defn -main
   "Start analyzing of source file"
@@ -33,10 +33,5 @@
             (parser/process-prolog-file dialect term-expander prolog-exe)
             analyzer/global-analysis
             )))
- ;   (<╯°□°>╯︵┻━┻)
+    (<╯°□°>╯︵┻━┻)
     ))
-
-  (def sic "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1")
-   (def term-expander "prolog/prolog_analyzer.pl")
-
-   (-main "swipl" term-expander "prolog/playground.pl" "swipl")

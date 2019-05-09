@@ -212,6 +212,7 @@
                      (map #(uber/attrs env %))
                      (sort-by :index)
                      (map :dom)
+                     (map #(if (nil? %) (r/->AnySpec) %))
                      (apply r/to-tuple-spec))
         condition (->> indexed-terms
                        (map #(assoc (uber/attrs env %) :pre (r/maybe-spec (r/initial-spec %))))
@@ -220,20 +221,10 @@
                        (apply vector))]
     {condition premise}))
 
-(defn- create-post-spec-premise [env]
-  (->> env
-       utils/get-terms
-       (filter #(uber/attr env % :index))
-       (map #(uber/attrs env %))
-       (sort-by :index)
-       (map :dom)
-       (apply r/to-tuple-spec)))
-
-
 (defn- valid-env? [env]
   (->> env
        utils/get-terms
-       (map (partial utils/get-dom-of-term env))
+       (map (partial utils/get-dom-of-term env (r/->AnySpec)))
        (every? (complement r/error-spec?))))
 
 
