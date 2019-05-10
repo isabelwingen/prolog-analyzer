@@ -3,7 +3,8 @@
    [clojure.string]))
 
 
-(def x (read-string (str "[" (slurp "results/prologmud_I7_0a2d94d31.edn") "]")))
+(defn get-data [file]
+  (read-str (str \[ (slurp "prologmud4.edn") \])))
 
 (defn non-atomic-keys [keys]
   (remove #(#{:atomic, :atom, :number, :string, :integer, :float :empty-list} (:record-type %)) keys))
@@ -79,7 +80,5 @@
         anys (get freq-map {:record-type :any} 0)]
     {:total total :any (+ anys nils)}))
 
-(let [{any :any total :total} (bla (create-map-for-vars x))]
+(let [{any :any total :total} (bla (create-map-for-vars (get-data)))]
   (float (/ any total)))
-
-(create-map-for-vars x)
