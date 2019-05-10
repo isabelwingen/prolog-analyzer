@@ -769,7 +769,7 @@
            EMPTYLIST (str "[" (to-string head) "]")
            VAR (str "[" (to-string head) "|" (to-string tail) "]")
            LIST (str "[" (to-arglist (get-elements-of-list x)) "]")
-           ATOM (if (= tail "[]") (str "[" (to-string head) "]") "error:list-with-atom-tail"))))
+           (str "[" (to-string head) "|" (to-string tail) "]"))))
 
 
 (defrecord CompoundTerm [functor arglist]

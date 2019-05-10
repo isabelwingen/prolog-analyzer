@@ -25,7 +25,7 @@
 
 (defn transform-to-edn [clojure-file]
   (if (.exists (io/file clojure-file))
-    (read-string (str \[ (clojure.string/replace (slurp clojure-file) "\\" "\\\\") \]))
+    (read-string (str \[ (slurp clojure-file) \]))
     (do
       (log/warn clojure-file " No .edn file was created")
       [])))

@@ -24,33 +24,25 @@ set_file(Filename) :-
     retractall(filename(_)),
     assert(filename(Filename)).
 
-escape_ok(92).
-escape_ok(34).
+ednify_codes([], []).
+ednify_codes([0'\\|T], [0'\\, 0'\\|R]) :-
+    !,
+    ednify_codes(T, R).
+ednify_codes([0'"|T], [0'\\, 0'"|R]) :-
+    !,
+    ednify_codes(T, R).
+ednify_codes([X|T], [X|R]) :-
+    ednify_codes(T, R).
 
-escape(L,Res) :-
-    escape(L,no,Res).
+ednify_atom(Atom, EdnAtom) :-
+    atom_codes(Atom, Codes),
+    ednify_codes(Codes, NewCodes),
+    atom_codes(EdnAtom, NewCodes).
 
-escape([],_,[]) :- !.
-escape([X],_,[X]) :- X \= 92,!.
-escape([92],no,[92,92]) :- !.
-escape([92],yes,[92]) :- !.
-escape([92,P|T],_,[92,P|S]) :-
-    escape_ok(P),
-    !,
-    escape(T,yes,S).
-escape([92,X|T],no,[92,92,X|S]) :-
-    !,
-    escape(T,no,S).
-escape([92,X|T],yes,[92,X|S]) :-
-    !,
-    escape(T,no,S).
-escape([X,92|T],_,[X|S]) :-
-    !,
-    escape([92|T],no,S).
-escape([X,Y|T],_,[X|S]) :-
-    !,
-    escape([Y|T],no,S).
-
+ednify_string(String, EdnString) :-
+    string_codes(String, Codes),
+    ednify_codes(Codes, NewCodes),
+    string_codes(EdnString, NewCodes).
 
 sicstus_transform(Term,Res) :-
     number(Term),!,
@@ -218,8 +210,9 @@ arg_to_map(compound,Term,Map) :-
 
 arg_to_map(compound,Term,Map) :-
     !,
-    Term =.. [FunctorString|Args],
+    Term =.. [Functor|Args],
     create_arglist(Args,Arglist),
+    ednify_atom(Functor,FunctorString),
     multi_string_concat(["{:type :compound"],TypePart),
     multi_string_concat([":functor \"",FunctorString,"\""],FunctorPart),
     my_string_concat(":arglist ",Arglist,Arglist_Elem),
@@ -241,9 +234,8 @@ arg_to_map(var,Term,Map) :-
 
 arg_to_map(string,Term,M) :-
     !,
-    term_string(Term,S),
-    my_string_concat("{:type :string :term ", S, R1),
-    my_string_concat(R1,"}",M).
+    ednify_string(Term,EdnString),
+    multi_string_concat(["{:type :string :term \"",EdnString,"\"}"],M).
 
 arg_to_map(Type,Term,Map) :-
     (Type = integer; Type = number; Type = float),
@@ -265,17 +257,18 @@ arg_to_map(Type,Term,Map) :-
     my_string_concat(R3, "}",Map).
 
 arg_to_map(atom,[],"{:type :empty-list}") :- !.
-arg_to_map(atom,Term,"{:type :atom}") :- !.
-%arg_to_map(atom,Term,Map) :-
-%    prolog_load_context(dialect,swi),
-%    !,
-%    term_string(Term,String),
-%    my_string_concat("{:term \"", String,R1),
-%    my_string_concat(R1, "\" :type :atom}", Map).
-%arg_to_map(atom,Term,Map) :-
-%    !,
-%    my_string_concat("{:term \"", Term,R1),
-%    my_string_concat(R1, "\" :type :atom}", Map).
+arg_to_map(atom,Term,Map) :-
+    prolog_load_context(dialect,swi),
+    !,
+    ednify_atom(Term,EdnAtom),
+    term_string(EdnAtom,String),
+    my_string_concat("{:term \"", String,R1),
+    my_string_concat(R1, "\" :type :atom}", Map).
+arg_to_map(atom,Term,Map) :-
+    !,
+    ednify_atom(Term,EdnTerm)
+    my_string_concat("{:term \"", EdnTerm,R1),
+    my_string_concat(R1, "\" :type :atom}", Map).
 
 
 arg_to_map(atomic,[],"{:type :empty-list}") :- !.
@@ -582,10 +575,10 @@ term_expander(_) :-
     write("!!! Term expander did not succeed!").
 
 
-user:term_expansion(A,A) :-
+user:term_expansion(A,Out) :-
     !,
     term_expander(A),
-    ((A = ':-'(module(_));A=':-'(module(_,_))) -> Out=A;Out=[]).
+    ((A = ':-'(module(_));A=':-'(module(_,_))) -> Out=A; Out=[]).
 
 :- multifile user:term_expansion/6.
 user:term_expansion(Term, Layout1, Ids, Out, Layout1, [plspec_token|Ids]) :-
