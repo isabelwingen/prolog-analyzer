@@ -4,11 +4,10 @@
 
 
 (defn get-data [file]
-  (read-str (str \[ (slurp "prologmud4.edn") \])))
+  (read-string (str \[ (slurp file) \])))
 
 (defn non-atomic-keys [keys]
   (remove #(#{:atomic, :atom, :number, :string, :integer, :float :empty-list} (:record-type %)) keys))
-
 
 (defn contains-var? [m]
   (case (:record-type m)
@@ -50,7 +49,6 @@
     (str "[" (clojure.string/join elems) "]")))
 
 
-
 (defmethod to-string :empty-list [m]
   "[]")
 
@@ -80,5 +78,6 @@
         anys (get freq-map {:record-type :any} 0)]
     {:total total :any (+ anys nils)}))
 
-(let [{any :any total :total} (bla (create-map-for-vars (get-data)))]
-  (float (/ any total)))
+(defn percent [file]
+  (let [{any :any total :total} (bla (create-map-for-vars (get-data file)))]
+    (float (/ any total))))

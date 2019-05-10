@@ -42,9 +42,12 @@
        (reduce-kv process-predicate-envs data)))
 
 
-(defn global-analysis [data]
-  (let [envs (core/complete-analysis-parallel data)
-        new-data (add-new-knowledge data envs)]
-    (if (= data new-data)
-      envs
-      (global-analysis new-data))))
+(defn global-analysis
+  ([data] (global-analysis data 0))
+  ([data counter]
+   (println (pr-str "Step " counter))
+   (let [envs (core/complete-analysis-parallel data)
+         new-data (add-new-knowledge data envs)]
+     (if (= data new-data)
+       envs
+       (global-analysis new-data (inc counter))))))

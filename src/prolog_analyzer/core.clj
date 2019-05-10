@@ -12,7 +12,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-with-indices res)))
+    (my-pp/print-type-analysis res)))
 
 (defn run
   ([edn]
