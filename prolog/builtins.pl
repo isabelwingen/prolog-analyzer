@@ -218,20 +218,20 @@
 :- spec_pre(user:'=:='/2, [arithmetic_expression, arithmetic_expression]).
 % no spec post
 
-:- spec_pre(user:'=\='/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'=\\='/2, [arithmetic_expression, arithmetic_expression]).
 % no spec post
 
 :- spec_pre(user:'='/2, [any, any]).
 :- spec_post(user:'='/2, [any, any], [compatible(X), compatible(X)]).
 % no spec post
 
-:- spec_pre(user:'\='/2, [any, any]).
+:- spec_pre(user:'\\='/2, [any, any]).
 % no spec post
 
 :- spec_pre(user:'=='/2, [any, any]).
 :- spec_post(user:'=='/2, [any, any], [compatible(X), compatible(X)]).
 
-:- spec_pre(user:'\=='/2, [any, any]).
+:- spec_pre(user:'\\=='/2, [any, any]).
 % no spec post
 
 :- spec_pre(user:'@>2'/2, [any, any]).
@@ -246,7 +246,7 @@
 :- spec_pre(user:'@=<2'/2, [any, any]).
 % no spec post
 
-:- spec_pre(user:'\+'/1, [callable]).
+:- spec_pre(user:'\\+'/1, [callable]).
 % no spec post
 
 :- spec_pre(user:';'/2, [callable, callable]).
