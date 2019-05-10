@@ -80,3 +80,9 @@
   (if (nil? tail)
     (list)
     (conj (get-elements-of-list tail) head)))
+
+
+(defn recursive-check-condition [l msg]
+  (when (not-empty l)
+    (assert (first l) msg)
+    (recursive-check-condition (rest l) msg)))

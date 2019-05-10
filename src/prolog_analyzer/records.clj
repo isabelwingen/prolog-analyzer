@@ -1,5 +1,5 @@
 (ns prolog-analyzer.records
-  (:require [prolog-analyzer.utils :refer [case+ get-elements-of-list] :as utils]
+  (:require [prolog-analyzer.utils :refer [case+ get-elements-of-list recursive-check-condition] :as utils]
             [clojure.tools.logging :as log]
             [clojure.tools.namespace.repl :refer [refresh]]
             [clojure.string]))
@@ -348,6 +348,8 @@
   spec
   (spec-type [spec] TUPLE)
   (next-steps [spec term defs overwrite]
+    (assert arglist "Next Step: Tuple - Arglist of tuple was nil")
+    (recursive-check-condition arglist "Next Step: Tuple - An argument of a tuple was nil")
     (cond
       (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
                           [head (first arglist)
@@ -390,6 +392,8 @@
   spec
   (spec-type [spec] COMPOUND)
   (next-steps [spec term defs _]
+    (assert arglist "Next Step: Compound - Arglist of compound was nil")
+    (recursive-check-condition arglist "Next Step: Compound - An argument of a compound was nil")
     (cond
       (= COMPOUND (term-type term)) (interleave (.arglist term) arglist)
       (and (= "." functor) (= LIST (term-type term))) [(.head term) (first arglist) (.tail term) (second arglist)]
@@ -552,12 +556,14 @@
   (next-steps [spec term defs overwrite?]
     (if-let [{arglist :arglist :as suitable-spec} (intersect spec (initial-spec term) defs overwrite?)]
       (if (= OR (spec-type suitable-spec))
-        (->> arglist
-             (map #(next-steps % term defs overwrite?))
-             (map (partial apply hash-map))
-             (map (partial reduce-kv (fn [m k v] (update m k #(set (conj % v)))) {}))
-             (apply merge-with into)
-             (reduce-kv (fn [m k v] (conj m k (simplify-or (->OneOfSpec (apply vector v)) defs))) []))
+        (do
+          (recursive-check-condition arglist "Next Steps: One Of - an argument was nil")
+          (->> arglist
+               (map #(next-steps % term defs overwrite?))
+               (map (partial apply hash-map))
+               (map (partial reduce-kv (fn [m k v] (update m k #(set (conj % v)))) {}))
+               (apply merge-with into)
+               (reduce-kv (fn [m k v] (conj m k (simplify-or (->OneOfSpec (apply vector v)) defs))) [])))
         [term suitable-spec])
       []))
   (next-steps [spec term defs] (next-steps spec term defs false))

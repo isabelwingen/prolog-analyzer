@@ -151,7 +151,12 @@
 
 (defn- fill-dom-of-next-steps [env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [next (partition 2 (r/next-steps spec term (utils/get-user-defined-specs env) overwrite?))]
-    (reduce (fn [e [t s]] (fill-dom e t s options)) env next)))
+    (reduce
+     (fn [e [t s]]
+       (assert s (str "Fill-dom-of-next-steps: " (uber/attr env :ENVIRONMENT :pred-id) " " (r/to-string term) " " (r/to-string spec)))
+       (fill-dom e t s options))
+     env
+     next)))
 
 (defmulti fill-dom (fn [env term spec options] [(if (= r/VAR (r/term-type term)) :var :nonvar) (case+ (r/spec-type spec)
                                                                                                      r/ANY :any
