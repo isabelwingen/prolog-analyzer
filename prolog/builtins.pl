@@ -443,9 +443,8 @@
 %    11.3.125 multifile/1   declaration, ISO
 
 
-% TODO: Keys must be ground
 :- declare_spec(avl_tree(specvar(_Key), specvar(_Value))).
-:- define_spec(avl_tree(specvar(Key), specvar(Value)), one_of([compound(node(specvar(Key),
+:- define_spec(avl_tree(specvar(Key), specvar(Value)), one_of([compound(node(and([ground, specvar(Key)]),
                                                                              specvar(Value),
                                                                              integer,
                                                                              avl_tree(specvar(Key),specvar(Value)),
@@ -507,10 +506,10 @@
 :- spec_pre(avl:avl_size/2,  [avl_tree(union(_Key), union(_Value)), maybe(integer)]).
 :- spec_post(avl:avl_size/2, [any, any], [avl_tree(union(_Key), union(_Value)), integer]).
 
-:- spec_pre(avl:avl_store/4,  [union(Key), avl_tree(union(Key), union(Value)), union(Value), maybe(avl_tree(compatible(Key), compatible(Value)))]).
-:- spec_post(avl:avl_store/4, [any, any, any, any], [union(Key), avl_tree(union(Key), union(Value)), union(Value), avl_tree(compatible(Key), compatible(Value))]).
+:- spec_pre(avl:avl_store/4,  [and([ground,union(Key)]), avl_tree(union(Key), union(Value)), union(Value), maybe(avl_tree(compatible(Key), compatible(Value)))]).
+:- spec_post(avl:avl_store/4, [any, any, any, any], [and([ground,union(Key)]), avl_tree(union(Key), union(Value)), union(Value), avl_tree(compatible(Key), compatible(Value))]).
 
-:- spec_pre(avl:avl_delete/4,  [union(Key), avl_tree(union(Key), union(Value)), maybe(compatible(Value)), maybe(avl_tree(compatible(Key), compatible(Value)))]).
+:- spec_pre(avl:avl_delete/4,  [and([ground,union(Key)]), avl_tree(union(Key), union(Value)), maybe(compatible(Value)), maybe(avl_tree(compatible(Key), compatible(Value)))]).
 :- spec_post(avl:avl_delete/4, [any, any, any, any], [union(Key), avl_tree(union(Key), union(Value)), compatible(Value), avl_tree(compatible(Key), compatible(Value))]).
 
 :- spec_pre(avl:avl_del_max/4,  [avl_tree(union(Key), union(Value)), maybe(compatible(Key)), maybe(compatible(Value)), maybe(avl_tree(compatible(Key), compatible(Value)))]).
