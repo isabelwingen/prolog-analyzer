@@ -86,9 +86,10 @@ mapcat(Goal,List,Sep,Res,Break) :-
 
 rule_to_map(Head,Body,Module,Map) :-
     split(Head,Name,Arity,Arglist,_),
+    ednify_atom(Name,EdnName),
     create_arglist(Arglist,ResArglist),
     create_body(Body,BodyRes),
-    multi_string_concat(["{:name     \"",Name,"\""],Goal_Elem),
+    multi_string_concat(["{:name     \"",EdnName,"\""],Goal_Elem),
     multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     my_string_concat(":arglist ",ResArglist,Arglist_Elem),
     my_string_concat(":arity    ",Arity,Arity_Elem),
@@ -359,8 +360,9 @@ spec_to_string(union(X),String) :-
 spec_to_string(Userdefspec,String) :-
     compound(Userdefspec),
     Userdefspec =.. [Name|Arglist],
+    ednify_atom(Name,EdnName),
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:type :userdef :name \"",Name,"\" :arglist ",Inner,"}"],String).
+    multi_string_concat(["{:type :userdef :name \"",EdnName,"\" :arglist ",Inner,"}"],String).
 
 expand(':-'(A,B),Module,Result) :-
     !,
@@ -375,8 +377,9 @@ expand(':-'(A,B),Module,Result) :-
 expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
     !,
     Start = "{:type :pre-spec :content {:goal :spec-pre",
+    ednify_atom(Functor,EdnFunctor),
     multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
-    multi_string_concat([":functor \"",Functor,"\""],FunctorPart),
+    multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
     my_string_concat(":arity ",Arity,ArityPart),
     spec_to_string(Arglist,Spec),
     my_string_concat(":arglist ",Spec,ArglistPart),
@@ -389,8 +392,9 @@ expand(':-'(spec_pre(Functor/Arity,Arglist)),Module,Result) :-
 expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,Result) :-
     !,
     Start = "{:type :post-spec :content {:goal :spec-post",
+    ednify_atom(Functor,EdnFunctor),
     multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
-    multi_string_concat([":functor \"",Functor,"\""],FunctorPart),
+    multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
     my_string_concat(":arity ",Arity,ArityPart),
     spec_to_string(Arglist1,Premisse),
     spec_to_string(Arglist2,Conclusion),
@@ -407,8 +411,9 @@ expand(':-'(spec_post(Functor/Arity,Arglist1,Arglist2)),Module,Result) :-
 expand(':-'(spec_invariant(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
     !,
     Start = "{:type :inv-spec :content {:goal :spec-inv",
+    ednify_atom(Functor,EdnFunctor),
     multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
-    multi_string_concat([":functor \"",Functor,"\""],FunctorPart),
+    multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
     my_string_concat(":arity ",Arity,ArityPart),
     spec_to_string(Arglist,Spec),
     my_string_concat(":arglist ",Spec,ArglistPart),
