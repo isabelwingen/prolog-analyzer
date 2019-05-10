@@ -121,7 +121,8 @@ goal_to_map(or(Arglist),Map) :-
 
 goal_to_map(Goal,Map) :-
     split(Goal,Name,Arity,Arglist,Module),
-    multi_string_concat(["{:goal     \"",Name,"\""],Goal_Elem),
+    ednify_atom(Name,EdnName),
+    multi_string_concat(["{:goal     \"",EdnName,"\""],Goal_Elem),
     multi_string_concat([":module   \"",Module,"\""],Module_Elem),
     my_string_concat(":arity    ",Arity,Arity_Elem),
     create_arglist(Arglist,ResArglist),
