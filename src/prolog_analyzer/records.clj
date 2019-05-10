@@ -309,7 +309,6 @@
   spec
   (spec-type [spec] LIST)
   (next-steps [spec term defs overwrite]
-    (assert type "Next Step: List - Type of list was nil")
     (cond
       (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
                           [head type tail spec])
@@ -348,8 +347,6 @@
   spec
   (spec-type [spec] TUPLE)
   (next-steps [spec term defs overwrite]
-    (assert arglist "Next Step: Tuple - Arglist of tuple was nil")
-    (recursive-check-condition arglist "Next Step: Tuple - An argument of a tuple was nil")
     (cond
       (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
                           [head (first arglist)
@@ -392,8 +389,6 @@
   spec
   (spec-type [spec] COMPOUND)
   (next-steps [spec term defs _]
-    (assert arglist "Next Step: Compound - Arglist of compound was nil")
-    (recursive-check-condition arglist "Next Step: Compound - An argument of a compound was nil")
     (cond
       (= COMPOUND (term-type term)) (interleave (.arglist term) arglist)
       (and (= "." functor) (= LIST (term-type term))) [(.head term) (first arglist) (.tail term) (second arglist)]
