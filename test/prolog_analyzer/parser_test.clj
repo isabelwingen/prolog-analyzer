@@ -7,3 +7,6 @@
 
 (defn get-data []
   (sut/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" "resources/spec-test.pl"))
+
+(deftest spec-test
+  (is (= 18 (count (keys (:specs (get-data)))))))
