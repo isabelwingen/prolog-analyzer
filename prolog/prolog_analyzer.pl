@@ -306,13 +306,16 @@ spec_to_string(Terms,String) :-
     multi_string_concat(["[",Inner,"]"],String).
 spec_to_string(Term,String) :-
     atomic(Term),!,
-    multi_string_concat(["{:type :",Term,"}"],String).
+    atom_ednify(Term,EdnTerm),
+    multi_string_concat(["{:type :",EdnTerm,"}"],String).
 spec_to_string(atom(Atom),String) :-
     !,
-    multi_string_concat(["{:type :same :term \"",Atom,"\"}"],String).
+    atom_ednify(Atom,EdnAtom),
+    multi_string_concat(["{:type :same :term \"",EdnAtom,"\"}"],String).
 spec_to_string(same(Atom),String) :-
     !,
-    multi_string_concat(["{:type :same :term \"",Atom,"\"}"],String).
+    atom_ednify(Atom,EdnAtom),
+    multi_string_concat(["{:type :same :term \"",EdnAtom,"\"}"],String).
 spec_to_string(one_of(Arglist),String) :-
     !,
     spec_to_string(Arglist,Inner),
@@ -332,8 +335,9 @@ spec_to_string(list(Type),String) :-
 spec_to_string(compound(Compound),String) :-
     !,
     Compound =.. [Functor|Arglist],
+    atom_ednify(Functor,FunctorString),
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:type :compound :functor \"",Functor,"\" :arglist ",Inner,"}"],String).
+    multi_string_concat(["{:type :compound :functor \"",FunctorString,"\" :arglist ",Inner,"}"],String).
 
 spec_to_string(specvar(X),String) :-
     !,
