@@ -305,15 +305,15 @@
 (def VAR-TAIL (->ErrorSpec "Tail of list is a variable"))
 
 
-
 (defrecord ListSpec [type]
   spec
   (spec-type [spec] LIST)
   (next-steps [spec term defs overwrite]
+    (assert type "Next Step: List - Type of list was nil")
     (cond
       (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
                           [head type tail spec])
-      (= LIST (term-type term)) (if (nil? (.tail term)) [(.head term) type] [(.head term) type (.tail term) spec])
+      (= LIST (term-type term)) (if (or (nil? (.tail term)) (empty-list? (.tail term))) [(.head term) type (.tail term) spec])
       :else []))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
@@ -595,6 +595,7 @@
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
+
 
 
 (defn- intersect-userdef-with-userdef [userdef1 userdef2 defs overwrite?]
