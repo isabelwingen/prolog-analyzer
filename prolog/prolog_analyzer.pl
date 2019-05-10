@@ -306,15 +306,15 @@ spec_to_string(Terms,String) :-
     multi_string_concat(["[",Inner,"]"],String).
 spec_to_string(Term,String) :-
     atomic(Term),!,
-    atom_ednify(Term,EdnTerm),
+    ednify_atom(Term,EdnTerm),
     multi_string_concat(["{:type :",EdnTerm,"}"],String).
 spec_to_string(atom(Atom),String) :-
     !,
-    atom_ednify(Atom,EdnAtom),
+    ednify_atom(Atom,EdnAtom),
     multi_string_concat(["{:type :same :term \"",EdnAtom,"\"}"],String).
 spec_to_string(same(Atom),String) :-
     !,
-    atom_ednify(Atom,EdnAtom),
+    ednify_atom(Atom,EdnAtom),
     multi_string_concat(["{:type :same :term \"",EdnAtom,"\"}"],String).
 spec_to_string(one_of(Arglist),String) :-
     !,
@@ -335,7 +335,7 @@ spec_to_string(list(Type),String) :-
 spec_to_string(compound(Compound),String) :-
     !,
     Compound =.. [Functor|Arglist],
-    atom_ednify(Functor,FunctorString),
+    ednify_atom(Functor,FunctorString),
     spec_to_string(Arglist,Inner),
     multi_string_concat(["{:type :compound :functor \"",FunctorString,"\" :arglist ",Inner,"}"],String).
 
@@ -576,7 +576,10 @@ term_expander(Term) :-
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),nl(Stream), flush_output(Stream),!.
 term_expander(_) :-
-    write("!!! Term expander did not succeed!").
+    prolog_load_context(module,Module),
+    get_stream(Module,Stream),
+    write(Stream,"; Could not expand!"),nl(Stream),nl(Stream), flush_output(Stream),!.
+
 
 
 user:term_expansion(A,Out) :-

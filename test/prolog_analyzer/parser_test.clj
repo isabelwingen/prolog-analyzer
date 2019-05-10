@@ -4,3 +4,6 @@
             [clojure.pprint :refer [pprint]]
             [clojure.test :refer :all]
             [clojure.java.io :as io]))
+
+(defn get-data []
+  (sut/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" "resources/spec-test.pl"))
