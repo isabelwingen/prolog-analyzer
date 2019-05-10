@@ -507,30 +507,29 @@
 :- spec_pre(avl:avl_size/2,  [avl_tree(union(_Key), union(_Value)), maybe(integer)]).
 :- spec_post(avl:avl_size/2, [any, any], [avl_tree(union(_Key), union(_Value)), integer]).
 
-% crazy %% TODO
-:- spec_pre(avl:avl_store/4,  [ground, avl_tree(any, any), any, avl_tree(any, any)]).
-:- spec_post(avl:avl_store/4, [any, any, any, any], [any, avl_tree(any, any), any,
-                                                 avl_tree(one_of([any, any]),
-                                                          one_of([any, any]))]).
+:- spec_pre(avl:avl_store/4,  [union(Key), avl_tree(union(Key), union(Value)), union(Value), maybe(avl_tree(compatible(Key), compatible(Value)))]).
+:- spec_post(avl:avl_store/4, [any, any, any, any], [union(Key), avl_tree(union(Key), union(Value)), union(Value), avl_tree(compatible(Key), compatible(Value))]).
 
-:- spec_pre(avl:avl_delete/4,  [any, avl_tree(any, any), maybe(any), maybe(avl_tree(any, any))]).
-:- spec_post(avl:avl_delete/4, [any, any, any, any], [any, avl_tree(any, any), any, avl_tree(any, any)]).
+:- spec_pre(avl:avl_delete/4,  [union(Key), avl_tree(union(Key), union(Value)), maybe(compatible(Value)), maybe(avl_tree(compatible(Key), compatible(Value)))]).
+:- spec_post(avl:avl_delete/4, [any, any, any, any], [union(Key), avl_tree(union(Key), union(Value)), compatible(Value), avl_tree(compatible(Key), compatible(Value))]).
 
-:- spec_pre(avl:avl_del_max/4,  [avl_tree(any, any), maybe(any), maybe(any), maybe(avl_tree(any, any))]).
-:- spec_post(avl:avl_del_max/4, [any,any,any,any],  [avl_tree(any, any), any, any, avl_tree(any, any)]).
+:- spec_pre(avl:avl_del_max/4,  [avl_tree(union(Key), union(Value)), maybe(compatible(Key)), maybe(compatible(Value)), maybe(avl_tree(compatible(Key), compatible(Value)))]).
+:- spec_post(avl:avl_del_max/4, [any,any,any,any],  [avl_tree(union(Key), union(Value)), compatible(Key), compatible(Value), avl_tree(compatible(Key), compatible(Value))]).
 
-:- spec_pre(avl:avl_del_min/4,  [avl_tree(any, any), maybe(any), maybe(any), maybe(avl_tree(any, any))]).
-:- spec_post(avl:avl_del_min/4, [any,any,any,any],  [avl_tree(any, any), any, any, avl_tree(any, any)]).
+:- spec_pre(avl:avl_del_min/4,  [avl_tree(union(Key), union(Value)), maybe(compatible(Key)), maybe(compatible(Value)), maybe(avl_tree(compatible(Key), compatible(Value)))]).
+:- spec_post(avl:avl_del_min/4, [any,any,any,any],  [avl_tree(union(Key), union(Value)), compatible(Key), compatible(Value), avl_tree(compatible(Key), compatible(Value))]).
 
-:- spec_pre(avl:ord_list_to_avl/2,  [ordset(pair), any]).
-:- spec_post(avl:ord_list_to_avl/2, [any,any], [ordset(pair(any, any)), avl_tree(any, any)]).
+:- spec_pre(avl:ord_list_to_avl/2,  [ordset(pair(union(Key), union(Value))), maybe(avl_tree(compatible(Key), compatible(Value)))]).
+:- spec_post(avl:ord_list_to_avl/2, [any,any], [ordset(pair(union(Key), union(Value))), avl_tree(compatible(Key), compatible(Value))]).
 
-:- spec_pre(avl:avl_change/5,  [any, avl_tree(any, any), maybe(any),
-                                          maybe(avl_tree(any, one_of([any, any]))),
-                                          maybe(any)]).
-:- spec_post(avl:avl_change/5, [any,any,any,any,any], [any, avl_tree(any, any), any,
-                                                  avl_tree(any, one_of([any, any])),
-                                                  any]).
+:- spec_pre(avl:avl_change/5,  [compatible(Key), maybe(avl_tree(union(Key), union(Value))),
+                                          maybe(compatible(Value)),
+                                          maybe(avl_tree(union(Key), one_of([union(Value), compatible(Value2)]))),
+                                          maybe(compatible(Value2))]).
+:- spec_post(avl:avl_change/5, [any,any,any,any,any], [compatible(Key), avl_tree(union(Key), union(Value)),
+                                          compatible(Value),
+                                          avl_tree(union(Key), one_of([union(Value), compatible(Value2)])),
+                                          compatible(Value2)]).
 
 
 
