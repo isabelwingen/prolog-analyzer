@@ -268,7 +268,7 @@ arg_to_map(atom,Term,Map) :-
     my_string_concat(R1, "\" :type :atom}", Map).
 arg_to_map(atom,Term,Map) :-
     !,
-    ednify_atom(Term,EdnTerm)
+    ednify_atom(Term,EdnTerm),
     my_string_concat("{:term \"", EdnTerm,R1),
     my_string_concat(R1, "\" :type :atom}", Map).
 
