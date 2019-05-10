@@ -263,8 +263,7 @@ arg_to_map(atom,Term,Map) :-
     prolog_load_context(dialect,swi),
     !,
     ednify_atom(Term,EdnAtom),
-    term_string(EdnAtom,String),
-    my_string_concat("{:term \"", String,R1),
+    my_string_concat("{:term \"", EdnAtom,R1),
     my_string_concat(R1, "\" :type :atom}", Map).
 arg_to_map(atom,Term,Map) :-
     !,
