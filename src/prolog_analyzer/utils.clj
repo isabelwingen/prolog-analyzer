@@ -9,6 +9,9 @@
 
 ;; for data extracted from a prolog file
 
+(defn self-calling? [[pred-id clause-number] data]
+  (get-in data [:preds pred-id clause-number :self-calling?]))
+
 (defn get-specs-of-pred
   "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
   [[module pred-name arity :as pred-identity] data]

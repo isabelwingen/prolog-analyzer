@@ -13,7 +13,6 @@
 
 
 (def data (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" "resources/spec-test.pl"))
-data
 
 
 (deftest get-specs-of-pred-test
@@ -52,3 +51,10 @@ data
 (deftest get-dom-of-term-test
   (is (= [{:spec :integer} {:spec :any}] (sut/get-dom-of-term (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :integer} {:spec :any}]}]))
                                                               :a (r/->AnySpec)))))
+
+
+(deftest self-calling-test
+  (is (false? (sut/self-calling? [["spec_test" "member_int" 2] 0] data)))
+  (is (true? (sut/self-calling? [["spec_test" "member_int" 2] 1] data)))
+
+  )

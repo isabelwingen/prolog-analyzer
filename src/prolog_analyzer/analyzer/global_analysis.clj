@@ -33,17 +33,17 @@
        (every? (complement r/error-spec?))))
 
 
-(defn new-post-spec? [data pred-id post-spec]
-  (not= (hash post-spec) (get-in data [:hashs pred-id])))
+(defn new-post-spec? [data {clause-id :clause-id post-spec :post-spec}]
+  (not= (hash post-spec) (get-in data [:hashs clause-id])))
 
-(defn store-current-post-spec [data pred-id post-spec]
+(defn store-current-post-spec [data {clause-id :clause-id post-spec :post-spec :as thing}]
   (let [h (hash post-spec)]
-    (if (new-post-spec? data pred-id post-spec)
-      (assoc-in data [:hashs pred-id] (hash post-spec))
+    (if (new-post-spec? data thing)
+      (assoc-in data [:hashs clause-id] (hash post-spec))
       data)))
 
-(defn merge-clause-post-specs [data created-post-specs]
-  (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) (get data :specs)) created-post-specs))
+(defn merge-clause-post-specs [defs created-post-specs]
+  (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) defs) created-post-specs))
 
 (defn add-post-spec-to-data [data pred-id post-spec-map]
   (update-in data [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) post-spec-map)))
@@ -51,10 +51,16 @@
 (defmulti process-predicate-envs (fn [data pred-id envs] (and (not (contains? #{"user","avl","lists"} (first pred-id))) (every? valid-env? envs))))
 
 (defmethod process-predicate-envs true [data pred-id envs]
-  (let [created-post-specs (map create-post-spec envs)]
+  (let [created-post-specs (->> envs
+                                (remove #(utils/self-calling? [pred-id (last (uber/attr % :ENVIRONMENT :pred-id))] data))
+                                (map #(hash-map :clause-id (uber/attr % :ENVIRONMENT :pred-id) :post-spec (create-post-spec %))))
+        something-new (some #(new-post-spec? data %) created-post-specs)
+        new-data (if something-new (reduce store-current-post-spec data created-post-specs) data)
+        defs (:specs data)]
     (->> created-post-specs
-         (merge-clause-post-specs data)
-         (add-post-spec-to-data data pred-id))))
+         (map :post-spec)
+         (merge-clause-post-specs defs)
+         (add-post-spec-to-data new-data pred-id))))
 
 (defmethod process-predicate-envs false [data pred-id envs]
   data)
@@ -92,6 +98,6 @@
    (println (pr-str (str (timestamp) ": Step " counter)))
    (let [envs (step data)
          new-data (add-new-knowledge data envs)]
-     (if (and (not-the-same new-data data) (< counter 7))
+     (if (and (not-the-same new-data data) (< counter 10))
        (global-analysis new-data (inc counter))
        envs))))
