@@ -236,15 +236,10 @@
      specvar-nodes)))
 
 
-(defn fixpoint-analysis [env]
-  (clean-up
-   (loop [in env
-          counter 0]
-     (let [next (step in)]
-       (if (same in next)
-          next
-         (if (> counter 50)
-           (do
-             (println (pr-str "Infinite loop at " (uber/attr env :ENVIRONMENT :pred-id)))
-             next)
-           (recur next (inc counter))))))))
+(defn fixpoint-analysis
+  ([env] (fixpoint-analysis env 0))
+  ([env counter]
+   (let [next (step env)]
+     (if (or (same env next) (> counter 50))
+       (clean-up next)
+       (fixpoint-analysis next (inc counter))))))
