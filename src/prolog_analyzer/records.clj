@@ -675,11 +675,14 @@
   (to-string [x] (str "Compatible(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
 (defn simplify-and-without-intersect [type]
-  (->> type
-       :arglist
-       (mapcat #(if (= AND (spec-type %)) (:arglist %) [%]))
-       set
-       ->AndSpec))
+  (let [and (->> type
+                 :arglist
+                 (mapcat #(if (= AND (spec-type %)) (:arglist %) [%]))
+                 set
+                 ->AndSpec)]
+    (if (= 1 (count (:arglist and)))
+      (first (.arglist and))
+      and)))
 
 
 (defrecord PlaceholderSpec [inner-spec]

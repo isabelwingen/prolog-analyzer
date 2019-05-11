@@ -42,12 +42,30 @@
        (reduce-kv process-predicate-envs data)))
 
 
+(defn pretty-str-postspec [[k v]]
+  (hash-map :condition (apply vector (map r/to-string k)) :premise (r/to-string v)))
+
+
+(defn- not-the-same [new-data old-data]
+  (if (not= (keys (:post-specs new-data)) (keys (:post-specs old-data)))
+    true
+    (loop [[pred-id & pred-ids] (keys (:post-specs old-data))]
+      (if (nil? pred-id)
+        false
+        (if (= (get-in new-data [:post-specs pred-id]) (get-in old-data [:post-specs pred-id]))
+          (recur pred-ids)
+          (do
+            ;(clojure.pprint/print-table (map pretty-str-postspec (get-in new-data [:post-specs pred-id])))
+            true)
+          )))))
+
+
 (defn global-analysis
   ([data] (global-analysis data 0))
   ([data counter]
-   (println (str "Step " counter))
+   (println (pr-str (str "Step " counter)))
    (let [envs (core/complete-analysis-parallel data)
          new-data (add-new-knowledge data envs)]
-     (if (or (= data new-data) (> counter 4))
-       envs
-       (global-analysis new-data (inc counter))))))
+     (if (and (not-the-same new-data data) (< counter 10))
+       (global-analysis new-data (inc counter))
+       envs))))

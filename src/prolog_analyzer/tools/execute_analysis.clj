@@ -1,13 +1,13 @@
 (ns prolog-analyzer.tools.execute-analysis
   (:require
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io])
+    )
 
 
 (defn psize [f]
   (if (.isDirectory f)
     (apply + (pmap psize (.listFiles f)))
     (.length f)))
-
 
 (defn sort-asc [dirs limit]
   (->> dirs

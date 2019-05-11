@@ -6,13 +6,14 @@
             [prolog-analyzer.analyzer.pretty-printer :as my-pp]
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
-            [tableflisp.core :refer :all]))
+            [tableflisp.core :refer :all]
+            [prolog-analyzer.tools.execute-analysis]))
 
 
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-type-analysis res)))
+    (my-pp/print-basics res)))
 
 (defn run
   ([edn]
@@ -43,3 +44,5 @@
     (run dialect term-expander file prolog-exe)
     (<╯°□°>╯︵┻━┻)
     ))
+
+   ;(run "edns/pac4pl.edn")
