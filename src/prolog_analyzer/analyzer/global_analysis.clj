@@ -12,7 +12,7 @@
 
 (defn timestamp []
   (let [now (time/now)]
-    (str (time/datetime->hour now) ":" (time/datetime->minute now))))
+    (str (time/format now))))
 
 (defn- create-post-spec [env]
   (let [arglist (uber/attr env :ENVIRONMENT :arglist)
@@ -33,11 +33,30 @@
        (every? (complement r/error-spec?))))
 
 
-(defn process-predicate-envs [data pred-id envs]
-  (if (every? valid-env? envs)
-    (let [post-specs-map (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) (get data :specs)) (map create-post-spec envs))]
-      (update-in data [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) post-specs-map)))
-    data))
+(defn new-post-spec? [data pred-id post-spec]
+  (not= (hash post-spec) (get-in data [:hashs pred-id])))
+
+(defn store-current-post-spec [data pred-id post-spec]
+  (let [h (hash post-spec)]
+    (if (new-post-spec? data pred-id post-spec)
+      (assoc-in data [:hashs pred-id] (hash post-spec))
+      data)))
+
+(defn merge-clause-post-specs [data created-post-specs]
+  (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) (get data :specs)) created-post-specs))
+
+(defn add-post-spec-to-data [data pred-id post-spec-map]
+  (update-in data [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) post-spec-map)))
+
+(defmulti process-predicate-envs (fn [data pred-id envs] (and (not (contains? #{"user","avl","lists"} (first pred-id))) (every? valid-env? envs))))
+
+(defmethod process-predicate-envs true [data pred-id envs]
+  (let [created-post-specs (map create-post-spec envs)
+        post-specs-map (merge-clause-post-specs data created-post-specs)]
+    (add-post-spec-to-data data pred-id post-specs-map)))
+
+(defmethod process-predicate-envs false [data pred-id envs]
+  data)
 
 
 (defn add-new-knowledge [data envs]
@@ -72,6 +91,6 @@
    (println (pr-str (str (timestamp) ": Step " counter)))
    (let [envs (step data)
          new-data (add-new-knowledge data envs)]
-     (if (and (not-the-same new-data data) (< counter 6))
+     (if (and (not-the-same new-data data) (< counter 7))
        (global-analysis new-data (inc counter))
        envs))))
