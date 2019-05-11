@@ -30,7 +30,7 @@
 
 (defn process-predicate-envs [data pred-id envs]
   (if (every? valid-env? envs)
-    (let [post-specs-map (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) (get data :spec)) (map create-post-spec envs))]
+    (let [post-specs-map (apply merge-with #(r/simplify-or (r/->OneOfSpec (hash-set %1 %2)) (get data :specs)) (map create-post-spec envs))]
       (update-in data [:post-specs pred-id] (partial merge-with #(r/simplify-and (r/->AndSpec (hash-set %1 %2)) (:specs data) false) post-specs-map)))
     data))
 
