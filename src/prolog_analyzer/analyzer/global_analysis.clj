@@ -51,9 +51,10 @@
 (defmulti process-predicate-envs (fn [data pred-id envs] (and (not (contains? #{"user","avl","lists"} (first pred-id))) (every? valid-env? envs))))
 
 (defmethod process-predicate-envs true [data pred-id envs]
-  (let [created-post-specs (map create-post-spec envs)
-        post-specs-map (merge-clause-post-specs data created-post-specs)]
-    (add-post-spec-to-data data pred-id post-specs-map)))
+  (let [created-post-specs (map create-post-spec envs)]
+    (->> created-post-specs
+         (merge-clause-post-specs data)
+         (add-post-spec-to-data data pred-id))))
 
 (defmethod process-predicate-envs false [data pred-id envs]
   data)
