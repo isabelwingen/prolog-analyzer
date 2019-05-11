@@ -45,9 +45,9 @@
 (defn global-analysis
   ([data] (global-analysis data 0))
   ([data counter]
-   (println (pr-str "Step " counter))
+   (println (str "Step " counter))
    (let [envs (core/complete-analysis-parallel data)
          new-data (add-new-knowledge data envs)]
-     (if (= data new-data)
+     (if (or (= data new-data) (> counter 4))
        envs
        (global-analysis new-data (inc counter))))))
