@@ -3,5 +3,9 @@
 :- use_module(library(avl)).
 
 
-foo(a \/ b).
-foo(c /\ d).
+foo(a).
+
+car(b).
+
+bar(X,Y) :-
+    (foo(X), car(Y); foo(Y),car(X)).

@@ -13,7 +13,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-domains-of-variables res)))
+    (my-pp/pretty-print-graph res)))
 
 (defn run
   ([edn]

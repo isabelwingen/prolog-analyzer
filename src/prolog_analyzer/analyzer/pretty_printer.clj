@@ -9,13 +9,17 @@
             [clojure.walk]))
 
 
+(defn create-map [graph node]
+  (let [dom (utils/get-dom-of-term graph node (r/->AnySpec))
+        id (uber/attr graph :ENVIRONMENT :pred-id)]
+    (assert (satisfies? prolog-analyzer.records/printable dom) (str "dom " id))
+    (assert (satisfies? prolog-analyzer.records/printable node) (str "node " (apply vector node) " " id))
+    (hash-map :term (r/to-string node) :dom (r/to-string dom))))
+
 (defn print-nodes [graph]
   (let [nodes (utils/get-terms graph)]
     (->> nodes
-         (remove #(= "[]" (r/to-string %)))
-         (map #(hash-map
-                :term (r/to-string %)
-                :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
+         (map #(create-map graph %))
          (print-table [:term :dom]))))
 
 (defn print-edges [graph]
