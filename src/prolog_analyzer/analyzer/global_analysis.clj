@@ -12,12 +12,11 @@
 (defn- create-post-spec [env]
   (let [arglist (uber/attr env :ENVIRONMENT :arglist)
         premise (->> arglist
-                     (map #(uber/attrs env %))
-                     (map :dom)
+                     (map #(uber/attr env % :dom))
                      (map #(if (nil? %) (r/->AnySpec) %))
                      (apply r/to-tuple-spec))
         condition (->> arglist
-                       (map #(assoc (uber/attrs env %) :pre (r/maybe-spec (r/initial-spec %))))
+                       (map #(assoc (uber/attrs env %) :pre (r/->AnySpec)))
                        (map :pre)
                        (apply vector))]
     {condition premise}))
@@ -36,7 +35,7 @@
     data))
 
 
-(defn- add-new-knowledge [data envs]
+(defn add-new-knowledge [data envs]
   (->> envs
        (group-by #(apply vector (drop-last (uber/attr % :ENVIRONMENT :pred-id))))
        (reduce-kv process-predicate-envs data)))
@@ -59,12 +58,14 @@
             true)
           )))))
 
+(defn step [data]
+  (core/complete-analysis-parallel data))
 
 (defn global-analysis
   ([data] (global-analysis data 0))
   ([data counter]
    (println (pr-str (str "Step " counter)))
-   (let [envs (core/complete-analysis-parallel data)
+   (let [envs (step data)
          new-data (add-new-knowledge data envs)]
      (if (and (not-the-same new-data data) (< counter 10))
        (global-analysis new-data (inc counter))

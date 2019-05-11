@@ -13,7 +13,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-basics res)))
+    (my-pp/print-type-information res)))
 
 (defn run
   ([edn]
@@ -44,5 +44,3 @@
     (run dialect term-expander file prolog-exe)
     (<╯°□°>╯︵┻━┻)
     ))
-
-   ;(run "edns/pac4pl.edn")
