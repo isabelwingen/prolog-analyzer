@@ -9,6 +9,7 @@
                  [org.clojure/tools.namespace "0.2.11"]
                  [lein-githooks "0.1.0"]
                  [org.clojure/tools.logging "0.4.1"]
+                 [simple-time "0.2.0"]
                  [ubergraph "0.5.2"]
                  [tableflisp "0.1.0"]]
   :plugins [[jonase/eastwood "0.3.5"]]

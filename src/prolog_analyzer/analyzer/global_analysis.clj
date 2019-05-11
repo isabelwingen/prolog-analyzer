@@ -5,9 +5,14 @@
    [prolog-analyzer.utils :as utils]
    [ubergraph.core :as uber]
    [ubergraph.protocols]
+   [simple-time.core :as time]
    [loom.graph]
    [loom.attr]
    ))
+
+(defn timestamp []
+  (let [now (time/now)]
+    (str (time/datetime->hour now) ":" (time/datetime->minute now))))
 
 (defn- create-post-spec [env]
   (let [arglist (uber/attr env :ENVIRONMENT :arglist)
@@ -64,9 +69,9 @@
 (defn global-analysis
   ([data] (global-analysis data 0))
   ([data counter]
-   (println (pr-str (str "Step " counter)))
+   (println (pr-str (str (timestamp) ": Step " counter)))
    (let [envs (step data)
          new-data (add-new-knowledge data envs)]
-     (if (and (not-the-same new-data data) (< counter 10))
+     (if (and (not-the-same new-data data) (< counter 6))
        (global-analysis new-data (inc counter))
        envs))))
