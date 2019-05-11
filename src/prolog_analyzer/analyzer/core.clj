@@ -132,12 +132,15 @@
    env
    (apply vector arglist)))
 
-(defn evaluate-goal [data env goal]
-  (-> env
-      (evaluate-goal-pre-specs goal data)
-      (evaluate-goal-post-specs goal data)
-      (evaluate-goal-relationships goal data)
-      (set-indices goal data)))
+(defn evaluate-goal [data env {goal-name :goal :as goal}]
+  (if (and (not= :or goal-name)
+           (not= :if goal-name))
+    (-> env
+        (evaluate-goal-pre-specs goal data)
+        (evaluate-goal-post-specs goal data)
+        (evaluate-goal-relationships goal data)
+        (set-indices goal data))
+    env))
 
 (defn evaluate-body [env data body]
   (reduce (partial evaluate-goal data) env body))
