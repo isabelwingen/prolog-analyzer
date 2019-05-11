@@ -50,6 +50,7 @@
       (and ((complement nil?) (:arglist term)) (some #(arti-term? %) (:arglist term)))))
 
 (defn pretty-print-graph [graph]
+  (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
   (let [nodes (utils/get-terms graph)
         nd-num (count nodes)
         edges (uber/edges graph)
@@ -72,23 +73,6 @@
        "\n"
        (uber/attr env term :indices)
        ))
-
-(defn print-with-indices [graph]
-  (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
-  (->> graph
-       (utils/get-terms)
-       (remove contains-arti-term?)
-       (remove #(nil? (utils/get-dom-of-term graph % nil)))
-       (remove #(= "[]" (r/to-string %)))
-       (filter #(or (uber/attr graph % :index)
-                     (uber/attr graph % :indices)))
-       (map #(hash-map
-              :term (r/to-string %)
-              :index (str (uber/attr graph % :index))
-              :indices (str (uber/attr graph % :indices))
-              :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
-       (print-table [:term :dom :index :indices]))
-  (println))
 
 (defn derecordize
   "Returns a data structure equal (using clojure.core/=) to the
@@ -120,6 +104,23 @@
        (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term graph %2 (r/->AnySpec)))) {})
        pr-str
        println))
+
+(defn print-with-indices [graph]
+  (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
+  (->> graph
+       (utils/get-terms)
+       (remove contains-arti-term?)
+       (remove #(nil? (utils/get-dom-of-term graph % nil)))
+       (remove #(= "[]" (r/to-string %)))
+       (filter #(or (uber/attr graph % :index)
+                    (uber/attr graph % :indices)))
+       (map #(hash-map
+              :term (r/to-string %)
+              :index (str (uber/attr graph % :index))
+              :indices (str (uber/attr graph % :indices))
+              :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
+       (print-table [:term :dom :index :indices]))
+  (println))
 
 
 (defn print-basics [graph]
@@ -156,3 +157,17 @@
     (println)
     (doseq [t error-terms]
       (println (tinker-error-message graph t) "\n"))))
+
+
+(defn pretty-print-errors [graph]
+  (let [error-terms (->> graph
+                         utils/get-terms
+                         (filter #(or (uber/attr graph % :index)
+                                      (uber/attr graph % :indices)))
+                         (filter #(r/error-spec? (utils/get-dom-of-term graph % (r/->AnySpec))))
+                         (map #(assoc (uber/attrs graph %) :term (r/to-string %)))
+                         (map #(update % :dom (fn [x] (or x (r/->AnySpec)))))
+                         (map #(update % :dom r/to-string)))]
+    (when (not-empty error-terms)
+      (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
+      (print-table [:term :index :indices :dom] error-terms))))
