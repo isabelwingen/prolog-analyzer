@@ -119,7 +119,7 @@
 
 (defmethod process-edge :complex-userdef [env edge]
   (let [userdef-spec (r/replace-union-and-comp-with-placeholder (uber/dest edge))
-        edge-id (or (uber/attr env edge :id) (gensym "ID_"))
+        edge-id (or (uber/attr env edge :id) (gensym "ID__"))
         term (uber/src edge)
         intersect (r/intersect (utils/get-dom-of-term env term (r/->AnySpec)) userdef-spec (utils/get-user-defined-specs env))
         placeholders (map #(if (:alias %) % (assoc % :alias (r/->AnySpec))) (find-placeholders intersect))

@@ -40,7 +40,9 @@
         print-table)))
 
 (defn- arti-term? [term]
-  (.startsWith (str (:name term)) "A__"))
+  (or (.startsWith (str (:name term)) "A__")
+      (.startsWith (str (:name term)) "T__")
+      (.startsWith (str (:name term)) "ID__")))
 
 (defn- contains-arti-term? [term]
   (or (arti-term? term)
@@ -70,25 +72,6 @@
        "\n"
        (uber/attr env term :indices)
        ))
-
-(defn print-type-information [graph]
-  (let [error-terms (->> graph
-                        (utils/get-terms)
-                        (remove contains-arti-term?)
-                        (remove #(nil? (utils/get-dom-of-term graph % nil)))
-                        (filter #(r/error-spec? (utils/get-dom-of-term graph % (r/->AnySpec)))))
-        other-terms (->> graph
-                         (utils/get-terms)
-                         (remove contains-arti-term?)
-                         (remove #(nil? (uber/attr graph % :index))))]
-    (->> other-terms
-         (map #(hash-map
-                :term (r/to-string %)
-                :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
-         (print-table [:dom :term]))
-    (println)
-    (doseq [t error-terms]
-      (println (tinker-error-message graph t) "\n"))))
 
 (defn print-with-indices [graph]
   (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
@@ -134,10 +117,42 @@
        (utils/get-terms)
        (filter #(or (uber/attr graph % :index)
                     (uber/attr graph % :indices)))
-       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (uber/attr graph %2 :dom))) {})
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term graph %2 (r/->AnySpec)))) {})
        pr-str
        println))
 
 
 (defn print-basics [graph]
   (println (uber/attr graph :ENVIRONMENT :pred-id)))
+
+
+(defn print-domains-of-variables [env]
+  (->> env
+       utils/get-terms
+       (filter #(satisfies? prolog-analyzer.records/term %))
+       (filter #(= r/VAR (r/term-type %)))
+       (remove arti-term?)
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
+       pr-str
+       println
+       )
+  )
+
+(defn print-type-information [graph]
+  (let [error-terms (->> graph
+                         (utils/get-terms)
+                         (remove contains-arti-term?)
+                         (remove #(nil? (utils/get-dom-of-term graph % nil)))
+                         (filter #(r/error-spec? (utils/get-dom-of-term graph % (r/->AnySpec)))))
+        other-terms (->> graph
+                         (utils/get-terms)
+                         (remove contains-arti-term?)
+                         (remove #(nil? (uber/attr graph % :index))))]
+    (->> other-terms
+         (map #(hash-map
+                :term (r/to-string %)
+                :dom (r/to-string (utils/get-dom-of-term graph % (r/->AnySpec)))))
+         (print-table [:term :dom]))
+    (println)
+    (doseq [t error-terms]
+      (println (tinker-error-message graph t) "\n"))))
