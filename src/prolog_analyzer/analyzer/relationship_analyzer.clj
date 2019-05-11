@@ -198,13 +198,30 @@
 (defn- apply-edges [env edges]
   (reduce process-edge env edges))
 
+(defn process-node [env node]
+  (let [dom (utils/get-dom-of-term env node (r/->AnySpec))]
+    (if (and (= r/OR (r/spec-type dom))
+             (every?
+              #(and (= r/TUPLE (r/spec-type %))
+                    (= 1 (count (:arglist %))))
+              (:arglist dom)))
+      (-> env
+          (uber/remove-attr node :dom)
+          (uber/add-attr node :dom (r/->TupleSpec [(r/->OneOfSpec (set (map (comp first :arglist) (:arglist dom))))])))
+      env
+      )))
+
+(defn- process-nodes [env]
+  (reduce process-node env (utils/get-terms env)))
+
 (defn- step [env]
   (let [{unions :union compatibles :compatible :as m} (group-by #(uber/attr env % :relation) (uber/edges env))
         other-edges (-> m (dissoc :union) (dissoc :compatible) vals flatten)]
     (-> env
         (apply-edges other-edges)
         (apply-edges unions)
-        (apply-edges compatibles))))
+        (apply-edges compatibles)
+        process-nodes)))
 
 (defn clean-up [env]
   (let [specvar-nodes (->> env
