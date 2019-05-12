@@ -47,10 +47,9 @@ ednify_string(String, EdnString) :-
 sicstus_transform(Term,Res) :-
     number(Term),!,
     number_codes(Term,Res).
-sicstus_transform(Term,ERes) :-
+sicstus_transform(Term,Res) :-
     atom(Term),!,
-    atom_codes(Term,Res),
-    escape(Res,ERes).
+    atom_codes(Term,Res).
 sicstus_transform(Term,Term).
 
 my_string_concat(A,B,C) :-
