@@ -128,7 +128,9 @@
 
 
 (defn print-basics [graph]
-  (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph))))
+  (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph)))
+
+  )
 
 
 (defn print-domains-of-variables [env]
@@ -140,8 +142,18 @@
        (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
        pr-str
        println
-       )
-  )
+       ))
+
+(defn print-types-and-erros [env]
+  (println (pr-str (clojure.string/join " " (map str (conj (utils/get-pred-id env) (utils/get-clause-number env))))))
+  (print-domains-of-variables env)
+  (->> env
+       utils/get-terms
+       (filter #(r/error-spec? (utils/get-dom-of-term env % (r/->AnySpec))))
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
+       pr-str
+       println))
+
 
 (defn print-type-information [graph]
   (let [error-terms (->> graph
