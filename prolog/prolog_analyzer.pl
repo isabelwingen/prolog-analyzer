@@ -499,9 +499,15 @@ merge_list(L,R,[L,R]).
 get_stream(_,Stream) :-
     edn_stream(_,Stream),!.
 get_stream(Module,Stream) :-
+    prolog_load_context(dialect,swi),!,
+    filename(ClojureFile),
+    open(ClojureFile,append,Stream, [encoding('utf8')]),
+    assert(edn_stream(Module,Stream)).
+get_stream(Module,Stream) :-
     filename(ClojureFile),
     open(ClojureFile,append,Stream, [encoding('UTF-8')]),
     assert(edn_stream(Module,Stream)).
+
 
 transform_pred_list(Pred/Arity,R) :-
     !,
@@ -579,10 +585,6 @@ term_expander(Term) :-
     expand(Term,Module,Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),nl(Stream), flush_output(Stream),!.
-term_expander(_) :-
-    prolog_load_context(module,Module),
-    get_stream(Module,Stream),
-    write(Stream,"; Could not expand!"),nl(Stream),nl(Stream), flush_output(Stream),!.
 
 
 
