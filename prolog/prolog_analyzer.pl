@@ -500,7 +500,7 @@ get_stream(_,Stream) :-
     edn_stream(_,Stream),!.
 get_stream(Module,Stream) :-
     filename(ClojureFile),
-    open(ClojureFile,append,Stream),
+    open(ClojureFile,append,Stream, [encoding('UTF-8')]),
     assert(edn_stream(Module,Stream)).
 
 transform_pred_list(Pred/Arity,R) :-
