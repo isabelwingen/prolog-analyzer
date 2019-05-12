@@ -11,7 +11,7 @@
 
 (defn create-map [graph node]
   (let [dom (utils/get-dom-of-term graph node (r/->AnySpec))
-        id (uber/attr graph :ENVIRONMENT :pred-id)]
+        id (utils/get-pred-id graph)]
     (assert (satisfies? prolog-analyzer.records/printable dom) (str "dom " id))
     (assert (satisfies? prolog-analyzer.records/printable node) (str "node " (apply vector node) " " id))
     (hash-map :term (r/to-string node) :dom (r/to-string dom))))
@@ -54,7 +54,7 @@
       (and ((complement nil?) (:arglist term)) (some #(arti-term? %) (:arglist term)))))
 
 (defn pretty-print-graph [graph]
-  (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
+  (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph)))
   (let [nodes (utils/get-terms graph)
         nd-num (count nodes)
         edges (uber/edges graph)
@@ -110,7 +110,7 @@
        println))
 
 (defn print-with-indices [graph]
-  (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
+  (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph)))
   (->> graph
        (utils/get-terms)
        (remove contains-arti-term?)
@@ -128,7 +128,7 @@
 
 
 (defn print-basics [graph]
-  (println (uber/attr graph :ENVIRONMENT :pred-id)))
+  (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph))))
 
 
 (defn print-domains-of-variables [env]
@@ -173,5 +173,5 @@
                          (map #(update % :dom (fn [x] (or x (r/->AnySpec)))))
                          (map #(update % :dom r/to-string)))]
     (when (not-empty error-terms)
-      (println (pr-str (uber/attr graph :ENVIRONMENT :pred-id)))
+      (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph)))
       (print-table [:term :index :indices :dom] error-terms))))

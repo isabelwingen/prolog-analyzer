@@ -156,9 +156,10 @@
       (add-index-to-input-arguments arglist)
       ))
 
-(defn analyzing [data {arglist :arglist body :body :as clause} pre-spec pred-id]
+(defn analyzing [data {arglist :arglist body :body :as clause} pre-spec pred-id clause-number]
   (-> (initial-env data arglist pre-spec)
       (uber/add-attr :ENVIRONMENT :pred-id pred-id)
+      (uber/add-attr :ENVIRONMENT :clause-number clause-number)
       (evaluate-body data body)
       add-relationships
       rel/fixpoint-analysis
@@ -177,7 +178,7 @@
                          set
                          r/->OneOfSpec)
                     (:specs data))]
-      (analyzing data (utils/get-clause pred-id clause-number data) pre-spec (conj pred-id clause-number)))))
+      (analyzing data (utils/get-clause pred-id clause-number data) pre-spec pred-id clause-number))))
 
 (defn complete-analysis-parallel [data]
   (when (empty? (utils/get-pred-identities data))
@@ -192,6 +193,6 @@
                                      set
                                      r/->OneOfSpec)
                                 (:specs data))]
-                  {:clause (utils/get-clause pred-id clause-number data) :pre-spec pre-spec :title (conj pred-id clause-number)}
+                  {:clause (utils/get-clause pred-id clause-number data) :pre-spec pre-spec :pred-id pred-id :clause-number clause-number}
                   ))]
-    (pmap (fn [{clause :clause pre-spec :pre-spec title :title}] (analyzing data clause pre-spec title)) tasks)))
+    (pmap (fn [{clause :clause pre-spec :pre-spec pred-id :pred-id clause-number :clause-number}] (analyzing data clause pre-spec pred-id clause-number)) tasks)))

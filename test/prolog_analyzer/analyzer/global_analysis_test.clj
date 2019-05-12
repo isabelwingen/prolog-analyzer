@@ -10,10 +10,3 @@
   (let [envs (sut/step data)
         new-data (sut/add-new-knowledge data envs)]
     new-data))
-
-
-(map sut/pretty-str-postspec (-> (get-data)
-                                 execute-step
-                                 execute-step
-                                 :post-specs
-                                 (get ["global2" "foo" 3])))

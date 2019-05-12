@@ -153,7 +153,7 @@
   (let [next (partition 2 (r/next-steps spec term (utils/get-user-defined-specs env) overwrite?))]
     (reduce
      (fn [e [t s]]
-       (assert s (str "Fill-dom-of-next-steps: " (uber/attr env :ENVIRONMENT :pred-id) " " (r/to-string term) " " (r/to-string spec)))
+       (assert s (str "Fill-dom-of-next-steps: " (utils/get-pred-id env) " " (r/to-string term) " " (r/to-string spec)))
        (fill-dom e t s options))
      env
      next)))

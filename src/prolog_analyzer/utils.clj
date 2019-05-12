@@ -49,6 +49,7 @@
   [pred-identity data]
   (vals (get-in data [:preds pred-identity])))
 
+
 (defn get-terms [env]
   (remove #{:ENVIRONMENT} (uber/nodes env)))
 
@@ -59,6 +60,12 @@
   (if (uber/has-node? env term)
     (or (uber/attr env term :dom) default)
     default))
+
+(defn get-clause-number [env]
+  (uber/attr env :ENVIRONMENT :clause-number))
+
+(defn get-pred-id [env]
+  (uber/attr env :ENVIRONMENT :pred-id))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to
