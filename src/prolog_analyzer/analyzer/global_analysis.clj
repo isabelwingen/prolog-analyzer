@@ -48,11 +48,19 @@
 (defn add-post-spec-to-data [data pred-id post-spec-map]
   (update-in data [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) post-spec-map)))
 
-(defmulti process-predicate-envs (fn [data pred-id envs] (and (not (contains? #{"user","avl","lists"} (first pred-id))) (every? valid-env? envs))))
+(defn self-calling-clause? [data env]
+  (let [title (uber/attr env :ENVIRONMENT :pred-id)
+        pred-id (drop-last title)
+        clause-id (last title)]
+    (utils/self-calling? [pred-id clause-id] data)))
+
+(defmulti process-predicate-envs (fn [data pred-id envs]
+                                   (and (not (contains? #{"user","avl","lists"} (first pred-id)))
+                                        (every? #(not (self-calling-clause? data %)) envs)
+                                        (every? valid-env? envs))))
 
 (defmethod process-predicate-envs true [data pred-id envs]
   (let [created-post-specs (->> envs
-                                (remove #(utils/self-calling? [pred-id (last (uber/attr % :ENVIRONMENT :pred-id))] data))
                                 (map #(hash-map :clause-id (uber/attr % :ENVIRONMENT :pred-id) :post-spec (create-post-spec %))))
         something-new (some #(new-post-spec? data %) created-post-specs)
         new-data (if something-new (reduce store-current-post-spec data created-post-specs) data)
