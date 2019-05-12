@@ -86,8 +86,13 @@
   (let [new-data (reduce store-new-premise data envs)
         new-premise (collect-premises new-data pred-id)
         condition (apply vector (repeat (last pred-id) (r/->AnySpec)))
-        new-post-spec (hash-map condition new-premise)]
-    (update-in new-data [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) new-post-spec))))
+        new-post-spec (hash-map condition new-premise)
+        new-hash (hash new-premise)]
+    (if (= new-hash (get-post-spec-hash new-data pred-id))
+      new-data
+      (-> new-data
+          (update-in [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) new-post-spec))
+          (set-post-spec-hash pred-id new-premise)))))
 
 (defmethod process-predicate-envs false [data pred-id envs]
   data)
@@ -118,6 +123,6 @@
    (println (pr-str (str (timestamp) ": Step " counter)))
    (let [envs (step data)
          new-data (add-new-knowledge data envs)]
-     (if (and (not-the-same new-data data) (< counter 10))
+     (if (and (not-the-same new-data data) (< counter 2))
        (global-analysis new-data (inc counter))
        envs))))
