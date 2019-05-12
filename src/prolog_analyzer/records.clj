@@ -949,8 +949,8 @@
 (defn find-specvars [spec]
   (case+ (spec-type spec)
          (SPECVAR,UNION,COMPATIBLE) [spec]
-         (OR, AND, COMPOUND, TUPLE) (set (reduce concat (map find-specvars (.arglist spec))))
-         USERDEFINED (if (contains? spec :arglist) (set (reduce concat (map find-specvars (:arglist spec)))) [])
+         (OR, AND, COMPOUND, TUPLE) (set (mapcat find-specvars (.arglist spec)))
+         USERDEFINED (if (contains? spec :arglist) (set (mapcat find-specvars (:arglist spec))) [])
          LIST (find-specvars (.type spec))
          #{}))
 

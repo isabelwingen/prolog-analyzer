@@ -14,8 +14,7 @@
 (defmulti replace-specvars-with-uuid (comp sequential? first))
 (defmethod replace-specvars-with-uuid false [pre-spec]
   (let [specvars (->> pre-spec
-                      (reduce #(concat %1 (r/find-specvars %2)) #{})
-                      set
+                      (reduce (fn [a e] (conj a (r/find-specvars e))) #{})
                       (map :name))
         ids (repeatedly gensym)
         uuid-map (apply hash-map (interleave specvars ids))]
@@ -24,7 +23,7 @@
 (defmethod replace-specvars-with-uuid true [[condition premise :as post-spec]]
   (let [specvars (->> premise
                       (conj condition)
-                      (reduce #(concat %1 (r/find-specvars %2)) #{})
+                      (reduce (fn [a e] (conj a (r/find-specvars e))) #{})
                       (map :name)
                       set)
         ids (repeatedly gensym)

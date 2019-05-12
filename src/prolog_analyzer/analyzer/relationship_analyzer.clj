@@ -79,8 +79,8 @@
 (defn find-placeholders [spec]
   (case+ (r/spec-type spec)
          r/PLACEHOLDER [spec]
-         (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (reduce concat (map find-placeholders (.arglist spec))))
-         r/USERDEFINED (if (contains? spec :arglist) (set (reduce concat (map find-placeholders (:arglist spec)))) [])
+         (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat find-placeholders (.arglist spec)))
+         r/USERDEFINED (if (contains? spec :arglist) (set (mapcat find-placeholders (:arglist spec))) [])
          r/LIST (find-placeholders (.type spec))
          #{}))
 
