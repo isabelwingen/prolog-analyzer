@@ -180,8 +180,9 @@
                                              (interleave (range))
                                              (apply hash-map)))) {})))
 
-(defn order-imports [{module-mapping :module imports :use-module :as data}]
-  (let [non-libs-all (->> imports
+(defn order-imports [{module-mapping :module module-imports :use-module :as data}]
+  (let [imports (map #(if (:non-lib %) (assoc % :path (.getAbsolutePath (io/file (:source-path %) (:non-lib %)))) %) module-imports)
+        non-libs-all (->> imports
                           (remove :lib)
                           (filter #(= :all (:preds %)))
                           (map #(assoc % :module (get module-mapping (:path %))))
@@ -211,6 +212,15 @@
         (dissoc :use-module)
         (assoc :imports (merge-with into non-libs-all non-libs libs-all libs)))))
 
+(defn order-modules [modules]
+  (reduce
+   (fn [res {path :path module :module partial :partial}]
+     (if partial
+       (assoc res (.getAbsolutePath (io/file path module)) module)
+       (assoc res path module)))
+   {}
+   modules))
+
 (defn- format-and-clean-up [data]
   (println (pr-str "Start formatting of edn"))
   (-> data
@@ -221,7 +231,7 @@
       (update :post-spec order-post-specs)
       (update :inv-spec order-specs)
       (update :pred order-preds)
-      (update :module (partial apply merge))
+      (update :module order-modules)
       order-imports
       (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
       ))

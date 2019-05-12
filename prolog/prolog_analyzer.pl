@@ -513,70 +513,50 @@ transform_pred_list(Pred/Arity,R) :-
     !,
     multi_string_concat(["[\"",Pred,"\", ",Arity,"]"],R).
 
+get_pred_string(all,":all").
+get_pred_string(Preds,Res) :-
+    maplist(transform_pred_list,Preds,PredsAsString),
+    join(", ",PredsAsString,PQ),
+    multi_string_concat(["[",PQ,"]"],Res).
+
 
 term_expander(end_of_file) :- !,
     prolog_load_context(module,Module),
     (retract(edn_stream(Module,Stream)) -> close(Stream); true).
 term_expander(':-'(module(Module))) :-
-    !,
-    prolog_load_context(file,File),
-    prolog_load_context(directory,ModulePath),
-    working_directory(Current,ModulePath),
-    absolute_file_name(Module,Path),
-    working_directory(_,Current),
-    multi_string_concat(["{:type :module :content {\"",File,"\" \"",Module,"\"","}}"],Result1),
-    multi_string_concat(["{:type :module :content {\"",Path,"\" \"",Module,"\"","}}"],Result2),
-    get_stream(Module,Stream),
-    write(Stream,Result1),nl(Stream),
-    write(Stream,Result2),nl(Stream),flush_output(Stream),!.
+    term_expander(':-'(module(Module,_))),!.
 term_expander(':-'(module(Module,_))) :-
     !,
     prolog_load_context(file,File),
     prolog_load_context(directory,ModulePath),
-    working_directory(Current,ModulePath),
-    absolute_file_name(Module,Path),
-    working_directory(_,Current),
-    multi_string_concat(["{:type :module :content {\"",File,"\" \"",Module,"\"","}}"],Result1),
-    multi_string_concat(["{:type :module :content {\"",Path,"\" \"",Module,"\"","}}"],Result2),
+    multi_string_concat(["{:type :module :content {:path \"",File,"\" :module \"",Module,"\"",":partial false}}"],Result1),
+    multi_string_concat(["{:type :module :content {:path \"",ModulePath,"\" :module \"",Module,"\"",":partial true}}"],Result2),
     get_stream(Module,Stream),
     write(Stream,Result1),nl(Stream),
-    write(Stream,Result2),nl(Stream),flush_output(Stream),!.
-term_expander(':-'(use_module(library(Lib)))) :-
-    !,
-    prolog_load_context(module, Module),
-    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\" :in \"",Module,"\" :preds :all}}"],Result),
-    get_stream(Module,Stream),
-    write(Stream,Result),nl(Stream),flush_output(Stream),!.
-term_expander(':-'(use_module(UsedModule))) :-
-    !,
-    prolog_load_context(module, Module),
-    prolog_load_context(directory,ModulePath),
-    working_directory(Current,ModulePath),
-    absolute_file_name(UsedModule,Path),
-    working_directory(_,Current),
-    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\" :in \"",Module,"\" :preds :all}}"],Result),
-    get_stream(Module,Stream),
-    write(Stream,Result),nl(Stream),flush_output(Stream),!.
+    write(Stream,Result2),nl(Stream),
+    flush_output(Stream),!.
+
 term_expander(':-'(use_module(library(Lib),Preds))) :-
     !,
     prolog_load_context(module, Module),
-    maplist(transform_pred_list,Preds,PredsAsString),
-    join(", ",PredsAsString,PQ),
-    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\" :in \"",Module,"\" :preds [",PQ,"]}}"],Result),
+    get_pred_string(Preds,PredString),
+    multi_string_concat(["{:type :use-module :content {:lib \"",Lib,"\" :in \"",Module,"\" :preds ",PredString,"}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
+term_expander(':-'(use_module(library(Lib)))) :-
+    term_expander(':-'(use_module(library(Lib),all))),!.
+
+term_expander(':-'(use_module(UsedModule))) :-
+    term_expander(':-'(use_module(UsedModule,all))),!.
 term_expander(':-'(use_module(UsedModule,Preds))) :-
     !,
     prolog_load_context(module, Module),
     prolog_load_context(directory,ModulePath),
-    working_directory(Current,ModulePath),
-    absolute_file_name(UsedModule,Path),
-    working_directory(_,Current),
-    maplist(transform_pred_list,Preds,PredsAsString),
-    join(", ",PredsAsString,PQ),
-    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\" :path \"",Path,"\" :in \"",Module,"\" :preds [",PQ,"]}}"],Result),
+    get_pred_string(Preds,PredString),
+    multi_string_concat(["{:type :use-module :content {:non-lib \"",UsedModule,"\":source-path \"",ModulePath,"\" :in \"",Module,"\" :preds ",PredString,"}}"],Result),
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),flush_output(Stream),!.
+
 term_expander(_) :-
     prolog_load_context(module,Module),
     (Module = user; Module = annotations; Module = prolog_analyzer),!.
