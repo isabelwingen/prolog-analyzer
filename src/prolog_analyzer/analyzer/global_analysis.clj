@@ -123,6 +123,6 @@
    (println (pr-str (str (timestamp) ": Step " counter)))
    (let [envs (step data)
          new-data (add-new-knowledge data envs)]
-     (if (and (not-the-same new-data data) (< counter 2))
+     (if (and (not-the-same new-data data) (< counter 6))
        (global-analysis new-data (inc counter))
        envs))))
