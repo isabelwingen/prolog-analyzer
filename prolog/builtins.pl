@@ -166,6 +166,7 @@
                                               compound(float_integer_part(arithmetic_expression)),
                                               compound(float_fractional_part(arithmetic_expression)),
                                               compound(float(arithmetic_expression)),
+                                              compound(integer(arithmetic_expression)), % only in sicstus?
                                               compound(arithmetic_expression /\ arithmetic_expression),
                                               compound(arithmetic_expression \/ arithmetic_expression),
                                               compound(xor(arithmetic_expression, arithmetic_expression)),
@@ -173,9 +174,11 @@
                                               compound(arithmetic_expression << arithmetic_expression),
                                               compound(arithmetic_expression >> arithmetic_expression),
                                               compound(abs(arithmetic_expression)),
+                                              compound(msb(arithmetic_expression)), % only in sicstus?
                                               compound(sign(arithmetic_expression)),
                                               compound(min(arithmetic_expression, arithmetic_expression)),
                                               compound(max(arithmetic_expression, arithmetic_expression)),
+                                              compound(gcd(arithmetic_expression, arithmetic_expression)), % only in sicstus?
                                               compound(round(arithmetic_expression)),
                                               compound(truncate(arithmetic_expression)),
                                               compound(floor(arithmetic_expression)),
