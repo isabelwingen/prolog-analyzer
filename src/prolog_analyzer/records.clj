@@ -312,7 +312,7 @@
     (cond
       (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
                           [head type tail spec])
-      (= LIST (term-type term)) (if (or (nil? (.tail term)) (empty-list? (.tail term))) [(.head term) type (.tail term) spec])
+      (= LIST (term-type term)) (if (or (empty-list? (.tail term)) (= VAR (term-type (.tail term)))) [(.head term) type] [(.head term) type (.tail term) spec])
       :else []))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]

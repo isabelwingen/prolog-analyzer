@@ -13,7 +13,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-types-and-erros res)))
+    (my-pp/print-type-information res)))
 
 (defn run
   ([edn]

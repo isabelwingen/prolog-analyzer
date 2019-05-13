@@ -156,6 +156,7 @@
 
 
 (defn print-type-information [graph]
+  (println (pr-str (clojure.string/join " " (map str (conj (utils/get-pred-id graph) (utils/get-clause-number graph))))))
   (let [error-terms (->> graph
                          (utils/get-terms)
                          (remove contains-arti-term?)

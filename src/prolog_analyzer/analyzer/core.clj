@@ -40,7 +40,7 @@
         (uber/add-edges [head term {:relation :is-head}]))
     (-> env
         (dom/fill-env-for-term-with-spec head (r/->AnySpec))
-        (dom/fill-env-for-term-with-spec tail (r/->ListSpec (r/->AnySpec)))
+        (dom/fill-env-for-term-with-spec tail (r/->AnySpec))
         (uber/add-edges [head term {:relation :is-head}] [tail term {:relation :is-tail}]))))
 
 (defmethod add-relationships-aux prolog_analyzer.records.CompoundTerm [env {functor :functor arglist :arglist :as term}]
