@@ -84,13 +84,15 @@
          r/LIST (find-placeholders (.type spec))
          #{}))
 
+(def JOIN "~~")
 
 (defn- process-unions-in-complex-userdef [env edge-id type-map]
   (let [unions (->> type-map
                     (group-by :inner-spec)
                     (reduce-kv #(assoc %1 (r/->SpecvarSpec (:name %2)) (map :alias %3)) {})
                     (reduce-kv #(assoc %1 %2 (r/simplify-or (r/->OneOfSpec (set %3)) (utils/get-user-defined-specs env))) {}))
-        name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id "_" (:name %2)))) {} (keys unions))]
+        name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys unions))]
+    (assert edge-id "Edge Is is null")
     (reduce-kv
      #(-> %1
           (uber/add-nodes %3)
@@ -106,7 +108,9 @@
                     (group-by :inner-spec)
                     (reduce-kv #(assoc %1 (r/->SpecvarSpec (:name %2)) (map :alias %3)) {})
                     (reduce-kv #(assoc %1 %2 (r/simplify-and (r/->AndSpec (set %3)) (utils/get-user-defined-specs env) {:overwrite true})) {}))
-        name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id "_" (:name %2)))) {} (keys compas))]
+        name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys compas))]
+    (assert edge-id "Edge Is is null")
+    (assert (not= "" edge-id))
     (reduce-kv
      #(-> %1
           (uber/add-nodes %3)
@@ -119,7 +123,7 @@
 
 (defmethod process-edge :complex-userdef [env edge]
   (let [userdef-spec (r/replace-union-and-comp-with-placeholder (uber/dest edge))
-        edge-id (or (uber/attr env edge :id) (gensym "ID__"))
+        edge-id (or (uber/attr env edge :id) (gensym "ID~~"))
         term (uber/src edge)
         intersect (r/intersect (utils/get-dom-of-term env term (r/->AnySpec)) userdef-spec (utils/get-user-defined-specs env))
         placeholders (map #(if (:alias %) % (assoc % :alias (r/->AnySpec))) (find-placeholders intersect))

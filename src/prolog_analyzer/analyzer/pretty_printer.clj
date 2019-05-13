@@ -44,9 +44,9 @@
         print-table)))
 
 (defn- arti-term? [term]
-  (or (.startsWith (str (:name term)) "A__")
-      (.startsWith (str (:name term)) "T__")
-      (.startsWith (str (:name term)) "ID__")))
+  (or (.startsWith (str (:name term)) "A~~")
+      (.startsWith (str (:name term)) "T~~")
+      (.startsWith (str (:name term)) "ID~~")))
 
 (defn- contains-arti-term? [term]
   (or (arti-term? term)

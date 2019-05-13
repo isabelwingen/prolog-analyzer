@@ -110,10 +110,13 @@
         (uber/add-attr term :dom (r/->AnySpec)))
     env))
 
-(def ART_PREFIX "A__")
+  (def ART_PREFIX "A~~")
 
 (defn- art-term? [{n :name}]
-  (.startsWith (str n) ART_PREFIX))
+  (or
+   (.startsWith (str n) ART_PREFIX)
+   (.startsWith (str n) "T~~")
+   (.startsWith (str n) "ID~~")))
 
 (defn- has-artifical-term? [env term]
   (if (some->> term
@@ -265,7 +268,8 @@
 
 (defmethod fill-dom [:var :list] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
   (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))
-        generated-var (r/->VarTerm (gensym "T__"))]
+        generated-var (r/->VarTerm (gensym "T~~"))]
+
     (if-let [artificial-type (get-artificial-type env term)]
       (-> env
           (fill-dom-compound-or-list term spec options)
