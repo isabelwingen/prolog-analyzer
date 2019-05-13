@@ -546,14 +546,14 @@
 :- spec_post(user:msort/2, [any, any], [and([list(union(_X)), compatible(Y)]),
                                         compatible(Y)]).
 
+:- spec_pre(user:append/3,  [maybe(list(any)), maybe(list(any)), maybe(list(any))]).
+:- spec_post(user:append/3, [any,any,any], [list(union(X)), list(union(X)), list(compatible(X))]).
+
 :- spec_pre(lists:append/2,  [list(list(any)), maybe(list(any))]).
 :- spec_post(lists:append/2,  [any, any], [list(list(union(X))), list(compatible(X))]).
 
 :- spec_pre(lists:flatten/2,  [list(list(any)), maybe(list(any))]).
 :- spec_post(lists:flatten/2,  [any, any], [list(list(any)), list(any)]).
-
-:- spec_pre(user:append/3,  [maybe(list(any)), maybe(list(any)), maybe(list(any))]).
-:- spec_post(user:append/3, [any,any,any], [list(union(X)), list(union(X)), list(compatible(X))]).
 
 :- spec_pre(lists:prefix/2,  [maybe(list(any)), maybe(list(any))]).
 :- spec_post(lists:prefix/2, [any,any], [list(union(X)), list(union(X))]).

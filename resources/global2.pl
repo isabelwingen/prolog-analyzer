@@ -9,3 +9,7 @@ foo(X,_,Y) :-
 
 bla(Y) :-
     foo(X,3,Y).
+
+
+quark(P) :-
+    bla(P).
