@@ -14,15 +14,6 @@
 
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
 
-(defmethod process-edge :specvar [env edge]
-  (let [specvar (uber/dest edge)
-        term (uber/src edge)
-        specvar-dom (utils/get-dom-of-term env specvar (r/->AnySpec))
-        term-dom (utils/get-dom-of-term env term (r/->AnySpec))]
-    (-> env
-        (dom/add-type-to-dom specvar term-dom {:overwrite true})
-        (dom/add-type-to-dom term specvar-dom {:overwrite true}))))
-
 (defn- mark-as-changed [env edge]
   (if-let [counter (uber/attr env edge :changed)]
     (-> env
@@ -93,6 +84,7 @@
                     (reduce-kv #(assoc %1 %2 (r/simplify-or (r/->OneOfSpec (set %3)) (utils/get-user-defined-specs env))) {}))
         name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys unions))]
     (assert edge-id "Edge Is is null")
+    (assert (not= "" edge-id) "Edge is empty string")
     (reduce-kv
      #(-> %1
           (uber/add-nodes %3)
@@ -110,7 +102,7 @@
                     (reduce-kv #(assoc %1 %2 (r/simplify-and (r/->AndSpec (set %3)) (utils/get-user-defined-specs env) {:overwrite true})) {}))
         name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys compas))]
     (assert edge-id "Edge Is is null")
-    (assert (not= "" edge-id))
+    (assert (not= "" edge-id) "Edge is empty string")
     (reduce-kv
      #(-> %1
           (uber/add-nodes %3)
@@ -136,15 +128,18 @@
         )))
 
 
-(defmethod process-edge :artificial [env edge]
+(defmethod process-edge :artificialx [env edge]
   (let [normal (uber/src edge)
         artifical (uber/dest edge)]
     (-> env
         (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical (r/->AnySpec)))
         (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal (r/->AnySpec))))))
 
-(defmethod process-edge :is-head [env edge]
+
+
+(defn process-head-edge [env edge]
   (let [list (uber/dest edge)
+        list-dom (utils/get-dom-of-term env list (r/->AnySpec))
         head (uber/src edge)
         head-dom (utils/get-dom-of-term env head (r/->AnySpec))
         tail (some->> list
@@ -160,6 +155,10 @@
              r/TUPLE (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(cons head-dom %)) {:overwrite overwrite})
              r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom))) {:overwrite overwrite})
              env))))
+
+(defmethod process-edge :head [env edge]
+  (process-head-edge env edge)
+  )
 
 (defn- extract-type [env spec]
   (case+ (r/spec-type spec)
