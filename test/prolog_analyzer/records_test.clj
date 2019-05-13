@@ -105,7 +105,7 @@
     (sut/->ListTerm (sut/->IntegerTerm 1) (sut/->ListTerm (sut/->IntegerTerm 2) (sut/->EmptyListTerm))) 2
     (sut/->ListTerm (sut/->VarTerm "A") (sut/->ListTerm (sut/->VarTerm "B") (sut/->ListTerm (sut/->VarTerm "C") (sut/->EmptyListTerm)))) 3
     (sut/->ListTerm (sut/->VarTerm "H") (sut/->VarTerm "T")) :inf
-    (sut/->ListTerm (sut/->AnonVarTerm "_123") (sut/->AnonVarTerm "_124")) :inf
+    (sut/->ListTerm (sut/->VarTerm "_123") (sut/->AnonVarTerm "_124")) :inf
     (sut/->ListTerm (sut/->IntegerTerm 1) (sut/->ListTerm (sut/->VarTerm "H") (sut/->VarTerm "T"))) :inf))
 
 

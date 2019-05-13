@@ -85,7 +85,7 @@
                (r/->ListTerm (r/->IntegerTerm 1) (r/->EmptyListTerm)) (r/->ListSpec (r/->IntegerSpec))
                (r/->CompoundTerm "wrap" [(r/->AtomTerm "salad") (r/->AtomTerm "tomatoes")]) (r/->CompoundSpec "wrap" [(r/->AtomSpec) (r/->AtomSpec)])
                (r/->VarTerm "X") (r/->AnySpec)
-               (r/->AnonVarTerm "_1603") (r/->AnySpec)
+               (r/->VarTerm "_1603") (r/->AnySpec)
                (r/->EmptyListTerm) (r/->EmptyListSpec)))
 
 (deftest fill-env-test:ground

@@ -223,8 +223,7 @@ arg_to_map(compound,Term,Map) :-
 arg_to_map(var,Term,Map) :-
     prolog_load_context(dialect,swi),!,
     (var_property(Term,name(Name)) -> true ; term_string(Term,Name)),
-    (atom_codes(Name,[95|_]) -> Type = "anon_var" ; Type = "var"),
-    multi_string_concat(["{:name \"", Name, "\" :type :", Type, "}"],Map).
+    multi_string_concat(["{:name \"", Name, "\" :type :var}"],Map).
 
 arg_to_map(var,Term,Map) :-
     !,

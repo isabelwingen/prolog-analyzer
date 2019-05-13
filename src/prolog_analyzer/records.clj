@@ -706,13 +706,6 @@
   printable
   (to-string [x] (str name)))
 
-(defrecord AnonVarTerm [name]
-  term
-  (term-type [term] VAR)
-  (initial-spec [term] (->AnySpec))
-  printable
-  (to-string [x] (str name)))
-
 (defrecord AtomTerm [term]
   term
   (term-type [term] ATOM)
@@ -794,7 +787,6 @@
     (log/error (str input-m) " is " (type input-m))
     (let [m (dissoc input-m :type)]
       (case (:type input-m)
-        :anon_var (map->AnonVarTerm m)
         :var (map->VarTerm m)
         :atom (map->AtomTerm m)
         :number (map->NumberTerm m)
