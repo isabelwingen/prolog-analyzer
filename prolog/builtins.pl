@@ -151,77 +151,25 @@
 :- spec_pre(user:compare/3, [one_of([atom(=), atom(<), atom(>)]), nonvar, nonvar]).
 % no spec_post
 
-:- declare_spec(arithmetic_expression).
-:- define_spec(arithmetic_expression, one_of([number,
-                                              compound(+(arithmetic_expression)),
-                                              compound(-(arithmetic_expression)),
-                                              compound(arithmetic_expression + arithmetic_expression),
-                                              compound(arithmetic_expression - arithmetic_expression),
-                                              compound(arithmetic_expression * arithmetic_expression),
-                                              compound(arithmetic_expression / arithmetic_expression),
-                                              compound(arithmetic_expression // arithmetic_expression),
-                                              compound(arithmetic_expression div arithmetic_expression),
-                                              compound(arithmetic_expression rem arithmetic_expression),
-                                              compound(arithmetic_expression mod arithmetic_expression),
-                                              compound(float_integer_part(arithmetic_expression)),
-                                              compound(float_fractional_part(arithmetic_expression)),
-                                              compound(float(arithmetic_expression)),
-                                              compound(integer(arithmetic_expression)), % only in sicstus?
-                                              compound(arithmetic_expression /\ arithmetic_expression),
-                                              compound(arithmetic_expression \/ arithmetic_expression),
-                                              compound(xor(arithmetic_expression, arithmetic_expression)),
-                                              compound(\(arithmetic_expression)),
-                                              compound(arithmetic_expression << arithmetic_expression),
-                                              compound(arithmetic_expression >> arithmetic_expression),
-                                              compound(abs(arithmetic_expression)),
-                                              compound(msb(arithmetic_expression)), % only in sicstus?
-                                              compound(sign(arithmetic_expression)),
-                                              compound(min(arithmetic_expression, arithmetic_expression)),
-                                              compound(max(arithmetic_expression, arithmetic_expression)),
-                                              compound(gcd(arithmetic_expression, arithmetic_expression)), % only in sicstus?
-                                              compound(round(arithmetic_expression)),
-                                              compound(truncate(arithmetic_expression)),
-                                              compound(floor(arithmetic_expression)),
-                                              compound(ceiling(arithmetic_expression)),
-                                              compound(sin(arithmetic_expression)),
-                                              compound(cos(arithmetic_expression)),
-                                              compound(tan(arithmetic_expression)),
-                                              compound(cot(arithmetic_expression)),
-                                              compound(sinh(arithmetic_expression)),
-                                              compound(cosh(arithmetic_expression)),
-                                              compound(tanh(arithmetic_expression)),
-                                              compound(coth(arithmetic_expression)),
-                                              compound(asin(arithmetic_expression)),
-                                              compound(acos(arithmetic_expression)),
-                                              compound(atan(arithmetic_expression)),
-                                              compound(atan2(arithmetic_expression, arithmetic_expression)),
-                                              compound(sqrt(arithmetic_expression)),
-                                              compound(log(arithmetic_expression)),
-                                              compound(log(arithmetic_expression,arithmetic_expression)), % Allowed in sicstus, but not in SWI
-                                              compound(exp(arithmetic_expression)),
-                                              compound(arithmetic_expression ** arithmetic_expression),
-                                              compound(arithmetic_expression ^ arithmetic_expression),
-                                              atom(pi) ])).
+:- spec_pre(user:is/2, [maybe(number), ground]).
+:- spec_post(user:is/2, [any, any], [number, ground]).
 
-:- spec_pre(user:is/2, [maybe(number), arithmetic_expression]).
-:- spec_post(user:is/2, [any, any], [number, arithmetic_expression]).
-
-:- spec_pre(user:'<'/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'<'/2, [ground, ground]).
 % no spec post
 
-:- spec_pre(user:'>'/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'>'/2, [ground, ground]).
 % no spec post
 
-:- spec_pre(user:'=<'/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'=<'/2, [ground, ground]).
 % no spec post
 
-:- spec_pre(user:'>='/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'>='/2, [ground, ground]).
 % no spec post
 
-:- spec_pre(user:'=:='/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'=:='/2, [ground, ground]).
 % no spec post
 
-:- spec_pre(user:'=\\='/2, [arithmetic_expression, arithmetic_expression]).
+:- spec_pre(user:'=\\='/2, [ground, ground]).
 % no spec post
 
 :- spec_pre(user:'='/2, [any, any]).
