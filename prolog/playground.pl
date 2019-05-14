@@ -1,8 +1,15 @@
 :- module(tmp,[]).
 
+%foo2(R,H) :-
+%    var(R),
+%    [H|R] = [1,2,a].
 
-foo1(V,H,T) :- var(T),!,V = [H|T].
+%foo3(H,R) :-
+%    var(R),
+%    [H|R] = [1,2,a].
 
-foo2(V,H,T) :-
-    var(T),
-    [H|T] = [1,2,3,4].
+
+foo4(L) :-
+    L = [H|T],
+    T = [1,2,3],
+    H = a.
