@@ -93,6 +93,15 @@
 
 
 (defn recursive-check-condition [l msg]
-  (when (not-empty l)
-    (assert (first l) msg)
-    (recursive-check-condition (rest l) msg)))
+  (if (map? l)
+    (cond
+      (contains? l :type) (do (assert (:type l) msg)
+                              (recursive-check-condition (:type l) msg))
+      (contains? l :arglist) (do (assert (:arglist l) msg)
+                               ;  (assert (not (empty? (:arglist l))) (str "1 " msg))
+                                 (recursive-check-condition (:arglist l) msg))
+      :else (assert l msg))
+    (when (not-empty l)
+      (assert (first l) msg)
+      (recursive-check-condition (first l) msg)
+      (recursive-check-condition (rest l) msg))))

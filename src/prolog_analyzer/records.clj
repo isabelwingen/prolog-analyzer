@@ -500,24 +500,42 @@
 
 
 (defn- add-to-one-of [defs so-far e]
+  (assert e "!!")
   (let [one-direction (set (remove (partial supertype? defs e) so-far))]
-    (if (every? #(not (supertype? defs % e)) one-direction)
-      (set (conj one-direction e))
-      one-direction)))
+    (if (empty? one-direction)
+      [e]
+      (if (every? #(not (supertype? defs % e)) one-direction)
+        (set (conj one-direction e))
+        one-direction))))
 
-(defn simplify-or
-  ([type defs]
-   (let [simplified-or (-> type
-                           (update :arglist (partial mapcat #(if (= OR (spec-type %)) (:arglist %) [%])))
-                           (update :arglist set)
-                           (update :arglist #(reduce (partial add-to-one-of defs) [(first %)] (rest %)))
-                           (update :arglist set))]
-     (case (count (:arglist simplified-or))
-       0 (DISJOINT type)
-       1 (first (:arglist simplified-or))
-       (if (some #{ANY} (map spec-type (:arglist simplified-or)))
-         (->AnySpec)
-         simplified-or)))))
+(defn simplify-or [type defs]
+  (assert ((complement empty?) (:arglist type)) "not empty")
+  (assert (not (empty? defs)) "empty defs in simplify-or")
+  (utils/recursive-check-condition (:arglist type) "input arglist contains nil")
+  (let [simplified-or (-> type
+                          (update :arglist (partial mapcat #(if (= OR (spec-type %)) (:arglist %) [%])))
+                          (update :arglist set)
+                          (update :arglist #(reduce (partial add-to-one-of defs) [(first %)] (rest %)))
+                          (update :arglist set))]
+    (assert ((complement empty?) (:arglist simplified-or)) "not empty")
+    (utils/recursive-check-condition (:arglist simplified-or) "output arglist contains nil")
+    (case (count (:arglist simplified-or))
+      0 (DISJOINT type)
+      1 (first (:arglist simplified-or))
+      (if (some #{ANY} (map spec-type (:arglist simplified-or)))
+        (->AnySpec)
+        simplified-or))))
+
+(defn simple-simplify-or [type]
+  (let [res (-> type
+                (update :arglist (partial mapcat #(if (= OR (spec-type %)) (:arglist %) [%])))
+                (update :arglist set))]
+    (case (count (:arglist res))
+      0 (DISJOINT type)
+      1 (first (:arglist res))
+      (if (some #{ANY} (map spec-type (:arglist res)))
+        (->AnySpec)
+        res))))
 
 
 (defrecord AndSpec [arglist]
@@ -765,7 +783,7 @@
   (initial-spec [term] (if (empty-list? tail)
                          (->ListSpec (initial-spec head))
                          (if (contains? tail :head)
-                           (->ListSpec (simplify-or (->OneOfSpec [(initial-spec head) (:type (initial-spec tail))]) nil))
+                           (->ListSpec (->OneOfSpec [(initial-spec head) (:type (initial-spec tail))]))
                            (->ListSpec (->AnySpec)))))
   printable
   (to-string [x]
@@ -962,21 +980,24 @@
   we have to replace the parameter with their value."
   [{n :name arglist :arglist :as user-def-spec} defs]
   (if (nil? arglist)
-    (get defs user-def-spec)
-    (let [alias (->> defs
-                     keys
-                     (filter #(= (:name %) n))
-                     (filter #(= (count (:arglist %)) (count arglist)))
-                     first)
-          definition (get defs alias)
-          replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))
-          result (reduce-kv replace-specvars-with-spec definition replace-map)]
-      (if (= OR (spec-type result))
-        (update result :arglist set)
-        result))))
+      (get defs user-def-spec user-def-spec)
+      (let [alias (->> defs
+                       keys
+                       (filter #(= (:name %) n))
+                       (filter #(= (count (:arglist %)) (count arglist)))
+                       first)
+            definition (get defs alias user-def-spec)
+            replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))
+            result (reduce-kv replace-specvars-with-spec definition replace-map)]
+        (if (= OR (spec-type result))
+          (update result :arglist set)
+          result))))
 
 
 (defn supertype? [defs parent child]
+  (assert parent "parent")
+  (assert child "child")
+  (assert (not (empty? defs)) "defs")
   (if (= OR (spec-type parent))
     (some #(= child (intersect % child defs)) (:arglist parent))
     (= child (intersect parent child defs))))

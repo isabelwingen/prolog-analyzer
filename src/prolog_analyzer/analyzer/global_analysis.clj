@@ -15,9 +15,13 @@
     (str (time/format now))))
 
 (defn- create-premise [env]
-  (->> (uber/attr env :ENVIRONMENT :arglist)
-       (map #(utils/get-dom-of-term env % (r/->AnySpec)))
-       (apply r/to-tuple-spec)))
+  (let [arglist (uber/attr env :ENVIRONMENT :arglist)]
+    (assert arglist "arglist not nil")
+    (assert (not (empty? arglist)) "arglist is empty")
+    (utils/recursive-check-condition arglist "some arglist argument is nil")
+    (->> arglist
+         (map #(utils/get-dom-of-term env % (r/->AnySpec)))
+         (apply r/to-tuple-spec))))
 
 (defn- valid-env? [env]
   (->> env
@@ -44,8 +48,7 @@
 (defn- set-premise [data env premise]
   (let [reached-limit (> (depth premise) 4)
         pred-id (utils/get-pred-id env)
-        clause-number (utils/get-clause-number env)
-        ]
+        clause-number (utils/get-clause-number env)]
     (-> data
         (assoc-in [:premise pred-id clause-number :premise] premise)
         (assoc-in [:premise pred-id clause-number :hash] (hash premise))
@@ -63,13 +66,13 @@
         (set-premise data env new-premise)))))
 
 (defn- collect-premises [data pred-id]
-  (r/simplify-or
-   (->> (get-in data [:premise pred-id])
-        vals
-        (map :premise)
-        set
-        r/->OneOfSpec)
-   (:specs data)))
+  (let [premises (->> (get-in data [:premise pred-id])
+                      vals
+                      (map :premise)
+                      set)
+        defs (:specs data)
+        res (r/simple-simplify-or (r/->OneOfSpec premises))]
+    res))
 
 (defn- get-post-spec-hash [data pred-id]
   (get-in data [:hashs pred-id]))
@@ -80,6 +83,7 @@
 
 (defmulti process-predicate-envs (fn [data pred-id envs]
                                    (and (not (contains? #{"user","avl","lists"} (first pred-id)))
+                                        (not (zero? (last pred-id)))
                                         (every? valid-env? envs))))
 
 (defmethod process-predicate-envs true [data pred-id envs]
