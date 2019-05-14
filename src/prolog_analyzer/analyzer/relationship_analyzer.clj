@@ -10,8 +10,6 @@
 
             ))
 
-
-
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
 
 (defn- mark-as-changed [env edge]
@@ -84,7 +82,6 @@
                     (reduce-kv #(assoc %1 %2 (r/simplify-or (r/->OneOfSpec (set %3)) (utils/get-user-defined-specs env))) {}))
         name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys unions))]
     (assert edge-id "Edge Is is null")
-    (assert (not= "" edge-id) "Edge is empty string")
     (reduce-kv
      #(-> %1
           (uber/add-nodes %3)
@@ -102,7 +99,7 @@
                     (reduce-kv #(assoc %1 %2 (r/simplify-and (r/->AndSpec (set %3)) (utils/get-user-defined-specs env) {:overwrite true})) {}))
         name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys compas))]
     (assert edge-id "Edge Is is null")
-    (assert (not= "" edge-id) "Edge is empty string")
+    (assert (not= "" edge-id))
     (reduce-kv
      #(-> %1
           (uber/add-nodes %3)
@@ -135,6 +132,7 @@
         (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical (r/->AnySpec)) {:overwrite true})
         (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal (r/->AnySpec)) {:overwrite true}))))
 
+
 (defn- extract-type [env spec]
   (case+ (r/spec-type spec)
          r/LIST (.type spec)
@@ -149,7 +147,7 @@
         type-dom (utils/get-dom-of-term env list-type (r/->AnySpec))]
     (-> env
         (dom/fill-env-for-term-with-spec list-type new-type-dom {:overwrite true})
-        (dom/fill-env-for-term-with-spec list (r/->ListSpec type-dom)) {:overwrite true})))
+        (dom/fill-env-for-term-with-spec list (r/->ListSpec type-dom) {:overwrite true}))))
 
 
 (defmethod process-edge :arg-at-pos [env edge]
