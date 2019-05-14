@@ -355,7 +355,7 @@
       (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
                           [head (first arglist)
                            tail (update spec :arglist rest)])
-      (= LIST (term-type term)) [(.head term) (first arglist) (.tail term) (update spec :arglist rest)]
+      (= LIST (term-type term)) (if (empty? arglist) [(.head term) (->ErrorSpec "Empty Tuple")] [(.head term) (first arglist) (.tail term) (update spec :arglist rest)])
       :else []))
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
@@ -396,9 +396,12 @@
   (spec-type [spec] COMPOUND)
   (next-steps [spec term defs _]
     (cond
-      (= COMPOUND (term-type term)) (interleave (.arglist term) arglist)
-      (and (= "." functor) (= LIST (term-type term))) [(.head term) (first arglist) (.tail term) (second arglist)]
-      (and (= "." functor) (list-term? term)) [(first (.arglist term)) (first arglist) (second (.arglist term)) (second arglist)]
+      (= COMPOUND (term-type term)) (if (= (count arglist) (count (:arglist term)))
+                                      (interleave (.arglist term) arglist)
+                                      [])
+      (and (= "." functor) (= 2 (count arglist)) (= LIST (term-type term))) [(.head term) (first arglist) (.tail term) (second arglist)]
+      (and (= "." functor) (= 2 (count arglist)) (list-term? term)) [(first (.arglist term)) (first arglist) (second (.arglist term)) (second arglist)]
+      :else []
       )
     )
   (next-steps [spec term defs] (next-steps spec term defs false))
