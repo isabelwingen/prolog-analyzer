@@ -516,16 +516,11 @@
         one-direction))))
 
 (defn simplify-or [type defs]
-  (assert ((complement empty?) (:arglist type)) "not empty")
-  (assert (not (empty? defs)) "empty defs in simplify-or")
-  (utils/recursive-check-condition (:arglist type) "input arglist contains nil")
   (let [simplified-or (-> type
                           (update :arglist (partial mapcat #(if (= OR (spec-type %)) (:arglist %) [%])))
                           (update :arglist set)
                           (update :arglist #(reduce (partial add-to-one-of defs) [(first %)] (rest %)))
                           (update :arglist set))]
-    (assert ((complement empty?) (:arglist simplified-or)) "not empty")
-    (utils/recursive-check-condition (:arglist simplified-or) "output arglist contains nil")
     (case (count (:arglist simplified-or))
       0 (DISJOINT type)
       1 (first (:arglist simplified-or))

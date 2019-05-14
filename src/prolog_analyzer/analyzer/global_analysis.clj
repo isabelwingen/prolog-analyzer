@@ -18,7 +18,6 @@
   (let [arglist (uber/attr env :ENVIRONMENT :arglist)]
     (assert arglist "arglist not nil")
     (assert (not (empty? arglist)) "arglist is empty")
-    (utils/recursive-check-condition arglist "some arglist argument is nil")
     (->> arglist
          (map #(utils/get-dom-of-term env % (r/->AnySpec)))
          (apply r/to-tuple-spec))))
