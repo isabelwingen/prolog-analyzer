@@ -44,7 +44,6 @@
 (declare has-specvars)
 (declare var-spec?)
 
-
 (defprotocol printable
   (to-string [x]))
 
@@ -101,8 +100,8 @@
 (defn error-spec? [spec]
   (or (nil? spec)
       (= ERROR (spec-type spec))
-      (if (contains? spec :type) (error-spec? (.type spec)))
-      (if (contains? spec :arglist) (some error-spec? (:arglist spec)))
+      (if (contains? spec :type) (error-spec? (.type spec)) false)
+      (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
       ))
 
 (defn replace-error-spec-with-intersect-error [spec]
@@ -324,11 +323,13 @@
                      (update :arglist (partial map #(intersect type % defs overwrite?)))
                      replace-error-spec-with-intersect-error)
            EMPTYLIST other-spec
-           COMPOUND (if (= "." (.functor other-spec))
-                      (-> spec
-                          (update :type #(intersect % (first (.arglist other-spec)) defs overwrite?))
-                          (intersect (second (.arglist other-spec)) defs overwrite?))
-                      (DISJOINT spec other-spec))
+           COMPOUND (if (nil? (.functor other-spec))
+                      spec
+                      (if (and (= "." (.functor other-spec)) (= 2 (count (:arglist other-spec))))
+                        (-> spec
+                            (update :type #(intersect % (first (.arglist other-spec)) defs overwrite?))
+                            (intersect (second (.arglist other-spec)) defs overwrite?))
+                        (DISJOINT spec other-spec)))
            ATOMIC (->EmptyListSpec)
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :type #(intersect other-spec % defs overwrite?)))
@@ -365,11 +366,13 @@
                        (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
                        replace-error-spec-with-intersect-error)
                    (DISJOINT spec other-spec))
-           COMPOUND (if (= "." (.functor other-spec))
-                      (let [f (intersect (first (.arglist spec)) (first (.arglist other-spec)) defs overwrite?)
-                            r (intersect (update :spec :arglist rest) (second (.arglist other-spec)) defs overwrite?)]
-                        (assoc spec :arglist (apply vector f r)))
-                      (DISJOINT spec other-spec))
+           COMPOUND (if (nil? (.functor other-spec))
+                      spec
+                      (if (and (= "." (.functor other-spec)) (= 2 (count (.arglist other-spec))))
+                        (let [f (intersect (first (.arglist spec)) (first (.arglist other-spec)) defs overwrite?)
+                              r (intersect (update :spec :arglist rest) (second (.arglist other-spec)) defs overwrite?)]
+                          (assoc spec :arglist (apply vector f r)))
+                        (DISJOINT spec other-spec)))
            ATOMIC (if (empty? arglist) (->EmptyListSpec) (DISJOINT spec other-spec))
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
@@ -407,16 +410,20 @@
                                   (update :arglist (partial map #(intersect %1 %2 defs overwrite?) arglist))
                                   replace-error-spec-with-intersect-error)
                               (DISJOINT spec other-spec)))
-           LIST (if (= "." functor)
-                  (-> other-spec
-                      (update :type #(intersect % (first arglist) defs overwrite?))
-                      (intersect (second arglist) defs overwrite?))
-                  (DISJOINT spec other-spec))
-           TUPLE (if (= "." functor)
-                   (let [f (intersect (first (.arglist other-spec)) (first arglist) defs overwrite?)
-                         r (intersect (update other-spec :arglist rest) (second arglist) defs overwrite?)]
-                     (assoc other-spec :arglist (apply vector f r)))
-                   (DISJOINT spec other-spec))
+           LIST (if (nil? functor)
+                  other-spec
+                  (if (and (= "." functor) (= 2 (count arglist)))
+                    (-> other-spec
+                        (update :type #(intersect % (first arglist) defs overwrite?))
+                        (intersect (second arglist) defs overwrite?))
+                    (DISJOINT spec other-spec)))
+           TUPLE (if (nil? functor)
+                   other-spec
+                   (if (and (= "." functor) (= 2 (count arglist)))
+                     (let [f (intersect (first (.arglist other-spec)) (first arglist) defs overwrite?)
+                           r (intersect (update other-spec :arglist rest) (second arglist) defs overwrite?)]
+                       (assoc other-spec :arglist (apply vector f r)))
+                     (DISJOINT spec other-spec)))
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
            (AND, OR) (intersect other-spec spec defs overwrite?)
@@ -499,9 +506,9 @@
       intersect)))
 
 
-(defn- add-to-one-of [defs so-far e]
+(defn add-to-one-of [defs so-far e]
   (assert e "!!")
-  (let [one-direction (set (remove (partial supertype? defs e) so-far))]
+  (let [one-direction (set (remove (fn [x] (supertype? defs e x)) so-far))]
     (if (empty? one-direction)
       [e]
       (if (every? #(not (supertype? defs % e)) one-direction)
@@ -995,9 +1002,6 @@
 
 
 (defn supertype? [defs parent child]
-  (assert parent "parent")
-  (assert child "child")
-  (assert (not (empty? defs)) "defs")
   (if (= OR (spec-type parent))
     (some #(= child (intersect % child defs)) (:arglist parent))
     (= child (intersect parent child defs))))
