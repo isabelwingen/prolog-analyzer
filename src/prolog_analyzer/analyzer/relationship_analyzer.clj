@@ -41,7 +41,7 @@
         term-dom (utils/get-dom-of-term env term nil)
         before-dom (uber/attr env specvar term)
         specvar-dom (utils/get-dom-of-term env specvar term-dom)
-        new-dom (r/simplify-or (r/->OneOfSpec (hash-set term-dom specvar-dom)) (utils/get-user-defined-specs env))]
+        new-dom (r/simplify-or (r/->OneOfSpec (hash-set (or term-dom (r/->AnySpec)) specvar-dom)) (utils/get-user-defined-specs env))]
     (cond (nil? term-dom)            env
           (nil? before-dom)          (-> env
                                          (uber/remove-attr specvar :dom)
@@ -223,10 +223,13 @@
   (reduce process-node env (utils/get-terms env)))
 
 (defn process-head-and-tails [env]
-  (->> env
-       find-roots
-       (map #(hash-map :term % :type (calculate-type env %)))
-       (reduce #(dom/fill-env-for-term-with-spec %1 (:term %2) (:type %2) {:overwrite true}) env)))
+  (let [roots (find-roots env)]
+    (if (empty? roots)
+      env
+      (->> env
+           find-roots
+           (map #(hash-map :term % :type (calculate-type env %)))
+           (reduce #(dom/fill-env-for-term-with-spec %1 (:term %2) (:type %2) {:overwrite true}) env)))))
 
 (defn- step [env]
   (let [{unions :union compatibles :compatible :as m} (group-by #(uber/attr env % :relation) (uber/edges env))

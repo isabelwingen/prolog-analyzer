@@ -1,4 +1,4 @@
-(ns prolog-analyzer.analyzer.type-analyzer
+(ns prolog-analyzer.tools.type-analyzer
   (:require
    [clojure.string]
    [clojure.java.io :as io]))
@@ -74,5 +74,5 @@
       (println "-----------------"))
     ))
 
-
-(analysis "with-lists")
+(mean (analysis "results/with-lists"))
+(mean (analysis "results/without-lists"))

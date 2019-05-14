@@ -505,18 +505,20 @@
       (set (conj one-direction e))
       one-direction)))
 
-(defn simplify-or [spec defs]
-  (let [simplified-or (-> spec
-                          (update :arglist set)
-                          (update :arglist (partial mapcat #(if (= OR (spec-type %)) (:arglist %) [%])))
-                          (update :arglist #(reduce (partial add-to-one-of defs) [(first %)] (rest %)))
-                          (update :arglist set))]
-    (case (count (:arglist simplified-or))
-      0 (DISJOINT spec)
-      1 (first (:arglist simplified-or))
-      (if (some #{ANY} (map spec-type (:arglist simplified-or)))
-        (->AnySpec)
-        simplified-or))))
+(defn simplify-or
+  ([type defs]
+   (let [simplified-or (-> type
+                           (update :arglist (partial mapcat #(if (= OR (spec-type %)) (:arglist %) [%])))
+                           (update :arglist set)
+                           (update :arglist #(reduce (partial add-to-one-of defs) [(first %)] (rest %)))
+                           (update :arglist set))]
+     (case (count (:arglist simplified-or))
+       0 (DISJOINT type)
+       1 (first (:arglist simplified-or))
+       (if (some #{ANY} (map spec-type (:arglist simplified-or)))
+         (->AnySpec)
+         simplified-or)))))
+
 
 (defrecord AndSpec [arglist]
   spec
@@ -564,29 +566,36 @@
   (next-steps [spec term defs] (next-steps spec term defs false))
   (intersect [spec other-spec defs overwrite?]
     (case+ (spec-type other-spec)
-           OR (->> (for [x arglist
-                         y (.arglist other-spec)]
-                     [x y])
-                   (map ->AndSpec)
-                   (map #(simplify-and % defs overwrite?))
-                   (remove error-spec?)
-                   (apply vector)
-                   ->OneOfSpec
-                   (#(simplify-or % defs))
-                   replace-error-spec-with-intersect-error)
-           AND (-> spec
-                   (update :arglist (partial map #(->AndSpec (conj (.arglist other-spec) %))))
-                   (update :arglist (partial map #(simplify-and % defs overwrite?)))
-                   (update :arglist (partial remove error-spec?))
-                   (simplify-or defs)
-                   replace-error-spec-with-intersect-error)
+           OR (let [type-list (->> (for [x arglist
+                                         y (.arglist other-spec)]
+                                     [x y])
+                                   (map ->AndSpec)
+                                   (map #(simplify-and % defs overwrite?))
+                                   (remove error-spec?)
+                                   (apply vector))]
+                (if (empty? type-list)
+                  (DISJOINT)
+                  (->> type-list
+                       ->OneOfSpec
+                       (#(simplify-or % defs)))))
+           AND (let [type (-> spec
+                              (update :arglist (partial map #(->AndSpec (conj (.arglist other-spec) %))))
+                              (update :arglist (partial map #(simplify-and % defs overwrite?)))
+                              (update :arglist (partial remove error-spec?)))]
+                 (if (empty? (:arglist type))
+                   (DISJOINT)
+                   (-> type
+                       (simplify-or defs)
+                       replace-error-spec-with-intersect-error)))
            ERROR other-spec
-           (-> spec
-               (update :arglist (partial map #(intersect other-spec % defs overwrite?)))
-               (update :arglist (partial remove error-spec?))
-               (simplify-or defs)
-               replace-error-spec-with-intersect-error
-               )))
+           (let [type (-> spec
+                          (update :arglist (partial map #(intersect other-spec % defs overwrite?)))
+                          (update :arglist (partial remove error-spec?)))]
+             (if (empty? (:arglist type))
+               (DISJOINT)
+               (-> type
+                   (simplify-or defs)
+                   replace-error-spec-with-intersect-error)))))
   (intersect [spec other-spec defs] (intersect spec other-spec defs false))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
@@ -968,10 +977,9 @@
 
 
 (defn supertype? [defs parent child]
-  (cond
-      (= SPECVAR (spec-type parent)) false
-      (= OR (spec-type parent)) (some #(= child (intersect % child defs)) (:arglist parent))
-      :default (= child (intersect parent child defs))))
+  (if (= OR (spec-type parent))
+    (some #(= child (intersect % child defs)) (:arglist parent))
+    (= child (intersect parent child defs))))
 
 (defn has-specvars [spec]
   (or
