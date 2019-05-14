@@ -22,16 +22,32 @@
          (map #(utils/get-dom-of-term env % (r/->AnySpec)))
          (apply r/to-tuple-spec))))
 
+(defn valid-spec? [spec]
+  (cond
+    (nil? spec) false
+    (= r/LIST (r/spec-type spec)) (valid-spec? (:type spec))
+    (= r/COMPOUND (r/spec-type spec)) (if (:functor spec)
+                                        (if (:arglist spec) (every? valid-spec? (:arglist spec)) false)
+                                        (nil? (:arglist spec)))
+    (= r/TUPLE (r/spec-type spec)) (if (:arglist spec) (every? valid-spec? (:arglist spec)) false)
+    (contains? #{r/OR, r/AND} (r/spec-type spec)) (if (and (:arglist spec) (not-empty (:arglist spec))) (every? valid-spec? (:arglist spec)) false)
+    (= r/USERDEFINED (r/spec-type spec)) (if (:arglist spec) (if (not-empty (:arglist spec)) (every? valid-spec? (:arglist spec)) false) true)
+    :else true
+    ))
+
+
 (defn- valid-env? [env]
-  (->> env
-       utils/get-terms
-       (map #(utils/get-dom-of-term env % (r/->AnySpec)))
-       (every? (complement r/error-spec?))))
+  (let [doms (->> env
+                  utils/get-terms
+                  (map #(utils/get-dom-of-term env % (r/->AnySpec))))]
+    (and
+     (every? (complement r/error-spec?) doms)
+     (every? valid-spec? doms))))
 
 (defn- depth [type]
   (case+ (r/spec-type type)
-         (r/OR,r/AND,r/TUPLE,r/COMPOUND) (inc (apply max 0 (map depth (:arglist type))))
-         r/USERDEFINED (if (:arglist type) (inc (apply max 0 (map depth (:arglist type)))) 0)
+         (r/OR,r/AND,r/TUPLE) (inc (apply max 0 (map depth (:arglist type))))
+         (r/USERDEFINED,r/COMPOUND) (if (:arglist type) (inc (apply max 0 (map depth (:arglist type)))) 0)
          r/LIST (inc (depth (:type type)))
          0))
 
@@ -70,8 +86,8 @@
                       (map :premise)
                       set)
         defs (:specs data)
-        res (r/simple-simplify-or (r/->OneOfSpec premises))]
-    res))
+        res (r/->OneOfSpec premises)]
+    (r/simplify-or res defs)))
 
 (defn- get-post-spec-hash [data pred-id]
   (get-in data [:hashs pred-id]))
