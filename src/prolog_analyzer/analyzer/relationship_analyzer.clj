@@ -60,8 +60,8 @@
         specvar-dom (utils/get-dom-of-term env specvar (r/->AnySpec))
         compatible (or (uber/attr env specvar :compatible) specvar-dom)
         step1 (-> env
-                  (dom/add-type-to-dom term compatible {:overwrite true})
-                  (dom/add-type-to-dom term specvar-dom {:overwrite true}))
+                  (dom/fill-env-for-term-with-spec term compatible {:overwrite true})
+                  (dom/fill-env-for-term-with-spec term specvar-dom {:overwrite true}))
         new-term-dom (utils/get-dom-of-term step1 term (r/->AnySpec))]
     (-> step1
         (uber/remove-attr specvar :compatible)
@@ -128,37 +128,12 @@
         )))
 
 
-(defmethod process-edge :artificialx [env edge]
+(defmethod process-edge :artificial [env edge]
   (let [normal (uber/src edge)
         artifical (uber/dest edge)]
     (-> env
-        (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical (r/->AnySpec)))
-        (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal (r/->AnySpec))))))
-
-
-
-(defn process-head-edge [env edge]
-  (let [list (uber/dest edge)
-        list-dom (utils/get-dom-of-term env list (r/->AnySpec))
-        head (uber/src edge)
-        head-dom (utils/get-dom-of-term env head (r/->AnySpec))
-        tail (some->> list
-                      (uber/in-edges env)
-                      (filter #(= :is-tail (uber/attr env % :relation)))
-                      first
-                      uber/src)
-        tail-dom (utils/get-dom-of-term env tail (r/->AnySpec))
-        overwrite true]
-    (if (nil? tail)
-      (dom/fill-env-for-term-with-spec env list (r/->TupleSpec [head-dom]) {:overwrite overwrite})
-      (case+ (r/spec-type tail-dom)
-             r/TUPLE (dom/fill-env-for-term-with-spec env list (update tail-dom :arglist #(cons head-dom %)) {:overwrite overwrite})
-             r/LIST (dom/fill-env-for-term-with-spec env list (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom))) {:overwrite overwrite})
-             env))))
-
-(defmethod process-edge :head [env edge]
-  (process-head-edge env edge)
-  )
+        (dom/fill-env-for-term-with-spec normal (utils/get-dom-of-term env artifical (r/->AnySpec)) {:overwrite true})
+        (dom/fill-env-for-term-with-spec artifical (utils/get-dom-of-term env normal (r/->AnySpec)) {:overwrite true}))))
 
 (defn- extract-type [env spec]
   (case+ (r/spec-type spec)
@@ -173,8 +148,8 @@
         list-type (uber/dest edge)
         type-dom (utils/get-dom-of-term env list-type (r/->AnySpec))]
     (-> env
-        (dom/fill-env-for-term-with-spec list-type new-type-dom)
-        (dom/fill-env-for-term-with-spec list (r/->ListSpec type-dom)))))
+        (dom/fill-env-for-term-with-spec list-type new-type-dom {:overwrite true})
+        (dom/fill-env-for-term-with-spec list (r/->ListSpec type-dom)) {:overwrite true})))
 
 
 (defmethod process-edge :arg-at-pos [env edge]
@@ -193,6 +168,38 @@
 
 (defmethod process-edge :default [env edge]
   env)
+
+
+(defn find-roots [env]
+  (->> env
+       utils/get-terms
+       (filter #(satisfies? prolog-analyzer.records/term %))
+       (remove (fn [node] (->> node
+                              (uber/out-edges env)
+                              (map #(uber/attr env % :relation))
+                              (some #(or (= :is-head %) (= :is-tail %))))))))
+
+(defn calculate-type [env root]
+  (let [heads (->> root
+                   (uber/in-edges env)
+                   (filter #(= :is-head (uber/attr env % :relation)))
+                   (map uber/src)
+                   (map (partial calculate-type env)))
+        tails (->> root
+                   (uber/in-edges env)
+                   (filter #(= :is-tail (uber/attr env % :relation)))
+                   (map uber/src)
+                   (map (partial calculate-type env)))
+        head-dom (if (empty? heads) (r/->AnySpec) (r/simplify-and (r/->AndSpec (set heads)) (utils/get-user-defined-specs env) true))
+        tail-dom (if (empty? tails) (r/->AnySpec) (r/simplify-and (r/->AndSpec (set tails)) (utils/get-user-defined-specs env) true))]
+    (if (empty? heads)
+      (utils/get-dom-of-term env root (r/->AnySpec))
+      (if (empty? tails)
+        (r/->TupleSpec [head-dom])
+        (case+ (r/spec-type tail-dom)
+               r/TUPLE (update tail-dom :arglist #(cons head-dom %))
+               r/LIST (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom)))
+               (utils/get-dom-of-term env root (r/->AnySpec)))))))
 
 
 (defn- same [env other-env]
@@ -217,10 +224,17 @@
 (defn- process-nodes [env]
   (reduce process-node env (utils/get-terms env)))
 
+(defn process-head-and-tails [env]
+  (->> env
+       find-roots
+       (map #(hash-map :term % :type (calculate-type env %)))
+       (reduce #(dom/fill-env-for-term-with-spec %1 (:term %2) (:type %2) {:overwrite true}) env)))
+
 (defn- step [env]
   (let [{unions :union compatibles :compatible :as m} (group-by #(uber/attr env % :relation) (uber/edges env))
         other-edges (-> m (dissoc :union) (dissoc :compatible) vals flatten)]
     (-> env
+        process-head-and-tails
         (apply-edges other-edges)
         (apply-edges unions)
         (apply-edges compatibles)
@@ -239,8 +253,19 @@
      specvar-nodes)))
 
 
+(defn label-children [env edge]
+  (let [dest (uber/dest edge)
+        id (gensym)
+        outs (uber/out-edges env dest)]
+    (reduce #(uber/add-attr %1 %2 :id id) env (conj outs edge))))
+
+(defn pre-process [env]
+  (let [start-edges (filter #(uber/attr env % :start) (uber/edges env))]
+    (reduce label-children env start-edges)))
+
+
 (defn fixpoint-analysis
-  ([env] (fixpoint-analysis env 0))
+  ([env] (fixpoint-analysis (pre-process env) 0))
   ([env counter]
    (let [next (step env)]
      (if (or (same env next) (> counter 50))
