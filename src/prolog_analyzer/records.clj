@@ -141,6 +141,9 @@
     (case+ (spec-type other-spec)
            (EMPTYLIST, LIST, GROUND, NONVAR, ANY, ATOMIC) spec
            TUPLE (if (empty? (.arglist other-spec)) spec (DISJOINT spec other-spec))
+           COMPOUND (if (nil? (:functor other-spec))
+                      spec
+                      (DISJOINT other-spec spec))
            (AND, OR) (intersect other-spec spec defs overwrite?)
            USERDEFINED (intersect (resolve-definition-with-parameters other-spec defs) spec defs overwrite?)
            PLACEHOLDER (intersect other-spec spec defs overwrite?)
@@ -424,6 +427,9 @@
                            r (intersect (update other-spec :arglist rest) (second arglist) defs overwrite?)]
                        (assoc other-spec :arglist (apply vector f r)))
                      (DISJOINT spec other-spec)))
+           EMPTYLIST (if (nil? functor)
+                       other-spec
+                       (DISJOINT spec other-spec))
            (ANY, NONVAR) spec
            GROUND (replace-error-spec-with-intersect-error (update spec :arglist (partial map #(intersect other-spec % defs overwrite?))))
            (AND, OR) (intersect other-spec spec defs overwrite?)

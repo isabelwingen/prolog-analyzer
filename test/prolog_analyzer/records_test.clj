@@ -242,10 +242,9 @@
 
       (sut/->CompoundSpec nil '())                (sut/->CompoundSpec nil '())                       (sut/->CompoundSpec nil '())
       (sut/->CompoundSpec nil '())                (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])     (sut/->CompoundSpec "foo" [(sut/->FloatSpec)])
-      (sut/->CompoundSpec nil '())                (sut/->ListSpec (sut/->FloatSpec))                 :error
-      (sut/->CompoundSpec nil '())                (sut/->ListSpec (sut/->FloatSpec))                 :error
-      (sut/->CompoundSpec nil '())                (sut/->EmptyListSpec)                              :error
-      (sut/->CompoundSpec nil '())                (sut/->TupleSpec [(sut/->AtomSpec)])               :error
+      (sut/->CompoundSpec nil nil)                (sut/->ListSpec (sut/->FloatSpec))                 (sut/->ListSpec (sut/->FloatSpec))
+      (sut/->CompoundSpec nil nil)                (sut/->EmptyListSpec)                              (sut/->EmptyListSpec)
+      (sut/->CompoundSpec nil nil)                (sut/->TupleSpec [(sut/->AtomSpec)])               (sut/->TupleSpec [(sut/->AtomSpec)])
       (sut/->CompoundSpec nil '())                (sut/->GroundSpec)                                 (sut/->CompoundSpec nil '())
       (sut/->CompoundSpec nil '())                (sut/->NonvarSpec)                                 (sut/->CompoundSpec nil '())
       (sut/->CompoundSpec nil '())                (sut/->VarSpec)                                    :error
