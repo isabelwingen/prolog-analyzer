@@ -27,7 +27,7 @@
   (if (.exists (io/file clojure-file))
     (read-string (str \[ (slurp clojure-file) \]))
     (do
-      (log/warn clojure-file " No .edn file was created")
+      (println (pr-str "No .edn file was created"))
       [])))
 
 (defmulti call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
