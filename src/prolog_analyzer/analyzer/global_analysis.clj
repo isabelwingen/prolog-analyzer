@@ -148,7 +148,7 @@
        (io/delete-file (io/file "plstatic.tmp")))
      (spit "plstatic.tmp" (pr-str "hallo"))
      (doseq [env envs]
-       (spit "plstatic.tmp" (with-out-str (my-pprint/print-types-and-errors env)) :append true))
+       (spit "plstatic.tmp" (with-out-str (my-pprint/print-types-and-errors-v2 env)) :append true))
      (if (and (not-the-same new-data data) (< counter 6))
        (global-analysis new-data (inc counter))
        envs))))

@@ -11,13 +11,14 @@
 
 (declare analyze-swi-packs)
 
-(defn print-result [results]
+(defn print-result [dir results]
+  (println (pr-str (.getAbsolutePath (io/file dir))))
   (doseq [res results]
     (my-pp/print-types-and-errors-v2 res)))
 
 (defn run
   ([edn]
-   (print-result
+   (print-result edn
     (->> edn
          parser/process-edn
          global/global-analysis
@@ -25,7 +26,7 @@
   ([dir limit]
    (analyze-swi-packs dir limit))
   ([dialect term-expander file prolog-exe]
-   (print-result
+   (print-result file
     (if (.isDirectory (io/file file))
       (->> file
            (parser/process-prolog-directory dialect term-expander prolog-exe)
