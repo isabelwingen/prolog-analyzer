@@ -221,6 +221,29 @@
    {}
    modules))
 
+(defn- create-singleton-maps [clauses]
+  (reduce-kv
+   (fn [m index {module :module name :name arity :arity singletons :singletons}]
+     (assoc-in m [[module name arity] index] singletons))
+   {}
+   clauses))
+
+(defn- remove-built-ins [singleton-map]
+  (let [wrong-keys (->> singleton-map
+                        keys
+                        (filter #(contains? #{"builtins", "annotations"} (first %))))]
+    (apply dissoc singleton-map wrong-keys)))
+
+
+(defn- order-singletons [raw]
+  (->> raw
+       (group-by (juxt :module :name :arity))
+       vals
+       (map create-singleton-maps)
+       (apply merge-with into)
+       remove-built-ins
+       ))
+
 (defn- format-and-clean-up [data]
   (println (pr-str "Start formatting of edn"))
   (-> data
@@ -232,6 +255,7 @@
       (update :inv-spec order-specs)
       (update :pred order-preds)
       (update :module order-modules)
+      (update :singletons order-singletons)
       order-imports
       (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
       ))

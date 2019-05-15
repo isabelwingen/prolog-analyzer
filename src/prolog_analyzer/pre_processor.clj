@@ -71,8 +71,9 @@
                   {})))
 
 
-;; If there are no pre-specs for a predicate, add one
-(defn- add-any-pre-specs [data]
+(defn- add-any-pre-specs
+  "If there are no pre-specs, add one"
+  [data]
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
@@ -81,7 +82,9 @@
         (recur (rest pred-ids) result))
       result)))
 
-(defn- add-any-post-specs [data]
+(defn- add-any-post-specs
+  "If there are no post-specs, add one"
+  [data]
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
@@ -91,8 +94,44 @@
       result)))
 
 
-;;mark self-calling clauses
-(defn- mark-self-calling-clause [[_ pred-name arity] {body :body :as clause}]
+(defn- singleton? [singletons term]
+  (and (= r/VAR (r/term-type term)) (contains? (set singletons) term)))
+
+(defn- transform-arglist [singletons args]
+  (->> args
+       (map r/map-to-term)
+       (map #(assoc % :singleton? (singleton? singletons %)))
+       (apply vector)))
+
+(declare transform-body)
+
+(defn- transform-body-elements [singletons {goal-name :goal arglist :arglist :as goal}]
+  (case goal-name
+    (:or, :if) (-> goal
+                   (update :arglist (partial map (partial transform-body singletons)))
+                   (assoc :module :built-in))
+    (update goal :arglist (partial transform-arglist singletons))))
+
+(defn- transform-body [singletons body]
+  (map (partial transform-body-elements singletons) body))
+
+(defn transform-args-to-term-records [data]
+  (reduce (fn [data [pred-id clause-number]]
+            (let [singletons (get-in data [:singletons pred-id clause-number])]
+              (-> data
+                  (update-in [:preds pred-id clause-number :arglist] (partial transform-arglist singletons))
+                  (update-in [:preds pred-id clause-number :body] (partial transform-body singletons))
+                  ))
+            )
+          data
+          (utils/get-clause-identities data)))
+
+(defn transform-singleton-lists [data]
+  (reduce (fn [d [pred-id clause-number]] (update-in d [:singletons pred-id clause-number] #(apply vector (map r/map-to-term %)))) data (utils/get-clause-identities data)))
+
+(defn- mark-self-calling-clause
+  "Marks clauses that are calling themselves"
+  [[_ pred-name arity] {body :body :as clause}]
   (if (some #(and (= pred-name (:goal %)) (= arity (:arity %))) body)
     (assoc clause :self-calling? true)
     (assoc clause :self-calling? false)))
@@ -104,37 +143,14 @@
       (recur (rest clause-ids) (update-in result [:preds pred-id clause-number] (partial mark-self-calling-clause pred-id)))
       result)))
 
-(defn- transform-arglist [args]
-  (apply vector (map r/map-to-term args)))
-
-(declare transform-body)
-
-(defn- transform-body-elements [{goal-name :goal arglist :arglist :as goal}]
-  (case goal-name
-    (:or, :if) (-> goal
-                   (update :arglist (partial map transform-body))
-                   (assoc :module :built-in))
-    (update goal :arglist transform-arglist)))
-
-(defn- transform-body [body]
-  (map transform-body-elements body))
-
-
-(defn transform-args-to-term-records [data]
-  (reduce (fn [data [pred-id clause-number]]
-            (-> data
-                (update-in [:preds pred-id clause-number :arglist] transform-arglist)
-                (update-in [:preds pred-id clause-number :body] transform-body))
-            )
-          data
-          (utils/get-clause-identities data)))
 
 (defn pre-process-single [data]
   (println (pr-str "Start Pre Process Single"))
   (-> data
-        mark-self-calling-clauses
-        transform-args-to-term-records
-        add-any-pre-specs
-        add-any-post-specs
-        set-correct-modules
-        ))
+      mark-self-calling-clauses
+      transform-singleton-lists
+      transform-args-to-term-records
+      add-any-pre-specs
+      add-any-post-specs
+      set-correct-modules
+      ))
