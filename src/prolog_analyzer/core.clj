@@ -14,7 +14,7 @@
 (defn print-result [dir results]
   (println (pr-str (.getAbsolutePath (io/file dir))))
   (doseq [res results]
-    (my-pp/print-types-and-errors-v2 res)))
+    (my-pp/print-types-and-errors-v3 res)))
 
 (defn run
   ([edn]
