@@ -71,15 +71,21 @@
 
 
 (defn evaluate-goal-pre-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
-  (let [goal-specs (some->> data
-                            (utils/get-specs-of-pred [module goal-name arity])
-                            (:pre-specs)
-                            (map replace-specvars-with-uuid))
-        term (goal-args->tuple arglist)
-        goal-specs-as-tuples (goal-specs->tuples goal-specs)]
-    (if (and (> arity 0) goal-specs)
-      (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
-      env)))
+  (if (= "true" goal-name)
+    env
+    (let [goal-specs (some->> data
+                              (utils/get-specs-of-pred [module goal-name arity])
+                              (:pre-specs)
+                              (map replace-specvars-with-uuid))
+          term (goal-args->tuple arglist)
+          goal-specs-as-tuples (goal-specs->tuples goal-specs)]
+      (if (empty? goal-specs)
+        (println (pr-str {:unknown-call true :goal goal-name}))
+        (println (pr-str {:unknown-call false :goal goal-name}))
+        )
+      (if (and (> arity 0) goal-specs)
+        (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
+        env))))
 
 (defn- valid? [env term spec]
   (let [old-dom (utils/get-dom-of-term env term (r/->AnySpec))
@@ -114,11 +120,6 @@
       env
       (reduce (partial apply-valid-post-spec term) env goal-specs))))
 
-(defmulti evaluate-goal-relationships (fn [env goal data] (:goal goal)))
-
-(defmethod evaluate-goal-relationships :default [env goal data]
-  env)
-
 
 
 (defn set-indices [env {goal-name :goal arglist :arglist} data]
@@ -137,7 +138,6 @@
     (-> env
         (evaluate-goal-pre-specs goal data)
         (evaluate-goal-post-specs goal data)
-        (evaluate-goal-relationships goal data)
         (set-indices goal data))
     env))
 
