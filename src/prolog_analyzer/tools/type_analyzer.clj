@@ -29,8 +29,6 @@
       0
       (float (/ (+ anys nils) total)))))
 
-
-
 (defn mean [l]
   (let [c (count l)
         sum (apply +' l)]
@@ -61,3 +59,47 @@
        (map #(update % :size (comp psize io/file)))
        (map #(update % :data percent))
        ))
+
+
+;; Analysis for prints of print-types-and-errors-v2
+
+(defn sort [data]
+  (let [vars (->> data
+                  (mapcat keys)
+                  (filter #(= :var (:record-type %))))
+        freq (->> data
+                  (map #(select-keys % vars))
+                  (mapcat vals)
+                  (map (fn [{dom :dom compatible-edge? :compatible-edge?}] (if (= :any (:record-type dom)) (if compatible-edge? :any-with-compatible :any) :not-any)))
+                  frequencies)
+        total (apply +' (vals freq))]
+    (-> freq
+        (update :not-any #(or % 0))
+        (update :any #(or % 0))
+        (update :any-with-compatible #(or % 0))
+        (assoc :total total)
+        )))
+
+
+(defn analysis-v2 [file]
+  (->> (get-data file)
+       (remove #(and (string? %) (not (.startsWith % "/home"))))
+       (partition-by string?)
+       (partition 2)
+       (map #(hash-map :size (first %) :data (second %)))
+       (map (fn [t] (update t :size (partial filter #(.startsWith % "/home")))))
+       (map #(update % :size last))
+       (map #(update % :size (comp psize io/file)))
+       (map #(update % :data sort))
+       ))
+
+(defn percents [file]
+  (let [m (->> file
+               analysis-v2
+               (map :data)
+               (apply merge-with +'))
+        total (:total m)]
+    (-> m
+        (update :any #(float (/ % total)))
+        (update :not-any #(float (/ % total)))
+        (update :any-with-compatible #(float (/ % total))))))
