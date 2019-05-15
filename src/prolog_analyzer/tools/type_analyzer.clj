@@ -12,6 +12,17 @@
         sum (apply +' l)]
     (float (/ sum c))))
 
+
+(defn- psize [f]
+  (if (.isDirectory f)
+    (apply + (pmap psize (.listFiles f)))
+    (if (.endsWith (.getName f) ".pl")
+      (.length f)
+      0)))
+
+
+
+;; Analysis for prints of print-types-and-errors-v2
 (defn artifical? [spec]
   (or
    (.startsWith (:name spec) "A~~")
