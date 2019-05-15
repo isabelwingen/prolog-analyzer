@@ -93,14 +93,9 @@
         (recur (rest pred-ids) result))
       result)))
 
-
-(defn- singleton? [singletons term]
-  (and (= r/VAR (r/term-type term)) (contains? (set singletons) term)))
-
 (defn- transform-arglist [singletons args]
   (->> args
-       (map r/map-to-term)
-       (map #(assoc % :singleton? (singleton? singletons %)))
+       (map (partial r/map-to-term singletons))
        (apply vector)))
 
 (declare transform-body)

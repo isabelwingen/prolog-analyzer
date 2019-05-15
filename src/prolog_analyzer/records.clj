@@ -820,26 +820,35 @@
   printable
   (to-string [x] (str "ERROR: " term)))
 
-(defn map-to-term [input-m]
-  (if (not (map? input-m))
-    (log/error (str input-m) " is " (type input-m))
-    (let [m (dissoc input-m :type)]
-      (case (:type input-m)
-        :var (map->VarTerm m)
-        :atom (map->AtomTerm m)
-        :number (map->NumberTerm m)
-        :integer (map->IntegerTerm m)
-        :float (map->FloatTerm m)
-        :list (map->ListTerm (-> m
-                                 (update :head map-to-term)
-                                 (update :tail map-to-term)))
-        :compound (map->CompoundTerm (update m :arglist #(map map-to-term %)))
-        :empty-list (->EmptyListTerm)
-        :string (map->StringTerm m)
-        :should-not-happen (map->ShouldNotHappenTerm m)
-        (do
-          (log/error "No case for" input-m "in map-to-term")
-          (->AtomTerm "ERROR"))))))
+(defn- singleton? [singletons term]
+  (contains? (set singletons) term))
+
+
+(defn map-to-term
+  ([input-m] (map-to-term :nothing input-m))
+  ([singletons input-m]
+   (if (not (map? input-m))
+     (log/error (str input-m) " is " (type input-m))
+     (let [m (dissoc input-m :type)]
+       (case (:type input-m)
+         :var (let [var (map->VarTerm m)]
+                (if (= singletons :nothing)
+                  var
+                  (assoc var :singleton? (singleton? singletons var))))
+         :atom (map->AtomTerm m)
+         :number (map->NumberTerm m)
+         :integer (map->IntegerTerm m)
+         :float (map->FloatTerm m)
+         :list (map->ListTerm (-> m
+                                  (update :head (partial map-to-term singletons))
+                                  (update :tail (partial map-to-term singletons))))
+         :compound (map->CompoundTerm (update m :arglist #(map (partial map-to-term singletons) %)))
+         :empty-list (->EmptyListTerm)
+         :string (map->StringTerm m)
+         :should-not-happen (map->ShouldNotHappenTerm m)
+         (do
+           (log/error "No case for" input-m "in map-to-term")
+           (->AtomTerm "ERROR")))))))
 
 (defn map-to-spec [m]
   (case (:spec m)
