@@ -237,11 +237,10 @@
       ))
 
 (defn add-built-ins [data]
-  (println (pr-str "Add built-ins"))
   (let [built-in-edn (get-edn-file-name "prolog/builtins.pl")]
-    (when (.exists (io/file built-in-edn))
-      (io/delete-file built-in-edn))
-    (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl" built-in-edn)
+    (when (not (.exists (io/file built-in-edn)))
+      (println (pr-str "Create built-ins"))
+      (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl" built-in-edn))
     (let [built-in (-> built-in-edn
                        transform-to-edn
                        format-and-clean-up
