@@ -237,3 +237,30 @@
        pr-str
        println)
   )
+
+(defn print-types-and-errors-v3
+  "Edn printer, which prints information about calls, variables and errors"
+  [env]
+  (println (pr-str (clojure.string/join " " (map str (conj (utils/get-pred-id env) (utils/get-clause-number env))))))
+  (println (pr-str (select-keys (uber/attrs env :ENVIRONMENT) [:known :unknown])))
+  (->> env
+       utils/get-terms
+       (filter #(satisfies? prolog-analyzer.records/term %))
+       (filter #(= r/VAR (r/term-type %)))
+       (remove arti-term?)
+       (map #(hash-map
+              (transform-record-to-map %)
+              (hash-map
+               :dom (transform-record-to-map (utils/get-dom-of-term env % (r/->AnySpec)))
+               :compatible-edge? (has-compatible-edge env %))))
+       (apply merge-with into)
+       pr-str
+       println
+       )
+  (->> env
+       utils/get-terms
+       (filter #(r/error-spec? (utils/get-dom-of-term env % (r/->AnySpec))))
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
+       pr-str
+       println)
+  )

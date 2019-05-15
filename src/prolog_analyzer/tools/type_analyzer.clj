@@ -31,11 +31,12 @@
    ))
 
 
-(defn sort [data]
-  (let [vars (->> data
-                  (mapcat keys)
-                  (filter #(= :var (:record-type %)))
-                  (remove artifical?))
+(defn sort-v2 [remove-singletons? data]
+  (let [vars1 (->> data
+                   (mapcat keys)
+                   (filter #(= :var (:record-type %)))
+                   (remove artifical?))
+        vars (if remove-singletons? (remove :singleton? vars1) vars1)
         freq (->> data
                   (map #(select-keys % vars))
                   (mapcat vals)
@@ -50,7 +51,7 @@
         )))
 
 
-(defn analysis-v2
+(defn analysis-v2-include-singletons
   "Can handle print from print-type-and-errors. Do not exclude singletons"
   [file]
   (->> (get-data file)
@@ -61,30 +62,11 @@
        (map (fn [t] (update t :size (partial filter #(.startsWith % "/home")))))
        (map #(update % :size last))
        (map #(update % :size (comp psize io/file)))
-       (map #(update % :data sort))
+       (map #(update % :data (partial take-nth 2))) ; filters out errors
+       (map #(update % :data (sort-v2 false)))
        ))
 
-(defn sort-v3 [data]
-  (let [vars (->> data
-                  (mapcat keys)
-                  (filter #(= :var (:record-type %)))
-                  (remove :singleton?)
-                  (remove artifical?))
-        freq (->> data
-                  (map #(select-keys % vars))
-                  (mapcat vals)
-                  (map (fn [{dom :dom compatible-edge? :compatible-edge?}] (if (= :any (:record-type dom)) (if compatible-edge? :any-with-compatible :any) :not-any)))
-                  frequencies)
-        total (apply +' (vals freq))]
-    (-> freq
-        (update :not-any #(or % 0))
-        (update :any #(or % 0))
-        (update :any-with-compatible #(or % 0))
-        (assoc :total total)
-        )))
-
-
-(defn analysis-v3
+(defn analysis-v2-exclude-singletons
   "Exclude singletons."
   [file]
   (->> (get-data file)
@@ -95,7 +77,8 @@
        (map (fn [t] (update t :size (partial filter #(.startsWith % "/home")))))
        (map #(update % :size last))
        (map #(update % :size (comp psize io/file)))
-       (map #(update % :data sort-v3))
+       (map #(update % :data (partial take-nth 2))) ; filters out errors
+       (map #(update % :data (sort-v2 true)))
        ))
 
 (defn percents-of-single-pack [{total :total :as data}]
@@ -105,7 +88,7 @@
       (update :any-with-compatible #(float (/ % total)))))
 
 (defn percents
-  "fn must be analysis-v2 or analysis-v3"
+  "fn must be analysis-v2 or analysis-v2"
   [fn file]
   (->> file
        fn
@@ -114,8 +97,7 @@
        percents-of-single-pack))
 
 
-
-(defn swi-packs []
+(defn swi-packs-complete []
   (let [file-list ["useful-results/swi-pack-types-20000-0"
                    "useful-results/swi-pack-types-20000-1"
                    "useful-results/swi-pack-types-20000-3"

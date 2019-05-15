@@ -70,22 +70,32 @@
   (map (partial apply r/to-tuple-spec) goal-specs))
 
 
+
+(defn- inc-known [env]
+  (let [current (or (uber/attr env :ENVIRONMENT :known) 0)]
+    (-> env
+        (uber/remove-attr :ENVIRONMENT :known)
+        (uber/add-attr :ENVIRONMENT :known (inc current)))))
+
+(defn- inc-unknown [env]
+  (let [current (or (uber/attr env :ENVIRONMENT :unknown) 0)]
+    (-> env
+        (uber/remove-attr :ENVIRONMENT :unknown)
+        (uber/add-attr :ENVIRONMENT :unknown (inc current)))))
+
 (defn evaluate-goal-pre-specs [env {goal-name :goal module :module arity :arity arglist :arglist :as goal} data]
-  (if (= "true" goal-name)
+  (if (or (= "!" goal-name) (= "true" goal-name))
     env
     (let [goal-specs (some->> data
                               (utils/get-specs-of-pred [module goal-name arity])
                               (:pre-specs)
                               (map replace-specvars-with-uuid))
           term (goal-args->tuple arglist)
-          goal-specs-as-tuples (goal-specs->tuples goal-specs)]
-      (if (empty? goal-specs)
-        (println (pr-str {:unknown-call true :goal goal-name}))
-        (println (pr-str {:unknown-call false :goal goal-name}))
-        )
-      (if (and (> arity 0) goal-specs)
-        (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
-        env))))
+          goal-specs-as-tuples (goal-specs->tuples goal-specs)
+          env-modifier (if (empty? goal-specs) inc-unknown inc-known)]
+      (env-modifier (if (and (> arity 0) goal-specs)
+                      (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
+                      env)))))
 
 (defn- valid? [env term spec]
   (let [old-dom (utils/get-dom-of-term env term (r/->AnySpec))
