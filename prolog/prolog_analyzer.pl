@@ -565,11 +565,31 @@ term_expander(Term) :-
     get_stream(Module,Stream),
     write(Stream,Result),nl(Stream),nl(Stream), flush_output(Stream),!.
 
+write_singletons(Clause) :-
+    (Clause = ':-'(Head,_); Clause = ':-'(Head); Clause = (Head)),!,
+    prolog_load_context(module,Module),
+    term_singletons(Clause,Singletons),
+    maplist(arg_to_map,Singletons,SingletonsAsStrings),
+    join(", ",SingletonsAsStrings,String),
+    split(Head,Name,Arity,_,_),
+    multi_string_concat(["{:type :singletons :content {:module \"",
+                         Module,
+                         "\" :name \"",
+                         Name,
+                         "\" :arity ",
+                         Arity,
+                         " :singletons [",
+                         String,
+                        "]}}"],Result),
+    get_stream(Module,Stream),
+    write(Stream,Result),nl(Stream),nl(Stream), flush_output(Stream),!.
 
+write_singletons(_) :- !.
 
 user:term_expansion(A,Out) :-
     !,
     term_expander(A),
+    write_singletons(A),
     ((A = ':-'(module(_));A=':-'(module(_,_))) -> Out=A; Out=[]).
 
 :- multifile user:term_expansion/6.
