@@ -57,7 +57,6 @@
                    (map :dir)
                    (map #(.getAbsolutePath %)))]
     (doseq [pack packs]
-      (println (pr-str pack))
       (run "swipl" "prolog/prolog_analyzer.pl" pack "swipl"))))
 
 (defn -main [& args]
