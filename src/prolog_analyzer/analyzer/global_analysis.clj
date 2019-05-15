@@ -1,6 +1,7 @@
 (ns prolog-analyzer.analyzer.global-analysis
   (:require
    [prolog-analyzer.analyzer.core :as core]
+   [prolog-analyzer.analyzer.pretty-printer :as my-pprint]
    [prolog-analyzer.records :as r]
    [prolog-analyzer.utils :as utils :refer [case+]]
    [ubergraph.core :as uber]
@@ -8,7 +9,8 @@
    [simple-time.core :as time]
    [loom.graph]
    [loom.attr]
-   ))
+
+   [clojure.java.io :as io]))
 
 (defn timestamp []
   (let [now (time/now)]
@@ -142,6 +144,11 @@
    (println (pr-str (str (timestamp) ": Step " counter)))
    (let [envs (step data)
          new-data (add-new-knowledge data envs)]
+     (when (.exists (io/file "plstatic.tmp"))
+       (io/delete-file (io/file "plstatic.tmp")))
+     (spit "plstatic.tmp" (pr-str "hallo"))
+     (doseq [env envs]
+       (spit "plstatic.tmp" (with-out-str (my-pprint/print-types-and-erros env)) :append true))
      (if (and (not-the-same new-data data) (< counter 6))
        (global-analysis new-data (inc counter))
        envs))))

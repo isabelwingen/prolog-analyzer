@@ -13,7 +13,7 @@
 
 (defn print-result [results]
   (doseq [res results]
-    (my-pp/print-type-information res)))
+    (my-pp/print-types-and-errors res)))
 
 (defn run
   ([edn]
@@ -56,6 +56,7 @@
                    (map :dir)
                    (map #(.getAbsolutePath %)))]
     (doseq [pack packs]
+      (println (pr-str pack))
       (run "swipl" "prolog/prolog_analyzer.pl" pack "swipl"))))
 
 (defn -main [& args]

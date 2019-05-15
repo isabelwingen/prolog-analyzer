@@ -133,6 +133,7 @@
   )
 
 
+
 (defn print-domains-of-variables [env]
   (->> env
        utils/get-terms
@@ -144,7 +145,7 @@
        println
        ))
 
-(defn print-types-and-erros [env]
+(defn print-types-and-errors [env]
   (println (pr-str (clojure.string/join " " (map str (conj (utils/get-pred-id env) (utils/get-clause-number env))))))
   (print-domains-of-variables env)
   (->> env
