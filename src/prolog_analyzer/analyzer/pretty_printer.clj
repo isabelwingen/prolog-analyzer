@@ -100,16 +100,10 @@
 (defn transform-record-to-map [spec]
   (clojure.walk/postwalk #(if (record? %) (into {} (record-type %)) %) spec))
 
-(defn print-type-analysis [graph]
-  (->> graph
-       (utils/get-terms)
-       (filter #(or (uber/attr graph % :index)
-                    (uber/attr graph % :indices)))
-       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term graph %2 (r/->AnySpec)))) {})
-       pr-str
-       println))
-
-(defn print-with-indices [graph]
+(defn print-with-indices
+  "Pretty Printer, that prints all terms used in the header and in the subgoals.
+  Prints the domain of the terms."
+  [graph]
   (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph)))
   (->> graph
        (utils/get-terms)
@@ -127,36 +121,17 @@
   (println))
 
 
-(defn print-basics [graph]
+(defn print-basics
+  "Debug printer, that just prints the predicate id"
+  [graph]
   (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph)))
 
   )
 
 
-
-(defn print-domains-of-variables [env]
-  (->> env
-       utils/get-terms
-       (filter #(satisfies? prolog-analyzer.records/term %))
-       (filter #(= r/VAR (r/term-type %)))
-       (remove arti-term?)
-       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
-       pr-str
-       println
-       ))
-
-(defn print-types-and-errors [env]
-  (println (pr-str (clojure.string/join " " (map str (conj (utils/get-pred-id env) (utils/get-clause-number env))))))
-  (print-domains-of-variables env)
-  (->> env
-       utils/get-terms
-       (filter #(r/error-spec? (utils/get-dom-of-term env % (r/->AnySpec))))
-       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
-       pr-str
-       println))
-
-
-(defn print-type-information [graph]
+(defn print-type-information
+  "Pretty printer, which prints types and errors."
+  [graph]
   (println (pr-str (clojure.string/join " " (map str (conj (utils/get-pred-id graph) (utils/get-clause-number graph))))))
   (let [error-terms (->> graph
                          (utils/get-terms)
@@ -177,7 +152,9 @@
       (println (tinker-error-message graph t) "\n"))))
 
 
-(defn pretty-print-errors [graph]
+(defn pretty-print-errors
+  "Pretty Printer, which only prints errors"
+  [graph]
   (let [error-terms (->> graph
                          utils/get-terms
                          (filter #(or (uber/attr graph % :index)
@@ -189,3 +166,40 @@
     (when (not-empty error-terms)
       (println (pr-str (utils/get-pred-id graph) (utils/get-clause-number graph)))
       (print-table [:term :index :indices :dom] error-terms))))
+
+(defn print-type-analysis
+  "Edn printer, which prints a map mapping every term of the clause to its domain"
+  [graph]
+  (->> graph
+       (utils/get-terms)
+       (filter #(or (uber/attr graph % :index)
+                    (uber/attr graph % :indices)))
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term graph %2 (r/->AnySpec)))) {})
+       pr-str
+       println))
+
+
+(defn print-domains-of-variables
+  "Edn printer, which prints a map mapping every variable term to its domain"
+  [env]
+  (->> env
+       utils/get-terms
+       (filter #(satisfies? prolog-analyzer.records/term %))
+       (filter #(= r/VAR (r/term-type %)))
+       (remove arti-term?)
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
+       pr-str
+       println
+       ))
+
+(defn print-types-and-errors
+  "Edn printer, which prints a map mapping every variable term to its domain and map mapping every term, which contains an error, to its error message"
+  [env]
+  (println (pr-str (clojure.string/join " " (map str (conj (utils/get-pred-id env) (utils/get-clause-number env))))))
+  (print-domains-of-variables env)
+  (->> env
+       utils/get-terms
+       (filter #(r/error-spec? (utils/get-dom-of-term env % (r/->AnySpec))))
+       (reduce #(assoc %1 (transform-record-to-map %2) (transform-record-to-map (utils/get-dom-of-term env %2 (r/->AnySpec)))) {})
+       pr-str
+       println))
