@@ -13,10 +13,10 @@ Download from https://github.com/isabelwingen/prolog-analyzer
 
 SWI Prolog is used to parse the prolog source code and transform it to [edn](https://github.com/edn-format/edn).
 
-To enable the parsing process, place the `term_expander.pl` in the directory of your source file and add the following lines to it:
+To enable the parsing process, place the `prolog_analyzer.pl` in the directory of your source file and add the following lines to it:
 
 ```
-:- use_module(term_expander,[enable_write_out,declare_spec/1,deffne_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).
+:- use_module(term_expander,[enable_write_out,declare_spec/1,define_spec/2,spec_pre/2,spec_post/3,spec_invariant/2]).
 :- enable_write_out.
 ```
 
