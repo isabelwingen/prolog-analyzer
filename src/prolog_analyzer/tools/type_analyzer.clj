@@ -78,7 +78,6 @@
        (hash-map :filename ["/home"] :data)
        (analysis-v2-single-pack false)))
 
-(spit "useful-results/prob-types" "")
 
 (defn analysis-v3-single-pack [remove-singletons? {data :data :as m}]
   (-> m
@@ -114,19 +113,25 @@
        (analysis-v3-single-pack false)))
 
 
+(defn safe-div [a b]
+  (if (zero? b)
+    -1
+    (/ a b)))
+
 (defn percents-of-single-pack [m]
-  (let [total (get-in m [:vars :total])
+  (let [total (get-in m [:vars :total] 1)
         vars (-> m
-                 (update-in [:vars :any] #(float (/ % total)))
-                 (update-in [:vars :not-any] #(float (/ % total)))
-                 (update-in [:vars :any-with-compatible] #(float (/ % total))))
-        total-calls (+ (get-in m [:calls :known] 0) (get-in m [:calls :unknown] 1))]
+                 (update-in [:vars :any] #(float (safe-div % total)))
+                 (update-in [:vars :not-any] #(float (safe-div % total)))
+                 (update-in [:vars :any-with-compatible] #(float (safe-div % total))))
+        total-calls (+ (get-in m [:calls :known] 0) (get-in m [:calls :unknown] 0))]
     (if (or (contains? (:calls vars) :unknown) (or (contains? (:calls vars) :known)))
       (-> vars
+          (assoc-in [:calls :total] total-calls)
           (update-in [:calls :known] #(or % 0))
           (update-in [:calls :unknown] #(or % 0))
-          (update-in [:calls :known] #(float (/ % total-calls)))
-          (update-in [:calls :unknown] #(float (/ % total-calls))))
+          (update-in [:calls :known] #(float (safe-div % total-calls)))
+          (update-in [:calls :unknown] #(float (safe-div % total-calls))))
       vars)
     ))
 
@@ -135,7 +140,6 @@
     (->> without-filenames
          (apply merge-with (partial merge-with +'))
          percents-of-single-pack)))
-
 
 
 (defn swi-packs-complete []
