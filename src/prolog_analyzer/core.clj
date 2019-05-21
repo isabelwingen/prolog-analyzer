@@ -11,22 +11,23 @@
 
 (declare analyze-swi-packs)
 
-(defn print-result [dir results]
+(defn print-result [dir edn? results]
   (println (pr-str (.getAbsolutePath (io/file dir))))
-  (doseq [res results]
-    (my-pp/print-types-and-errors-v3 res)))
+  (let [printer (if edn? my-pp/print-types-and-errors-v3 my-pp/pretty-print-graph)]
+    (doseq [res results]
+      (printer res))))
 
 (defn run
-  ([edn]
-   (print-result edn
+  ([edn edn?]
+   (print-result edn edn?
     (->> edn
          parser/process-edn
          global/global-analysis
          )))
-  ([dir limit]
-   (analyze-swi-packs dir limit))
   ([dialect term-expander file prolog-exe]
-   (print-result file
+   (run dialect term-expander file prolog-exe "false"))
+  ([dialect term-expander file prolog-exe edn?]
+   (print-result file (read-string edn?)
     (if (.isDirectory (io/file file))
       (->> file
            (parser/process-prolog-directory dialect term-expander prolog-exe)
@@ -36,28 +37,6 @@
            (parser/process-prolog-file dialect term-expander prolog-exe)
            global/global-analysis
            )))))
-
-(defn- psize [f]
-  (if (.isDirectory f)
-    (apply + (pmap psize (.listFiles f)))
-    (if (.endsWith (.getName f) ".pl")
-      (.length f)
-      0)))
-
-(defn- sort-asc [dirs limit]
-  (->> dirs
-       (map #(hash-map :size (psize %) :dir %))
-       (sort-by :size)
-       (take-while #(< (:size %) limit))))
-
-
-(defn analyze-swi-packs [dir limit]
-  (let [packs (->> (read-string limit)
-                   (sort-asc (.listFiles (io/file dir)))
-                   (map :dir)
-                   (map #(.getAbsolutePath %)))]
-    (doseq [pack packs]
-      (run "swipl" "prolog/prolog_analyzer.pl" pack "swipl"))))
 
 (defn -main [& args]
   (apply run args)
