@@ -1,6 +1,6 @@
-(defproject prolog-analyzer "0.2.0"
+(defproject prolog-analyzer "1.0.0"
   :description "A library for analyzing clojure code"
-  :url "http://example.com/FIXME"
+  :url "https://github.com/isabelwingen/prolog-analyzer"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
