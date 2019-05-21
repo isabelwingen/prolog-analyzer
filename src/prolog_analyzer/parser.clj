@@ -14,7 +14,12 @@
   (first (clojure.string/split (.getName (io/file file-name)) #"\.")))
 
 (defn- get-edn-file-name [file-name]
-  (.getAbsolutePath (io/file (str "edns/" (get-name-without-ending file-name) ".edn"))))
+  (let [dir "edns/"
+        edn-file (str dir (get-name-without-ending file-name) ".edn")]
+    (when-not (.exists (io/file dir))
+      (.mkdirs (io/file dir)))
+    (.getAbsolutePath (io/file edn-file))))
+
 
 (defn- split-up-error-message [msg]
   (->> msg
