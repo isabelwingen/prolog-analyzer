@@ -1,8 +1,6 @@
 /target
 /classes
 /checkouts
-pom.xml
-pom.xml.asc
 *.jar
 *.class
 /.lein-*
@@ -11,25 +9,6 @@ pom.xml.asc
 .hg/
 .#*
 *.edn
-/.circleci/run-build-locally.sh
-
-## Core latex/pdflatex auxiliary files:
-*.aux
-*.lof
-*.log
-*.lot
-*.fls
-*.out
-*.toc
-*.fmt
-*.fot
-*.cb
-*.cb2
-.*.lb
-
-*.pdf
-*.synctex.gz
-*.fdb_latexmk
 
 doc/auto
 *.txt
