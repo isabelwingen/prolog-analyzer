@@ -145,33 +145,51 @@
 (defn swi-packs-complete []
   (let [file-list ["useful-results/swi-pack-types-20000-0"
                    "useful-results/swi-pack-types-20000-1"
-                   "useful-results/swi-pack-types-20000-3"
+                   ;; "useful-results/swi-pack-types-20000-3"
                    "useful-results/swi-pack-types-20000-6"
-                   "useful-results/swi-pack-types-20000-12"
+                   ;; "useful-results/swi-pack-types-20000-12"
                    ]
+        headline1 (->> file-list
+                      (map last)
+                      (map str)
+                      (map #(conj '("" "" "") %))
+                      (map (partial clojure.string/join ";"))
+                      (#(conj % ""))
+                      )
+        headline2 (->> "any;not any;restricted any;total"
+                       (repeat (count file-list))
+                       (#(conj % "")))
+        names (->> file-list
+                   (map (partial analysis-v2 false))
+                   (map (partial map :filename))
+                   first)
         percents-v2 (->> file-list
                          (map (partial analysis-v2 false))
-                         (map #(map (comp :vars percents-of-single-pack :data) %))
+                         (map #(map (comp :vars percents-of-single-pack) %))
                          (map (partial map vals))
                          (map (partial map (partial map #(if (float? %) (format "%.2f" %) (str %)))))
                          (map (partial map (partial clojure.string/join ";")))
+                         (#(conj % names))
                          (apply map vector)
+                         (#(conj % headline2))
+                         (#(conj % headline1))
                          (map (partial clojure.string/join "; ;"))
-                         (clojure.string/join "\n")
-                         )
+                         (clojure.string/join "\n"))
         percents-v3 (->> file-list
                          (map (partial analysis-v2 true))
-                         (map #(map (comp :vars percents-of-single-pack :data) %))
+                         (map #(map (comp :vars percents-of-single-pack) %))
                          (map (partial map vals))
                          (map (partial map (partial map #(if (float? %) (format "%.2f" %) (str %)))))
                          (map (partial map (partial clojure.string/join ";")))
+                         (#(conj % names))
                          (apply map vector)
+                         (#(conj % headline2))
+                         (#(conj % headline1))
                          (map (partial clojure.string/join "; ;"))
                          (clojure.string/join "\n")
                          )
         ]
-    (spit "useful-results/table-v2.csv" percents-v2)
-    (spit "useful-results/table-v3.csv" percents-v3)
-    (hash-map :v2 (map (partial percents analysis-v2 false) file-list)
-              :v3 (map (partial percents analysis-v2 true) file-list))
+    (spit "useful-results/with-singletons.csv" percents-v2)
+    (spit "useful-results/without-singletons.csv" percents-v3)
+    percents-v3
     ))

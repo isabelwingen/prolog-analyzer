@@ -138,6 +138,19 @@
 (defn step [data]
   (core/complete-analysis-parallel data))
 
+
+(defn create-pre-and-postspecs [{post-spec-map :post-specs pre-spec-map :pre-specs defs :specs}]
+  (let [nono-keys (fn [[m _ _]] (contains? #{"user" "lists" "avl"} m))
+        post-specs (my-pprint/create-post-specs (select-keys post-spec-map (remove nono-keys (keys post-spec-map))) defs)
+        pre-specs (my-pprint/create-pre-specs (select-keys pre-spec-map (remove nono-keys (keys pre-spec-map))))]
+    (when (.exists (io/file "data.tmp"))
+      (io/delete-file (io/file "data.tmp")))
+    (spit "data.tmp" post-specs :append true)
+    (spit "data.tmp" "\n\n" :append true)
+    (spit "data.tmp" pre-specs :append true)
+    ))
+
+
 (defn global-analysis
   ([data] (global-analysis data 0))
   ([data counter]
@@ -146,8 +159,11 @@
          new-data (add-new-knowledge data envs)]
      (when (.exists (io/file "plstatic.tmp"))
        (io/delete-file (io/file "plstatic.tmp")))
+     (spit "bla.tmp" (keys data))
      (doseq [env envs]
        (spit "plstatic.tmp" (with-out-str (my-pprint/print-types-and-errors-v3 env)) :append true))
      (if (and (not-the-same new-data data) (< counter 6))
        (global-analysis new-data (inc counter))
-       envs))))
+       (do
+         (create-pre-and-postspecs data)
+         envs)))))

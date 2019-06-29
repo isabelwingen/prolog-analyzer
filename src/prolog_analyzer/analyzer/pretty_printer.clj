@@ -90,6 +90,7 @@
     (map? v) (zipmap (map derecordize (keys v)) (map derecordize (vals v)))
     :else v))
 
+(derecordize {:post-specs {["bla"] {[(r/->AnySpec)] {:arglist [(r/->AnySpec)]}}}})
 
 (defn record-type [t]
   (cond
@@ -264,3 +265,67 @@
        pr-str
        println)
   )
+
+
+(defn prologify [spec]
+  (if (record? spec)
+    (utils/case+ (r/spec-type spec)
+                 r/ANY "any"
+                 r/ATOM "atom"
+                 r/INTEGER "int"
+                 r/FLOAT "float"
+                 r/NUMBER "number"
+                 r/ATOMIC "atomic"
+                 r/GROUND "ground"
+                 r/NONVAR "nonvar"
+                 r/VAR "var"
+                 r/STRING "string"
+                 r/EXACT (str "same(" (:value spec) ")")
+                 r/EMPTYLIST (prologify (r/->AndSpec [(r/->ListSpec (r/->AnySpec)) (r/->AtomicSpec)]))
+                 r/LIST (str "list(" (prologify (:type spec)) ")")
+                 r/COMPOUND (if (nil? (:functor spec))
+                              "compound"
+                              (str "compound(" (:functor spec) "(" (clojure.string/join ", " (map prologify (:arglist spec))) "))"))
+                 r/TUPLE (str "tuple(" (prologify (:arglist spec)) ")")
+                 r/AND (str "and(" (prologify (:arglist spec)) ")")
+                 r/OR (str "or(" (prologify (:arglist spec)) ")")
+                 r/UNION (str "union(" (:name spec) ")")
+                 r/COMPATIBLE (str "compatible(" (:name spec) ")")
+                 r/USERDEFINED (if (nil? (:arglist spec))
+                                 (:name spec)
+                                 (str (:name spec) "(" (prologify (:arglist spec)) ")"))
+                 (str "error" (r/spec-type spec)))
+    (str "[" (clojure.string/join ", " (map prologify spec)) "]"))
+  )
+
+(defn simplify-premise [premise defs]
+  (utils/case+ (r/spec-type premise)
+               r/TUPLE (prologify (:arglist premise))
+               r/AND (let [new (r/simplify-and premise defs false)]
+                       (if (= r/AND (r/spec-type new))
+                         new
+                         (simplify-premise new defs)))
+               r/OR (let [new (r/simplify-or premise defs)]
+                      (if (= r/OR (r/spec-type new))
+                        new
+                        (simplify-premise new defs)))))
+
+
+(defn create-post-specs [post-spec-map defs ]
+  (clojure.string/join
+   "\n"
+   (for [[[module pred arity] v] post-spec-map
+         [a b] v
+         :let [head (str module ":" pred "/" arity)
+               condition (prologify a)
+               premise (simplify-premise b defs)]]
+     (str ":- spec_post(" head ", " condition ", " premise ")."))))
+
+(defn create-pre-specs [pre-spec-map]
+  (clojure.string/join
+   "\n"
+   (for [[[module pred arity] v] pre-spec-map
+         b v
+         :let [head (str module ":" pred "/" arity)
+               spec (prologify b)]]
+     (str ":- spec_pre(" head ", " spec ")."))))
