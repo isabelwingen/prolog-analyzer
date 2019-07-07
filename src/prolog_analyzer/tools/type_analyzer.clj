@@ -144,14 +144,14 @@
 
 (defn swi-packs-complete []
   (let [file-list ["useful-results/swi-pack-types-20000-0"
-                   "useful-results/swi-pack-types-20000-1"
+                   ;; "useful-results/swi-pack-types-20000-1"
                    ;; "useful-results/swi-pack-types-20000-3"
-                   "useful-results/swi-pack-types-20000-6"
-                   ;; "useful-results/swi-pack-types-20000-12"
+                   ;; "useful-results/swi-pack-types-20000-6"
+                   "useful-results/swi-pack-types-20000-12"
                    ]
         headline1 (->> file-list
-                      (map last)
-                      (map str)
+                      (map #(drop 36 %))
+                      (map #(apply str %))
                       (map #(conj '("" "" "") %))
                       (map (partial clojure.string/join ";"))
                       (#(conj % ""))
@@ -163,33 +163,49 @@
                    (map (partial analysis-v2 false))
                    (map (partial map :filename))
                    first)
+
         percents-v2 (->> file-list
-                         (map (partial analysis-v2 false))
-                         (map #(map (comp :vars percents-of-single-pack) %))
-                         (map (partial map vals))
-                         (map (partial map (partial map #(if (float? %) (format "%.2f" %) (str %)))))
-                         (map (partial map (partial clojure.string/join ";")))
-                         (#(conj % names))
-                         (apply map vector)
-                         (#(conj % headline2))
-                         (#(conj % headline1))
-                         (map (partial clojure.string/join "; ;"))
-                         (clojure.string/join "\n"))
-        percents-v3 (->> file-list
-                         (map (partial analysis-v2 true))
-                         (map #(map (comp :vars percents-of-single-pack) %))
-                         (map (partial map vals))
-                         (map (partial map (partial map #(if (float? %) (format "%.2f" %) (str %)))))
-                         (map (partial map (partial clojure.string/join ";")))
-                         (#(conj % names))
-                         (apply map vector)
-                         (#(conj % headline2))
-                         (#(conj % headline1))
-                         (map (partial clojure.string/join "; ;"))
-                         (clojure.string/join "\n")
-                         )
+                         (map (partial analysis-v2 false)))
+        modifier (fn [x] (->> x
+                             (map #(map (comp :vars percents-of-single-pack) %))
+                             (map (partial map vals))
+                             (map (partial map (partial map #(if (float? %) (format "%.4f" %) (str %)))))
+                             (map (partial map (partial clojure.string/join ";")))
+                             (cons names)
+                             (apply map vector)
+                             (cons headline2)
+                             (cons headline1)
+                             (map (partial clojure.string/join "; ;"))
+                             (clojure.string/join "\n")))
+        percents-v2 (modifier (map (partial analysis-v2 false) file-list))
+        percents-v3 (modifier (map (partial analysis-v2 true) file-list))
         ]
     (spit "useful-results/with-singletons.csv" percents-v2)
     (spit "useful-results/without-singletons.csv" percents-v3)
     percents-v3
     ))
+
+
+(defn swi-packs []
+  (let [file "useful-results/swi-pack-types-100000-with-calls"
+        headline ";any;not any;restricted any;total vars;unknown calls;total calls"
+        names (->> file
+                   (analysis-v3 false)
+                   (map :filename))
+        modifier (fn [x] (->> x
+                             (map percents-of-single-pack)
+                             (map (juxt :filename (comp :any :vars) (comp :not-any :vars) (comp :any-with-compatible :vars) (comp :total :vars) (comp :unknown :calls) (comp :total :calls)))
+                             (map (partial map #(if (float? %) (format "%.4f" %) (str %))))
+                             (map (partial clojure.string/join "&"))
+                             (cons headline)
+                             (clojure.string/join "\\\\\n")
+                             ))
+        with-singletons (modifier (analysis-v3 false file))
+        without-singletons (modifier (analysis-v3 true file))
+        ]
+    (spit "useful-results/calls-and-singletons.csv" with-singletons)
+    (spit "useful-results/calls-and-no-singletons.csv" without-singletons)
+    without-singletons
+    ))
+
+(swi-packs)
