@@ -3,6 +3,7 @@
    [prolog-analyzer.analyzer.core :as core]
    [prolog-analyzer.analyzer.pretty-printer :as my-pprint]
    [prolog-analyzer.records :as r]
+   [prolog-analyzer.intersect :as i]
    [prolog-analyzer.utils :as utils :refer [case+]]
    [ubergraph.core :as uber]
    [ubergraph.protocols]
@@ -89,7 +90,7 @@
                       set)
         defs (:specs data)
         res (r/->OneOfSpec premises)]
-    (r/simplify-or res defs)))
+    (i/simplify res defs)))
 
 (defn- get-post-spec-hash [data pred-id]
   (get-in data [:hashs pred-id]))
@@ -112,7 +113,7 @@
     (if (= new-hash (get-post-spec-hash new-data pred-id))
       new-data
       (-> new-data
-          (update-in [:post-specs pred-id] (partial merge-with #(r/simplify-and-without-intersect (r/->AndSpec (hash-set %1 %2))) new-post-spec))
+          (update-in [:post-specs pred-id] (partial merge-with #(i/simplify (r/->AndSpec (hash-set %1 %2)) (:specs data)) new-post-spec))
           (set-post-spec-hash pred-id new-premise)))))
 
 (defmethod process-predicate-envs false [data pred-id envs]

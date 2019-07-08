@@ -2,6 +2,8 @@
   (:require [ubergraph.core :as uber]
             [prolog-analyzer.analyzer.domain :as dom]
             [prolog-analyzer.records :as r]
+            [prolog-analyzer.intersect :as i]
+            [prolog-analyzer.intersect :as i]
             [prolog-analyzer.utils :as utils :refer [case+]]
             [clojure.tools.logging :as log]
             [loom.attr]
@@ -25,7 +27,7 @@
         others (-> env (uber/attrs specvar) (dissoc :dom) (dissoc :compatible) (dissoc term) vals)
         new-dom (-> (apply hash-set (utils/get-dom-of-term env term (r/->AnySpec)) others)
                     r/->OneOfSpec
-                    (r/simplify-or (utils/get-user-defined-specs env)))]
+                    (i/simplify (utils/get-user-defined-specs env)))]
     (-> env
         (uber/remove-attr specvar :dom)
         (uber/add-attr specvar :dom new-dom)
@@ -41,7 +43,7 @@
         term-dom (utils/get-dom-of-term env term nil)
         before-dom (uber/attr env specvar term)
         specvar-dom (utils/get-dom-of-term env specvar term-dom)
-        new-dom (r/simplify-or (r/->OneOfSpec (hash-set (or term-dom (r/->AnySpec)) specvar-dom)) (utils/get-user-defined-specs env))]
+        new-dom (i/simplify (r/->OneOfSpec (hash-set (or term-dom (r/->AnySpec)) specvar-dom)) (utils/get-user-defined-specs env))]
     (cond (nil? term-dom)            env
           (nil? before-dom)          (-> env
                                          (uber/remove-attr specvar :dom)
@@ -79,7 +81,7 @@
   (let [unions (->> type-map
                     (group-by :inner-spec)
                     (reduce-kv #(assoc %1 (r/->SpecvarSpec (:name %2)) (map :alias %3)) {})
-                    (reduce-kv #(assoc %1 %2 (r/simplify-or (r/->OneOfSpec (set %3)) (utils/get-user-defined-specs env))) {}))
+                    (reduce-kv #(assoc %1 %2 (i/simplify (r/->OneOfSpec (set %3)) (utils/get-user-defined-specs env))) {}))
         name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys unions))]
     (assert edge-id "Edge Is is null")
     (reduce-kv
@@ -96,7 +98,7 @@
   (let [compas (->> type-map
                     (group-by :inner-spec)
                     (reduce-kv #(assoc %1 (r/->SpecvarSpec (:name %2)) (map :alias %3)) {})
-                    (reduce-kv #(assoc %1 %2 (r/simplify-and (r/->AndSpec (set %3)) (utils/get-user-defined-specs env) {:overwrite true})) {}))
+                    (reduce-kv #(assoc %1 %2 (i/simplify (r/->AndSpec (set %3)) (utils/get-user-defined-specs env))) {}))
         name-mapping (reduce #(assoc %1 %2 (r/->VarTerm (str edge-id JOIN (:name %2)))) {} (keys compas))]
     (assert edge-id "Edge Is is null")
     (assert (not= "" edge-id))
@@ -114,7 +116,7 @@
   (let [userdef-spec (r/replace-union-and-comp-with-placeholder (uber/dest edge))
         edge-id (or (uber/attr env edge :id) (gensym "ID~~"))
         term (uber/src edge)
-        intersect (r/intersect (utils/get-dom-of-term env term (r/->AnySpec)) userdef-spec (utils/get-user-defined-specs env))
+        intersect (i/intersect (utils/get-dom-of-term env term (r/->AnySpec)) userdef-spec (utils/get-user-defined-specs env))
         placeholders (map #(if (:alias %) % (assoc % :alias (r/->AnySpec))) (find-placeholders intersect))
         {us :union cs :compatible} (group-by #(r/spec-type (:inner-spec %)) placeholders)
         ]
@@ -136,7 +138,7 @@
 (defn- extract-type [env spec]
   (case+ (r/spec-type spec)
          r/LIST (.type spec)
-         r/TUPLE (if (empty? (.arglist spec)) (r/->AnySpec) (r/simplify-or (r/->OneOfSpec (.arglist spec)) (utils/get-user-defined-specs env)))
+         r/TUPLE (if (empty? (.arglist spec)) (r/->AnySpec) (i/simplify (r/->OneOfSpec (.arglist spec)) (utils/get-user-defined-specs env)))
          (r/->AnySpec)))
 
 (defmethod process-edge :has-type [env edge]
@@ -188,8 +190,8 @@
                    (filter #(= :is-tail (uber/attr env % :relation)))
                    (map uber/src)
                    (map (partial calculate-type env)))
-        head-dom (if (empty? heads) (r/->AnySpec) (r/simplify-and (r/->AndSpec (set heads)) (utils/get-user-defined-specs env) true))
-        tail-dom (if (empty? tails) (r/->AnySpec) (r/simplify-and (r/->AndSpec (set tails)) (utils/get-user-defined-specs env) true))]
+        head-dom (if (empty? heads) (r/->AnySpec) (i/simplify (r/->AndSpec (set heads)) (utils/get-user-defined-specs env)))
+        tail-dom (if (empty? tails) (r/->AnySpec) (i/simplify (r/->AndSpec (set tails)) (utils/get-user-defined-specs env)))]
     (if (empty? heads)
       (utils/get-dom-of-term env root (r/->AnySpec))
       (if (empty? tails)

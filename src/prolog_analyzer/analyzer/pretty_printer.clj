@@ -301,14 +301,7 @@
 (defn simplify-premise [premise defs]
   (utils/case+ (r/spec-type premise)
                r/TUPLE (prologify (:arglist premise))
-               r/AND (let [new (r/simplify-and premise defs false)]
-                       (if (= r/AND (r/spec-type new))
-                         new
-                         (simplify-premise new defs)))
-               r/OR (let [new (r/simplify-or premise defs)]
-                      (if (= r/OR (r/spec-type new))
-                        new
-                        (simplify-premise new defs)))))
+               premise))
 
 
 (defn create-post-specs [post-spec-map defs ]

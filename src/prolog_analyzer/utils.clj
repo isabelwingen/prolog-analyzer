@@ -105,3 +105,29 @@
       (assert (first l) msg)
       (recursive-check-condition (first l) msg)
       (recursive-check-condition (rest l) msg))))
+
+(defn- remodel-cases [cases var1 var2]
+  (cons 'case+
+        (cons var1
+              (apply concat
+                     (for [[a b] (group-by ffirst (partition 2 cases))]
+                       (list a
+                             (cons 'case+
+                                   (cons var2
+                                         (apply concat
+                                                (for [[[_ y] z] (sort-by (partial not= :idclol) b)]
+                                                  (if (= y :idclol) (list z) (list y z))))))))))))
+
+(defmacro duocase
+  ([expr & cases]
+   (let [v1 (gensym)
+         v2 (gensym)]
+     `(let [[~v1 ~v2] ~expr]
+        ~(remodel-cases cases v1 v2)
+        ))))
+
+(duocase [1 5]
+         [1 2] :foo
+         [1 6] :alte-sau
+         [1 :idclol] :rolf
+         [3 4] :ich-will-bier)

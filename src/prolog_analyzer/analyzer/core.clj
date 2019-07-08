@@ -3,6 +3,7 @@
    [prolog-analyzer.analyzer.domain :as dom]
    [prolog-analyzer.analyzer.relationship-analyzer :as rel]
    [prolog-analyzer.records :as r]
+   [prolog-analyzer.intersect :as i]
    [prolog-analyzer.utils :as utils]
    [ubergraph.core :as uber]
    [ubergraph.protocols]
@@ -94,7 +95,7 @@
           goal-specs-as-tuples (goal-specs->tuples goal-specs)
           env-modifier (if (empty? goal-specs) inc-unknown inc-known)]
       (env-modifier (if (and (> arity 0) goal-specs)
-                      (dom/fill-env-for-term-with-spec env term (apply r/to-or-spec (:specs data) goal-specs-as-tuples))
+                      (dom/fill-env-for-term-with-spec env term (apply i/to-or-spec (:specs data) goal-specs-as-tuples))
                       env)))))
 
 (defn- valid? [env term spec]
@@ -180,7 +181,7 @@
     (println (pr-str "No predicates found")))
   (for [pred-id (utils/get-pred-identities data)
         clause-number (utils/get-clause-identities-of-pred pred-id data)]
-    (let [pre-spec (r/simplify-or
+    (let [pre-spec (i/simplify
                     (->> (utils/get-specs-of-pred pred-id data)
                          :pre-specs
                          (map replace-specvars-with-uuid)
@@ -195,7 +196,7 @@
     (println (pr-str "No predicates found")))
   (let [tasks (for [pred-id (utils/get-pred-identities data)
                     clause-number (utils/get-clause-identities-of-pred pred-id data)]
-                (let [pre-spec (r/simplify-or
+                (let [pre-spec (i/simplify
                                 (->> (utils/get-specs-of-pred pred-id data)
                                      :pre-specs
                                      (map replace-specvars-with-uuid)

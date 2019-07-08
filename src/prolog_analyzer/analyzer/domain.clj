@@ -1,6 +1,7 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r :refer [intersect]]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.intersect :as i]
             [prolog-analyzer.analyzer.pretty-printer :as pp]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
@@ -49,7 +50,7 @@
                 defs (utils/get-user-defined-specs env)]
             (-> env
                 (uber/add-nodes term)
-                (uber/add-attr term :dom (r/intersect new-type old-type defs))))))
+                (uber/add-attr term :dom (i/intersect new-type old-type defs))))))
   ([env term type]
    (if (r/error-spec? type)
      (add-type-to-dom env term type {:overwrite true})
@@ -153,7 +154,7 @@
     env))
 
 (defn- fill-dom-of-next-steps [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [next (partition 2 (r/next-steps spec term (utils/get-user-defined-specs env) overwrite?))]
+  (let [next (partition 2 (i/next-steps spec term (utils/get-user-defined-specs env)))]
     (reduce
      (fn [e [t s]]
        (assert s (str "Fill-dom-of-next-steps: " (utils/get-pred-id env) " " (r/to-string term) " " (r/to-string spec)))
@@ -177,7 +178,7 @@
   (add-type-to-dom env term spec options))
 
 (defmethod fill-dom [:var :userdefined] [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [transformed-definition (r/resolve-definition-with-parameters spec (get-defs-from-env env))]
+  (let [transformed-definition (i/resolve-definition-with-parameters spec (get-defs-from-env env))]
     (if (r/has-specvars spec)
       (-> env
           (uber/add-edges [term spec {:relation :complex-userdef}])
@@ -327,7 +328,7 @@
    term))
 
 (defmethod fill-dom [:nonvar :userdefined] [env term spec options]
-  (let [transformed-definition (r/resolve-definition-with-parameters spec (get-defs-from-env env))]
+  (let [transformed-definition (i/resolve-definition-with-parameters spec (get-defs-from-env env))]
     (if (r/has-specvars spec)
       (-> env
           (uber/add-edges [term spec {:relation :complex-userdef}])
@@ -402,11 +403,11 @@
       false
       (and
        (= functor-term functor-spec)
-       (not (r/error-spec? (r/intersect dom spec (get-defs-from-env env))))
-       (every? (partial apply spec-valid? env) (partition 2 (r/next-steps spec term (get-defs-from-env env))))))
+       (not (r/error-spec? (i/intersect dom spec (get-defs-from-env env))))
+       (every? (partial apply spec-valid? env) (partition 2 (i/next-steps spec term (get-defs-from-env env))))))
     (and
      (= functor-term functor-spec)
-     (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))))) ;;TODO: if dom is nil, is the result false?
+     (not (r/error-spec? (i/intersect spec (r/initial-spec term) (get-defs-from-env env))))))) ;;TODO: if dom is nil, is the result false?
 
 
 
@@ -415,13 +416,13 @@
     (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
       false
       (and
-       (not (r/error-spec? (r/intersect dom spec (get-defs-from-env env))))
-       (every? (partial apply spec-valid? env) (partition 2 (r/next-steps spec term (get-defs-from-env env))))))
-    (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env)))))) ;;TODO: if dom is nil, is the result false?
+       (not (r/error-spec? (i/intersect dom spec (get-defs-from-env env))))
+       (every? (partial apply spec-valid? env) (partition 2 (i/next-steps spec term (get-defs-from-env env))))))
+    (not (r/error-spec? (i/intersect spec (r/initial-spec term) (get-defs-from-env env)))))) ;;TODO: if dom is nil, is the result false?
 
 (defmethod spec-valid? :other [env term spec]
   (if-let [dom (utils/get-dom-of-term env term nil)]
     (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
       false
-      (not (r/error-spec? (r/intersect dom spec (get-defs-from-env env)))))
-    (not (r/error-spec? (r/intersect spec (r/initial-spec term) (get-defs-from-env env))))))
+      (not (r/error-spec? (i/intersect dom spec (get-defs-from-env env)))))
+    (not (r/error-spec? (i/intersect spec (r/initial-spec term) (get-defs-from-env env))))))
