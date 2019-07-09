@@ -279,8 +279,6 @@
 (defn- get-head-and-tail [term]
   {:head (first (.arglist term)) :tail (second (.arglist term))})
 
-
-
 (defn next-steps [spec term defs]
   (case+ [(r/spec-type spec)]
          (r/NONVAR, r/GROUND, r/ANY) (if (contains? #{r/LIST r/COMPOUND} (r/term-type term))

@@ -126,8 +126,15 @@
         ~(remodel-cases cases v1 v2)
         ))))
 
-(duocase [1 5]
-         [1 2] :foo
-         [1 6] :alte-sau
-         [1 :idclol] :rolf
-         [3 4] :ich-will-bier)
+
+
+(defn env->map [env]
+  (let [nodes (for [term (get-terms env)
+                    :let [dom (get-dom-of-term env term nil)]]
+                [term dom])
+        edges (for [edge (uber/edges env)
+                    :let [s (uber/src edge)
+                          d (uber/dest edge)
+                          rel (uber/attr env edge :relation)]]
+                [[s d] rel])]
+    (apply merge {} (concat nodes edges))))
