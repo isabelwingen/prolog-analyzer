@@ -138,3 +138,8 @@
                           rel (uber/attr env edge :relation)]]
                 [[s d] rel])]
     (apply merge {} (concat nodes edges))))
+
+
+(defn update-attr [graph node key f & args]
+  (let [attrs (uber/attrs graph node)]
+    (uber/set-attrs graph node (apply update attrs key f args))))

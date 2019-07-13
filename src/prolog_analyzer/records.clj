@@ -35,7 +35,6 @@
 
 (declare to-arglist)
 (declare empty-list?)
-(declare next-steps)
 (declare spec-type)
 (declare term-type)
 (declare supertype?)
@@ -47,10 +46,7 @@
   (to-string [x]))
 
 (defprotocol spec
-  (spec-type [spec])
-  (next-steps
-    [spec term defs]
-    [spec term defs overwrite?]))
+  (spec-type [spec]))
 
 (defprotocol term
   (term-type [term])
@@ -161,7 +157,6 @@
 (defrecord CompoundSpec [functor arglist]
   spec
   (spec-type [spec] COMPOUND)
-  (next-steps [spec term defs] (next-steps spec term defs false))
   printable
   (to-string [x] (if (nil? functor) "Compound" (str "Compound(" functor "(" (to-arglist arglist) "))"))))
 
@@ -496,6 +491,9 @@
     (= ANY (spec-type spec))))
 
 
+(defn nonvar-term? [term]
+  (not= (term-type term) VAR))
+
 (defn record-type [type]
   (cond
     (nil? type) nil
@@ -507,3 +505,12 @@
     (:arglist spec) (->OneOfSpec #{(->VarSpec) (update spec :arglist (partial map (fn [x] (->AnySpec))))})
     (:type spec) (->OneOfSpec #{(->VarSpec) (assoc spec :type (->AnySpec))})
     :else (if (any-spec? spec) spec (->OneOfSpec #{(->VarSpec) spec}))))
+
+(defn list-term? [term]
+  (= LIST (term-type term)))
+
+(defn head [list-term]
+  (:head list-term))
+
+(defn tail [list-term]
+  (:tail list-term))

@@ -271,6 +271,8 @@
         (recur right left false)
         (simplify (to-error-spec intersection) defs)))))
 
+
+
 (defn- list-term? [term]
   (and (= r/COMPOUND (r/term-type term))
        (= "." (.functor term))
@@ -279,7 +281,7 @@
 (defn- get-head-and-tail [term]
   {:head (first (.arglist term)) :tail (second (.arglist term))})
 
-(defn next-steps [spec term defs]
+(defn next-steps [term spec defs]
   (case+ [(r/spec-type spec)]
          (r/NONVAR, r/GROUND, r/ANY) (if (contains? #{r/LIST r/COMPOUND} (r/term-type term))
                              [term (intersect spec (r/initial-spec term) defs)]
@@ -308,7 +310,7 @@
          r/OR (if-let [{arglist :arglist :as suitable-spec} (intersect spec (r/initial-spec term) defs)]
                 (if (= r/OR (r/spec-type suitable-spec))
                   (->> arglist
-                       (map #(next-steps % term defs))
+                       (map #(next-steps term % defs))
                        (map (partial apply hash-map))
                        (map (partial reduce-kv (fn [m k v] (update m k #(set (conj % v)))) {}))
                        (apply merge-with into)
