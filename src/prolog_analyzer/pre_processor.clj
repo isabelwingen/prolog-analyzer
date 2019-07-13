@@ -1,6 +1,7 @@
 (ns prolog-analyzer.pre-processor
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
             [prolog-analyzer.records :as r]
+            [prolog-analyzer.record-utils :as ru]
             [clojure.tools.logging :as log]
             ))
 
@@ -47,7 +48,7 @@
   (->> data
        (utils/get-clauses-of-pred pred-id)
        (map :arglist)
-       (map (partial map (comp r/maybe-spec r/initial-spec)))
+       (map (partial map (comp ru/maybe-spec r/initial-spec)))
        (map (partial apply vector))
        (apply vector)
        ))
@@ -64,7 +65,7 @@
        (group-by first)
        (reduce-kv (fn [m k v] (assoc m k (->> v
                                              (map second)
-                                             (map (partial apply r/to-tuple-spec))
+                                             (map (partial apply ru/to-tuple-spec))
                                              set
                                              r/->OneOfSpec
                                              )))

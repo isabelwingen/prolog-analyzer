@@ -1,5 +1,5 @@
-(ns prolog-analyzer.intersect-test
-  (:require [prolog-analyzer.intersect :as sut]
+(ns prolog-analyzer.record-utils-test
+  (:require [prolog-analyzer.record-utils :as sut]
             [prolog-analyzer.records :as r]
             [clojure.test :refer [are deftest]]))
 

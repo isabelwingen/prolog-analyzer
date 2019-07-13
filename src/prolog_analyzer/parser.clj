@@ -2,6 +2,7 @@
   (:require [prolog-analyzer.pre-processor :as pre-processor]
             [prolog-analyzer.utils :as utils]
             [prolog-analyzer.records :as r]
+            [prolog-analyzer.record-utils :as ru]
             [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
@@ -151,7 +152,7 @@
        (group-by first)
        (reduce-kv (fn [m k v] (assoc m k (->> v
                                              (map second)
-                                             (map (partial apply r/to-tuple-spec))
+                                             (map (partial apply ru/to-tuple-spec))
                                              set
                                              r/->OneOfSpec
                                              simple-simplify-or

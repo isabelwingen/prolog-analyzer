@@ -1,4 +1,4 @@
-(ns prolog-analyzer.intersect
+(ns prolog-analyzer.record-utils
   (:require [prolog-analyzer.records :as r]
             [prolog-analyzer.utils :as utils :refer [case+ duocase]]))
 
@@ -19,6 +19,11 @@
          r/LIST (update type :type #(replace-specvars-with-spec % specvar-name replace-spec))
          type
          ))
+(defn supertype? [defs parent child]
+  (if (= r/OR (r/spec-type parent))
+    (some #(= child (intersect % child defs)) (:arglist parent))
+    (= child (intersect parent child defs))))
+
 
 
 (defn to-or-spec
@@ -53,11 +58,6 @@
         (throw (Exception. "User-defined spec was nil"))
         (throw (Exception. (str "Could not find definition of userdefined spec " (r/to-string user-def-spec)))))
       res)))
-
-(defn- supertype? [defs parent child]
-  (if (= r/OR (r/spec-type parent))
-    (some #(= child (intersect % child defs)) (:arglist parent))
-    (= child (intersect parent child defs))))
 
 (defn remove-subsets-in-or [{arglist :arglist} defs]
   (r/->OneOfSpec (reduce
@@ -99,10 +99,6 @@
                                   (map first)
                                   set)))
     spec))
-
-
-(extract-singleton-tuples (r/->OneOfSpec [(r/->TupleSpec [(r/->IntegerSpec)]) (r/->TupleSpec [(r/->AtomSpec)])]))
-
 
 (defn simplify [spec defs]
   (case+ (r/spec-type spec)
@@ -272,49 +268,149 @@
         (simplify (to-error-spec intersection) defs)))))
 
 
+(defn to-tuple-spec
+  "Transforms a bunch of `specs` to a tuple spec."
+  [& specs]
+  (if (empty? specs)
+    (r/->TupleSpec [])
+    (r/->TupleSpec specs)))
 
-(defn- list-term? [term]
-  (and (= r/COMPOUND (r/term-type term))
-       (= "." (.functor term))
-       (= 2 (count (.arglist term)))))
+(defn to-head-tail-list [& terms]
+  (if (empty? terms)
+    (r/->EmptyListTerm)
+    (r/->ListTerm (first terms) (apply to-head-tail-list (rest terms)))))
 
-(defn- get-head-and-tail [term]
-  {:head (first (.arglist term)) :tail (second (.arglist term))})
+(defn replace-specvar-name-with-value [spec specvar-name replace-value]
+  (case+ (r/spec-type spec)
+         (r/SPECVAR,r/UNION,r/COMPATIBLE)
+         (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
-(defn next-steps [term spec defs]
-  (case+ [(r/spec-type spec)]
-         (r/NONVAR, r/GROUND, r/ANY) (if (contains? #{r/LIST r/COMPOUND} (r/term-type term))
-                             [term (intersect spec (r/initial-spec term) defs)]
-                             [])
-         r/LIST (cond
-                  (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
-                                      [head type tail spec])
-                  (= r/LIST (r/term-type term)) (if (or (r/empty-list? (.tail term)) (= r/VAR (r/term-type (.tail term)))) [(.head term) type] [(.head term) type (.tail term) spec])
-                  :else [])
-         r/TUPLE (cond
-                   (list-term? term) (let [{head :head tail :tail} (get-head-and-tail term)]
-                                       [head (first (:arglist spec))
-                                        tail (update spec :arglist rest)])
-                   (= r/LIST (r/term-type term)) (if (empty? (:arglist spec)) [(.head term) (r/->ErrorSpec "Empty Tuple")] [(.head term) (first (:arglist spec)) (.tail term) (update spec :arglist rest)])
-                   :else [])
-         r/COMPOUND (let [{functor :functor arglist :arglist} spec]
-                      (cond
-                        (= r/COMPOUND (r/term-type term)) (if (= (count arglist) (count (:arglist term)))
-                                                            (interleave (.arglist term) arglist)
-                                                            [])
-                        (and (= "." functor) (= 2 (count arglist)) (= r/LIST (r/term-type term))) [(.head term) (first arglist) (.tail term) (second arglist)]
-                        (and (= "." functor) (= 2 (count arglist)) (list-term? term)) [(first (.arglist term)) (first arglist) (second (.arglist term)) (second arglist)]
-                        :else []
-                        ))
-         r/AND (interleave (repeat term) (:arglist spec))
-         r/OR (if-let [{arglist :arglist :as suitable-spec} (intersect spec (r/initial-spec term) defs)]
-                (if (= r/OR (r/spec-type suitable-spec))
-                  (->> arglist
-                       (map #(next-steps term % defs))
-                       (map (partial apply hash-map))
-                       (map (partial reduce-kv (fn [m k v] (update m k #(set (conj % v)))) {}))
-                       (apply merge-with into)
-                       (reduce-kv (fn [m k v] (conj m k (simplify (r/->OneOfSpec (apply vector v))))) []))
-                  [term suitable-spec])
-                [])
-         []))
+         (r/OR,r/AND) (-> spec
+                      (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
+                      (update :arglist set))
+
+         (r/USERDEFINED, r/COMPOUND, r/TUPLE)
+         (-> spec
+             (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
+             (update :arglist (partial apply vector)))
+         r/LIST
+         (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
+
+         spec
+         ))
+
+
+(defn replace-specvars-with-spec [type specvar-name replace-spec]
+  (case+ (r/spec-type type)
+         (r/SPECVAR,r/UNION,r/COMPATIBLE) (if (= specvar-name (:name type)) replace-spec type)
+
+         (r/OR,r/AND) (-> type
+                      (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+                      (update :arglist set))
+
+         (r/USERDEFINED, r/COMPOUND, r/TUPLE) (-> type
+                                            (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+                                            (update :arglist (partial apply vector)))
+         r/LIST (update type :type #(replace-specvars-with-spec % specvar-name replace-spec))
+         type
+         ))
+
+(defn replace-union-and-comp-with-placeholder [type]
+  (case+ (r/spec-type type)
+         (r/UNION,r/COMPATIBLE) (r/->PlaceholderSpec type)
+
+         (r/OR,r/AND) (-> type
+                      (update :arglist (partial map replace-union-and-comp-with-placeholder))
+                      (update :arglist set))
+
+         (r/USERDEFINED, r/COMPOUND, r/TUPLE) (-> type
+                                            (update :arglist (partial map replace-union-and-comp-with-placeholder))
+                                            (update :arglist (partial apply vector)))
+
+         r/LIST (update type :type replace-union-and-comp-with-placeholder)
+
+         type))
+
+
+(defn find-specvars [spec]
+  (case+ (r/spec-type spec)
+         (r/SPECVAR,r/UNION,r/COMPATIBLE) [spec]
+         (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat find-specvars (.arglist spec)))
+         r/USERDEFINED (if (contains? spec :arglist) (set (mapcat find-specvars (:arglist spec))) [])
+         r/LIST (find-specvars (.type spec))
+         #{}))
+
+
+
+(defn has-specvars [spec]
+  (or
+   (= r/SPECVAR (r/spec-type spec))
+   (= r/UNION (r/spec-type spec))
+   (= r/COMPATIBLE (r/spec-type spec))
+   (some has-specvars (:arglist spec))
+   (some->> (:type spec)
+            has-specvars)))
+
+
+(defn replace-specvars-with-any [spec]
+  (let [used-specvars (find-specvars spec)
+        replace-map (reduce #(assoc %1 (:name %2) (r/->AnySpec)) {} used-specvars)]
+    (reduce-kv replace-specvars-with-spec spec replace-map)))
+
+
+(defn length-of-list-term [{head :head tail :tail :as list}]
+  (cond
+    (nil? head) 0
+    (nil? tail) 1
+    (= r/VAR (r/term-type tail)) :inf
+    :default
+    (let [tail-length (length-of-list-term tail)]
+      (if (= :inf tail-length)
+        :inf
+        (inc tail-length)))))
+
+
+(defn var-spec? [spec]
+  (if (nil? spec)
+    false
+    (= r/VAR (r/spec-type spec))))
+
+(defn any-spec? [spec]
+  (if (nil? spec)
+    true
+    (= r/ANY (r/spec-type spec))))
+
+
+(defn nonvar-term? [term]
+  (not= (r/term-type term) r/VAR))
+
+(defn maybe-spec [spec]
+  (cond
+    (:arglist spec) (r/->OneOfSpec #{(r/->VarSpec) (update spec :arglist (partial map (fn [x] (r/->AnySpec))))})
+    (:type spec) (r/->OneOfSpec #{(r/->VarSpec) (assoc spec :type (r/->AnySpec))})
+    :else (if (any-spec? spec) spec (r/->OneOfSpec #{(r/->VarSpec) spec}))))
+
+(defn list-term? [term]
+  (= r/LIST (r/term-type term)))
+
+(defn compound-term? [term]
+  (= r/COMPOUND (r/term-type term)))
+
+(defn single-term? [term]
+  (and (not (list-term? term))
+       (not (compound-term? term))))
+
+(defn head [list-term]
+  (:head list-term))
+
+(defn tail [list-term]
+  (:tail list-term))
+
+(defn compound-with-anys [fun n]
+  (r/->CompoundSpec fun (apply vector (repeat n (r/->AnySpec)))))
+
+(defn tuple-with-anys [n]
+  (r/->TupleSpec (apply vector (repeat n (r/->AnySpec)))))
+
+(defn list-with-anys []
+  (r/->ListSpec (r/->AnySpec)))

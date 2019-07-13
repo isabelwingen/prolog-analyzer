@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.core
   (:require [prolog-analyzer.utils :as utils]
-            [prolog-analyzer.intersect :as i]
+            [prolog-analyzer.record-utils :as i]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.analyzer.env-for-header :as for-header]
    ))
