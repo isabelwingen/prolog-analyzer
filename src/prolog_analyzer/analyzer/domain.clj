@@ -7,17 +7,6 @@
 (declare add-to-dom)
 
 
-(defn remove-nested [spec]
-  (case+ (r/spec-type spec)
-         r/TUPLE (ru/tuple-with-anys (count (:arglist spec)))
-         r/COMPOUND (ru/compound-with-anys (:functor spec) (count (:arglist spec)))
-         r/LIST (ru/list-with-anys)
-         r/USERDEFINED (if (nil? (:arglist spec)) spec (-> spec (update :arglist #(repeat (count %) (r/->AnySpec))) (update :arglist (partial apply vector))))
-         (r/OR, r/AND) (-> spec
-                           (update :arglist remove-nested)
-                           (update :arglist set))
-         spec))
-
 (defmulti next-steps (fn [term spec] [(if (ru/nonvar-term? term) :nonvar :var)
                                      (case+ (r/spec-type spec)
                                             r/TUPLE :tuple
@@ -34,10 +23,11 @@
 
 (defmethod  next-steps [:nonvar :tuple] [term spec]
   (if (ru/list-term? term)
-    (next-step-answer [[(ru/head term) (first (:arglist spec))]
-                       [(ru/tail term) (update spec :arglist rest)]]
-                      [[(ru/head term) term {:relation :is-head}]
-                       [(ru/tail term) term {:relation :is-tail}]])
+    (next-step-answer
+     [[(ru/head term) (first (:arglist spec))]
+      [(ru/tail term) (update spec :arglist rest)]]
+     [[(ru/head term) term {:relation :is-head}]
+      [(ru/tail term) term {:relation :is-tail}]])
     DEFAULT-NEXT-STEPS))
 (defmethod  next-steps [:nonvar :compound] [term spec] DEFAULT-NEXT-STEPS)
 (defmethod  next-steps [:nonvar :list] [term spec] DEFAULT-NEXT-STEPS)
@@ -68,11 +58,11 @@
     env
     (-> env
         (uber/add-nodes term)
-        (uber/add-attr term :dom [(remove-nested (r/initial-spec term))]))))
+        (uber/add-attr term :dom [(r/initial-spec term)]))))
 
 (defn add-to-dom [env term spec]
   (-> env
       (add-initial-dom-if-empty term)
-      (utils/update-attr term :dom #(conj %1 %2) (remove-nested spec))
+      (utils/update-attr term :dom #(conj %1 %2) spec)
       (process-next-steps term spec)
       ))

@@ -15,8 +15,8 @@
 
     {:term     (ru/to-head-tail-list (r/->VarTerm "A") (r/->VarTerm "B"))
      :spec     (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])
-     :result   {"[A, B]"    ["List(Any)" "Tuple(Any, Any)"]
-                "[B]"       ["List(Any)" "Tuple(Any)"]
+     :result   {"[A, B]"    ["List(Any)" "Tuple(Integer, Atom)"]
+                "[B]"       ["List(Any)" "Tuple(Atom)"]
                 "A"         ["Any" "Integer"]
                 "B"         ["Any" "Atom"]
                 "[]"        ["EmptyList" "Tuple()"]
@@ -34,6 +34,6 @@
     ;;Does not throw an error at the moment, as we only collect
     {:term (r/->EmptyListTerm)
      :spec (r/->TupleSpec [(r/->IntegerSpec)])
-     :result {"[]" ["EmptyList" "Tuple(Any)"]}}
+     :result {"[]" ["EmptyList" "Tuple(Integer)"]}}
 
     ))
