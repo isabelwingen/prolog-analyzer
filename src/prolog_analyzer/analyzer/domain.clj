@@ -6,6 +6,7 @@
 
 (declare add-to-dom)
 
+
 (defn remove-nested [spec]
   (case+ (r/spec-type spec)
          r/TUPLE (ru/tuple-with-anys (count (:arglist spec)))
@@ -35,7 +36,8 @@
   (if (ru/list-term? term)
     (next-step-answer [[(ru/head term) (first (:arglist spec))]
                        [(ru/tail term) (update spec :arglist rest)]]
-                      [])
+                      [[(ru/head term) term {:relation :is-head}]
+                       [(ru/tail term) term {:relation :is-tail}]])
     DEFAULT-NEXT-STEPS))
 (defmethod  next-steps [:nonvar :compound] [term spec] DEFAULT-NEXT-STEPS)
 (defmethod  next-steps [:nonvar :list] [term spec] DEFAULT-NEXT-STEPS)
@@ -60,9 +62,17 @@
      (apply uber/add-edges env edges)
      steps)))
 
+(defn add-initial-dom-if-empty [env term]
+  (if (and (uber/has-node? env term)
+           (uber/attr env term :dom))
+    env
+    (-> env
+        (uber/add-nodes term)
+        (uber/add-attr term :dom [(remove-nested (r/initial-spec term))]))))
+
 (defn add-to-dom [env term spec]
   (-> env
-      (uber/add-nodes term)
-      (utils/update-attr term :dom #(if (nil? %1) [(r/initial-spec term) %2] (conj %1 %2)) (remove-nested spec))
+      (add-initial-dom-if-empty term)
+      (utils/update-attr term :dom #(conj %1 %2) (remove-nested spec))
       (process-next-steps term spec)
       ))

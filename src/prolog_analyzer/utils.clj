@@ -2,6 +2,7 @@
   "Contains usefull utility functions used across different namespaces."
   (:require [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
+            [prolog-analyzer.records :as r]
             [ubergraph.protocols]
             [loom.graph]
             [loom.attr]
@@ -86,11 +87,6 @@
                       (mapcat identity))
                  default))))
 
-(defn get-elements-of-list [{head :head tail :tail}]
-  (if (nil? tail)
-    (list)
-    (conj (get-elements-of-list tail) head)))
-
 
 (defn recursive-check-condition [l msg]
   (if (map? l)
@@ -131,10 +127,10 @@
 (defn env->map [env]
   (let [nodes (for [term (get-terms env)
                     :let [dom (get-dom-of-term env term nil)]]
-                [term dom])
+                [(r/to-string term) (apply vector (map r/to-string dom))])
         edges (for [edge (uber/edges env)
-                    :let [s (uber/src edge)
-                          d (uber/dest edge)
+                    :let [s (r/to-string (uber/src edge))
+                          d (r/to-string (uber/dest edge))
                           rel (uber/attr env edge :relation)]]
                 [[s d] rel])]
     (apply merge {} (concat nodes edges))))

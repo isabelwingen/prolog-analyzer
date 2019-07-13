@@ -1,6 +1,5 @@
 (ns prolog-analyzer.records
-  (:require [prolog-analyzer.utils :refer [case+ get-elements-of-list recursive-check-condition] :as utils]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
             [clojure.tools.namespace.repl :refer [refresh]]
 
             [clojure.string]))
@@ -269,17 +268,23 @@
   printable
   (to-string [x] (str value)))
 
+(defn get-elements-of-list [{head :head tail :tail}]
+  (if (nil? tail)
+    (list)
+    (conj (get-elements-of-list tail) head)))
+
+
 (defrecord ListTerm [head tail]
   term
   (term-type [term] LIST)
   (initial-spec [term] (->ListSpec (->AnySpec)))
   printable
   (to-string [x]
-    (case+ (term-type tail)
-           ATOMIC (str "[" (to-string head) "]")
-           EMPTYLIST (str "[" (to-string head) "]")
-           VAR (str "[" (to-string head) "|" (to-string tail) "]")
-           LIST (str "[" (to-arglist (get-elements-of-list x)) "]")
+    (case (term-type tail)
+           :atomic (str "[" (to-string head) "]")
+           :empty-list (str "[" (to-string head) "]")
+           :var (str "[" (to-string head) "|" (to-string tail) "]")
+           :list (str "[" (to-arglist (get-elements-of-list x)) "]")
            (str "[" (to-string head) "|" (to-string tail) "]"))))
 
 

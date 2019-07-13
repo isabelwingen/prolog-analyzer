@@ -8,16 +8,6 @@
             [clojure.template :refer [do-template]]))
 
 
-(deftest next-step
-  (are [term spec result]
-      (= result (sut/next-steps term spec))
-    (r/->ListTerm (r/->IntegerTerm 1) (r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm)))
-    (r/->TupleSpec [(r/->IntegerSpec) (r/->NumberSpec) (r/->IntegerSpec)])
-    {:steps [[(r/->IntegerTerm 1) (r/->IntegerSpec)]
-             [(r/->ListTerm (r/->IntegerTerm 2) (r/->EmptyListTerm)) (r/->TupleSpec [(r/->NumberSpec) (r/->IntegerSpec)])]]
-     :edges []}))
-
-
 (deftest add-to-dom
   (do-template [m]
       (let [{term :term spec :spec result :result} m]
@@ -25,19 +15,25 @@
 
     {:term     (ru/to-head-tail-list (r/->VarTerm "A") (r/->VarTerm "B"))
      :spec     (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])
-     :result   {(ru/to-head-tail-list (r/->VarTerm "A") (r/->VarTerm "B"))     [(r/->ListSpec (r/->AnySpec)) (ru/tuple-with-anys 2)]
-                (ru/to-head-tail-list (r/->VarTerm "B"))                       [(r/->ListSpec (r/->AnySpec))(ru/tuple-with-anys 1)]
-                (r/->VarTerm "A")                                             [(r/->AnySpec) (r/->IntegerSpec)]
-                (r/->VarTerm "B")                                             [(r/->AnySpec) (r/->AtomSpec)]
-                (r/->EmptyListTerm)                                           [(r/->EmptyListSpec) (r/->TupleSpec [])]}}
+     :result   {"[A, B]"    ["List(Any)" "Tuple(Any, Any)"]
+                "[B]"       ["List(Any)" "Tuple(Any)"]
+                "A"         ["Any" "Integer"]
+                "B"         ["Any" "Atom"]
+                "[]"        ["EmptyList" "Tuple()"]
+                ["A" "[A, B]"]    :is-head
+                ["[B]" "[A, B]"]  :is-tail
+                ["B" "[B]"]       :is-head
+                ["[]" "[B]"]      :is-tail
+
+                }}
 
     {:term (r/->EmptyListTerm)
      :spec (r/->TupleSpec [])
-     :result {(r/->EmptyListTerm) [(r/->EmptyListSpec) (r/->TupleSpec [])]}}
+     :result {"[]" ["EmptyList" "Tuple()"]}}
 
     ;;Does not throw an error at the moment, as we only collect
     {:term (r/->EmptyListTerm)
      :spec (r/->TupleSpec [(r/->IntegerSpec)])
-     :result {(r/->EmptyListTerm) [(r/->EmptyListSpec) (r/->TupleSpec [(r/->AnySpec)])]}}
+     :result {"[]" ["EmptyList" "Tuple(Any)"]}}
 
     ))
