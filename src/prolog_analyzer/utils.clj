@@ -16,12 +16,14 @@
 (defn get-specs-of-pred
   "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
   [[module pred-name arity :as pred-identity] data]
-  (-> data
-      (select-keys [:pre-specs :post-specs :inv-specs])
-      (update :pre-specs #(get % pred-identity))
-      (update :post-specs #(get % pred-identity))
-      (update :inv-specs #(get % pred-identity))
-      ))
+  (let [result (-> data
+                   (select-keys [:pre-specs :post-specs :inv-specs])
+                   (update :pre-specs #(get % pred-identity))
+                   (update :post-specs #(get % pred-identity))
+                   )]
+    (assert (not (nil? (:pre-specs data))) (str "Could not find pre-specs for " pred-identity))
+    (assert (not (nil? (:post-specs data))) (str "Could not find post-specs for " pred-identity))
+    result))
 
 (defn get-pred-identities
   [data]
@@ -52,21 +54,14 @@
 
 
 (defn get-terms [env]
-  (remove #{:ENVIRONMENT} (uber/nodes env)))
-
-(defn get-user-defined-specs [env]
-  (uber/attr env :ENVIRONMENT :user-defined-specs))
+  (uber/nodes env))
 
 (defn get-dom-of-term [env term default]
-  (if (uber/has-node? env term)
-    (or (uber/attr env term :dom) default)
-    default))
-
-(defn get-clause-number [env]
-  (uber/attr env :ENVIRONMENT :clause-number))
-
-(defn get-pred-id [env]
-  (uber/attr env :ENVIRONMENT :pred-id))
+  (let [result (if (uber/has-node? env term)
+                 (uber/attr env term :dom)
+                 nil)]
+    (assert (not= nil result) (str "Could not find domain of term " (r/to-string term)))
+    result))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to
@@ -124,7 +119,9 @@
 
 
 
-(defn env->map [env]
+(defn env->map
+  "Mostly for test purpose"
+  [env]
   (let [nodes (for [term (get-terms env)
                     :let [dom (get-dom-of-term env term nil)]]
                 [(r/to-string term) (apply vector (map r/to-string dom))])
@@ -136,6 +133,8 @@
     (apply merge {} (concat nodes edges))))
 
 
-(defn update-attr [graph node key f & args]
+(defn update-attr
+  "Updates an attribue similar to 'update'"
+  [graph node key f & args]
   (let [attrs (uber/attrs graph node)]
     (uber/set-attrs graph node (apply update attrs key f args))))
