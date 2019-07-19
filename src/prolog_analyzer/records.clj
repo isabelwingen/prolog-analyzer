@@ -132,11 +132,6 @@
   printable
   (to-string [x] (str "Exact(" value ")")))
 
-(defn list-term? [term]
-  (and (= COMPOUND (term-type term))
-       (= "." (.functor term))
-       (= 2 (count (.arglist term)))))
-
 (defn get-head-and-tail [term]
   {:head (first (.arglist term)) :tail (second (.arglist term))})
 
