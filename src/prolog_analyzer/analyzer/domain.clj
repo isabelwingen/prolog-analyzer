@@ -6,6 +6,9 @@
 
 (declare add-to-dom)
 
+(def DOM :dom)
+(def HIST :history)
+
 
 (defmulti next-steps (fn [term spec] [(if (ru/nonvar-term? term) :nonvar :var)
                                      (case+ (r/spec-type spec)
