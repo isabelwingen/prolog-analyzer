@@ -41,6 +41,10 @@
 (declare has-specvars)
 (declare var-spec?)
 
+(defn safe-spec-type [spec msg]
+  (assert (not (nil? spec)) msg)
+  (spec-type spec))
+
 (defprotocol printable
   (to-string [x]))
 
@@ -70,13 +74,6 @@
   ([a b]
    (->ErrorSpec (str "No valid intersection of " (to-string a) " and " (to-string b)))))
 
-
-(defn error-spec? [spec]
-  (or (nil? spec)
-      (= ERROR (spec-type spec))
-      (if (contains? spec :type) (error-spec? (.type spec)) false)
-      (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
-      ))
 
 (defrecord VarSpec []
   spec

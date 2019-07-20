@@ -32,7 +32,7 @@
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
 
 (defn- compatible-with-head [head-dom term-dom]
-  (case+ (r/spec-type term-dom)
+  (case+ (r/safe-spec-type term-dom "compatible-with-head")
          r/TUPLE (let [new-dom (update term-dom :arglist #(assoc % 0 head-dom))]
                    (if (ru/non-empty-intersection new-dom term-dom EMPTY-DEFS INITIAL)
                      new-dom
@@ -59,20 +59,25 @@
         filtered-dom (compatible-with-head head-dom term-dom)]
     (dom/add-to-dom env term filtered-dom)))
 
+(defn get-matching-head [pair-id env]
+  (let [head (some->> env
+                      uber/edges
+                      (filter #(= :is-head (uber/attr env % :relation)))
+                      (filter #(= pair-id (uber/attr env % :pair)))
+                      first
+                      uber/src)]
+    (assert (not (nil? head)))
+    head))
+
 (defmethod process-edge :is-tail [env edge]
   (let [tail (uber/src edge)
         term (uber/dest edge)
         tail-dom (utils/get-shrinked-domain env tail)
         term-dom (utils/get-shrinked-domain env term)
         pair-id (uber/attr env edge :pair)
-        head (->> env
-                  uber/edges
-                  (filter #(= pair-id (uber/attr env % :pair)))
-                  (filter #(= :is-head (uber/attr env % :relation)))
-                  first
-                  uber/src)
+        head (get-matching-head pair-id env)
         head-dom (utils/get-shrinked-domain env head)
-        new-dom (case+ (r/spec-type tail-dom)
+        new-dom (case+ (r/safe-spec-type tail-dom "process-tail")
                        r/TUPLE (update tail-dom :arglist #(->> %
                                                                (cons head-dom)
                                                                (apply vector)))

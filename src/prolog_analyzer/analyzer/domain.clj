@@ -10,17 +10,20 @@
 (def HIST :history)
 
 
-(defmulti next-steps (fn [term spec] [(if (ru/nonvar-term? term) :nonvar :var)
-                                     (case+ (r/spec-type spec)
-                                            r/TUPLE :tuple
-                                            r/COMPOUND :compound
-                                            r/LIST :list
-                                            r/USERDEFINED :userdef
-                                            r/OR :or
-                                            r/AND :and
-                                            :unnested)]))
+(defmulti next-steps
+  (fn [term spec]
+    [(if (ru/nonvar-term? term) :nonvar :var)
+     (case+ (r/safe-spec-type spec (str "next-steps" (r/to-string term)))
+            r/TUPLE :tuple
+            r/COMPOUND :compound
+            r/LIST :list
+            r/USERDEFINED :userdef
+            r/OR :or
+            r/AND :and
+            :unnested)]))
+
 (defn- split-spec-for-list [spec]
-  (case+ (r/spec-type spec)
+  (case+ (r/safe-spec-type spec "split-spec-for-list")
          r/LIST [(:type spec) spec]
          r/TUPLE [(first (:arglist spec)) (-> spec
                                               (update :arglist rest)
@@ -103,7 +106,10 @@
        [[term f] [term (assoc spec :arglist r)]]))
    (edges term)))
 
-(defmethod  next-steps [:nonvar :unnested] [term spec] DEFAULT-NEXT-STEPS)
+(defmethod  next-steps [:nonvar :unnested] [term spec]
+  (next-step-answer
+   []
+   (edges term)))
 
 (defmethod  next-steps [:var :tuple] [term spec] DEFAULT-NEXT-STEPS)
 (defmethod  next-steps [:var :compound] [term spec] DEFAULT-NEXT-STEPS)
@@ -128,7 +134,6 @@
      #(apply add-to-dom %1 %2)
      (apply uber/add-edges env edges)
      steps)))
-
 
 (defn process-edges [env term])
 

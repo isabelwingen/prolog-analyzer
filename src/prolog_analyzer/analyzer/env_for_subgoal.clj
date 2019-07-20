@@ -9,4 +9,4 @@
 (defn get-env
   "Calculates an environment for a subgoal."
   [data subgoal]
-  (uber/digrapj))
+  (uber/digraph))

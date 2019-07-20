@@ -5,8 +5,16 @@
 (declare intersect)
 (declare simplify)
 
+(defn error-spec? [spec]
+  (or (nil? spec)
+      (= r/ERROR (r/safe-spec-type spec "error"))
+      (if (contains? spec :type) (error-spec? (.type spec)) false)
+      (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
+      ))
+
+
 (defn replace-specvars-with-spec [type specvar-name replace-spec]
-  (case+ (r/spec-type type)
+  (case+ (r/safe-spec-type type "replace-specvars-with-spec")
          (r/SPECVAR, r/UNION, r/COMPATIBLE) (if (= specvar-name (:name type)) replace-spec type)
 
          (r/OR, r/AND) (-> type
@@ -21,7 +29,7 @@
          ))
 
 (defn supertype? [defs parent child]
-  (if (= r/OR (r/spec-type parent))
+  (if (= r/OR (r/safe-spec-type parent "supertype"))
     (some #(= child (intersect % child defs false)) (:arglist parent))
     (= child (intersect parent child defs false))))
 
@@ -51,7 +59,7 @@
                     definition (get defs alias nil)
                     replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))
                     result (reduce-kv replace-specvars-with-spec definition replace-map)]
-                (if (= r/OR (r/spec-type result))
+                (if (= r/OR (r/safe-spec-type result "resolve-definition-with-parameters"))
                   (update result :arglist set)
                   result)))]
     (if (nil? res)
@@ -61,7 +69,7 @@
       res)))
 
 (defn remove-subsets-in-or [{arglist :arglist :as spec} defs]
-  (if (= r/OR (r/spec-type spec))
+  (if (= r/OR (r/safe-spec-type spec "remove subsets"))
     (r/->OneOfSpec (reduce
                     (fn [new-arglist type]
                       (if (some #(supertype? defs % type) (remove #(= type %) arglist))
@@ -82,10 +90,10 @@
   (= (count (:arglist left)) (count (:arglist right))))
 
 (defn- error-if-empty-arglist [spec]
-  (if (and (= r/OR (r/spec-type spec)) (empty? (:arglist spec))) (r/DISJOINT) spec))
+  (if (and (= r/OR (r/safe-spec-type spec "error-if-empty-arglist")) (empty? (:arglist spec))) (r/DISJOINT) spec))
 
 (defn- extract-single [spec]
-  (if (and (= r/OR (r/spec-type spec)) (= 1 (count (:arglist spec)))) (first (:arglist spec)) spec))
+  (if (and (= r/OR (r/safe-spec-type spec "extract-single")) (= 1 (count (:arglist spec)))) (first (:arglist spec)) spec))
 
 (defn- simplify-pair-tuples-in-or [{arglist :arglist :as spec}]
   (let [tuple-arglists (map :arglist arglist)]
@@ -97,35 +105,41 @@
 
 (defn extract-singleton-tuples [{arglist :arglist :as spec}]
   (if (and
-       (= r/OR (r/spec-type spec))
+       (= r/OR (r/safe-spec-type spec "extract singleton tuples"))
        (not-empty arglist)
-       (every? #(= r/TUPLE (r/spec-type %)) arglist))
+       (every? #(= r/TUPLE (r/safe-spec-type % "extract singleton tuples")) arglist))
     (if (every? #(= 1 (count (:arglist %))) arglist)
       (r/->TupleSpec [(r/->OneOfSpec (->> arglist
                                           (map :arglist)
                                           (map first)
                                           set))])
       (if (every? #(= 2 (count (:arglist %))) arglist)
-        spec #_(simplify-pair-tuples-in-or spec)
+        (simplify-pair-tuples-in-or spec)
         spec))
     spec))
 
+(defn remove-error-specs [spec]
+  (if (= r/OR (r/safe-spec-type spec "remove error-specs"))
+    (update spec :arglist (partial remove #(error-spec? %)))
+    spec))
 
 (defn simplify
   ([spec defs] (simplify spec defs false))
   ([spec defs initial?]
-   (case+ (r/spec-type spec)
+   (case+ (r/safe-spec-type spec "simplify1")
           r/OR (-> spec
-                   (update :arglist (partial mapcat #(if (= r/OR (r/spec-type %)) (:arglist %) [%])))
-                   (update :arglist (partial remove #(= r/ERROR (r/spec-type %))))
+                   (update :arglist (partial mapcat #(if (= r/OR (r/safe-spec-type % "simplify2")) (:arglist %) [%])))
+                   remove-error-specs
                    (update :arglist (partial map #(simplify % defs initial?)))
                    (update :arglist set)
                    extract-singleton-tuples
                    (remove-subsets-in-or defs)
+                   remove-error-specs
                    error-if-empty-arglist
+                   (update :arglist set)
                    extract-single)
           r/AND (reduce #(intersect %1 %2 defs initial?) (r/->AnySpec) (:arglist spec))
-          r/LIST (if (r/error-spec? (:type spec))
+          r/LIST (if (error-spec? (:type spec))
                    (:type spec)
                    (update spec :type simplify defs initial?))
           r/TUPLE (if (empty? (:arglist spec))
@@ -141,7 +155,7 @@
    (loop [left spec-a
           right spec-b
           first-time true]
-     (let [intersection (duocase [(r/spec-type left) (r/spec-type right)]
+     (let [intersection (duocase [(r/safe-spec-type left "left") (r/safe-spec-type right "right")]
                                  [r/ANY :idclol] right
 
                                  [r/VAR r/VAR] right
@@ -304,7 +318,7 @@
     (r/->ListTerm (first terms) (apply to-head-tail-list (rest terms)))))
 
 (defn replace-specvar-name-with-value [spec specvar-name replace-value]
-  (case+ (r/spec-type spec)
+  (case+ (r/safe-spec-type spec "replace-with-value")
          (r/SPECVAR,r/UNION,r/COMPATIBLE)
          (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
@@ -324,7 +338,7 @@
 
 
 (defn replace-specvars-with-spec [type specvar-name replace-spec]
-  (case+ (r/spec-type type)
+  (case+ (r/safe-spec-type type "replace with spec")
          (r/SPECVAR,r/UNION,r/COMPATIBLE) (if (= specvar-name (:name type)) replace-spec type)
 
          (r/OR,r/AND) (-> type
@@ -339,7 +353,7 @@
          ))
 
 (defn replace-union-and-comp-with-placeholder [type]
-  (case+ (r/spec-type type)
+  (case+ (r/safe-spec-type type "replace union")
          (r/UNION,r/COMPATIBLE) (r/->PlaceholderSpec type)
 
          (r/OR,r/AND) (-> type
@@ -356,7 +370,7 @@
 
 
 (defn find-specvars [spec]
-  (case+ (r/spec-type spec)
+  (case+ (r/safe-spec-type spec "Find specvars")
          (r/SPECVAR,r/UNION,r/COMPATIBLE) [spec]
          (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat find-specvars (.arglist spec)))
          r/USERDEFINED (if (contains? spec :arglist) (set (mapcat find-specvars (:arglist spec))) [])
@@ -367,9 +381,9 @@
 
 (defn has-specvars [spec]
   (or
-   (= r/SPECVAR (r/spec-type spec))
-   (= r/UNION (r/spec-type spec))
-   (= r/COMPATIBLE (r/spec-type spec))
+   (= r/SPECVAR (r/safe-spec-type spec "has specvar"))
+   (= r/UNION (r/safe-spec-type spec "has specvar"))
+   (= r/COMPATIBLE (r/safe-spec-type spec "has specvar"))
    (some has-specvars (:arglist spec))
    (some->> (:type spec)
             has-specvars)))
@@ -396,12 +410,12 @@
 (defn var-spec? [spec]
   (if (nil? spec)
     false
-    (= r/VAR (r/spec-type spec))))
+    (= r/VAR (r/safe-spec-type spec "var-spec"))))
 
 (defn any-spec? [spec]
   (if (nil? spec)
     true
-    (= r/ANY (r/spec-type spec))))
+    (= r/ANY (r/safe-spec-type spec "any-spec"))))
 
 
 (defn nonvar-term? [term]
@@ -443,4 +457,4 @@
 
 
 (defn non-empty-intersection [spec1 spec2 defs initial?]
-  (not (r/error-spec? (intersect spec1 spec2 defs initial?))))
+  (not (error-spec? (intersect spec1 spec2 defs initial?))))
