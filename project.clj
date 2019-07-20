@@ -11,6 +11,7 @@
                  [org.clojure/tools.logging "0.4.1"]
                  [simple-time "0.2.0"]
                  [ubergraph "0.5.2"]
+                 [midje "1.9.9"]
                  [tableflisp "0.1.0"]]
   :plugins [[jonase/eastwood "0.3.5"]]
   :main ^:skip-aot prolog-analyzer.core

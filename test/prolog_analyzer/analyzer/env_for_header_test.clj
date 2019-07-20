@@ -1,33 +1,58 @@
 (ns prolog-analyzer.analyzer.env-for-header-test
   (:require [prolog-analyzer.analyzer.env-for-header :as sut]
-            [prolog-analyzer.test-helper :as th]
-            [prolog-analyzer.utils :as utils]
+            [prolog-analyzer.test-helper :refer [to-term to-spec] :as th]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.record-utils :as ru]
-            [clojure.test :refer [deftest are]]))
+            [prolog-analyzer.utils :as utils]
+            [midje.sweet :refer :all]))
+
+(defmacro test-wrapper [header-vars spec]
+  `(utils/env->map (sut/get-env {} {:arglist (apply vector (map to-term ~header-vars))} (to-spec ~spec))))
+
+(facts
+ (fact
+  "Pass domain of head upwards"
+  (test-wrapper
+   ["H" "[H|T]"]
+   ("Tuple" ["Integer" ("OneOf" [("List" ("OneOf" ["Integer" "Atom"]))
+                                 ("List" "Float")])]))
+  =>
+  (contains {"H" ["Integer"]
+             "T" ["List(OneOf(Integer, Atom))"]
+             "[H|T]" ["List(OneOf(Integer, Atom))"]}))
+ (fact
+  "Pass domain of head upwards and pass it down to tail"
+  (test-wrapper
+   ["A" "[A, B]"]
+   ("Tuple" ["Integer" ("OneOf" [("Tuple" ["Integer" "Atom"])
+                                 ("Tuple" ["Float" "Float"])])]))
+  =>
+  (contains {"A" ["Integer"]
+             "B" ["Atom"]}))
+ (fact
+  "Pass domain of tail upwards"
+  (test-wrapper
+   ["A" "[B]" "[A, B]"]
+   ("Tuple" ["Float" ("Tuple" ["Integer"]) "Any"]))
+  =>
+  (contains {"A" ["Float"]
+             "B" ["Integer"]
+             "[B]" ["Tuple(Integer)"]
+             "[A, B]" ["Tuple(Float, Integer)"]})
+  (test-wrapper
+   ["[B]" "[A, B]"]
+   ("Tuple"
+    [("Tuple" ["Integer"])
+     ("OneOf" [("List" "Integer") ("List" "Atom")])]))
+  =>
+  (contains {"A" ["Integer"]
+             "B" ["Integer"]
+             "[B]" ["Tuple(Integer)"]
+             "[A, B]" ["Tuple(Integer, Integer)"]})
 
 
-(defn simple-example []
-  (let [data (th/read-in-file "resources/simple-example.pl" )
-        pred-identity ["simple_example" "mmember" 2]
-        first-clause (utils/get-clause pred-identity 0 data)
-        second-clause (utils/get-clause pred-identity 1 data)
-        pre-spec (ru/simplify
-                  (->> (utils/get-specs-of-pred pred-identity data)
-                       :pre-specs
-                       (map r/->TupleSpec)
-                       set
-                       r/->OneOfSpec)
-                  (:specs data))]
-    (utils/env->map (sut/get-env data first-clause pre-spec))))
 
+  ))
 
-
-(defn test2 []
-  (let [data {}
-        clause {:arglist [(r/->VarTerm "H") (r/->ListTerm (r/->VarTerm "H") (r/->VarTerm "T"))]}
-        spec (r/->TupleSpec [(r/->IntegerSpec) (r/->OneOfSpec #{(r/->ListSpec (r/->OneOfSpec #{(r/->IntegerSpec) (r/->AtomSpec)})) (r/->ListSpec (r/->FloatSpec))})])]
-    (utils/env->map (sut/get-env data clause spec))))
-
-(test2)
-(simple-example)
+(map to-term ["[B]" "[A, B]"])
+(to-spec ("Tuple" [("Tuple" ["Integer"]) ("OneOf" [("List" "Integer") ("List" "Atom")])]))
