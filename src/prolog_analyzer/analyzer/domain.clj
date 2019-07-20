@@ -28,6 +28,18 @@
          [spec spec]))
 
 
+(defmulti edges (fn [term] (r/term-type term)))
+
+(defmethod edges :list [term]
+  [[(ru/head term) term {:relation :is-head :uuid (gensym)}]
+   [(ru/tail term) term {:relation :is-tail :uuid (gensym)}]])
+
+(defmethod edges :compound [term]
+  (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1 :uuid (gensym)}) (:arglist term)))
+
+(defmethod edges :default [term]
+  [])
+
 (defn create-or-part-specs [term spec]
   (let [head (ru/head term)
         tail (ru/tail term)
@@ -54,15 +66,14 @@
     (next-step-answer
      [[(ru/head term) (first (:arglist spec))]
       [(ru/tail term) (update spec :arglist rest)]]
-     [[(ru/head term) term {:relation :is-head :uuid (gensym)}]
-      [(ru/tail term) term {:relation :is-tail :uuid (gensym)}]])
+     (edges term))
     DEFAULT-NEXT-STEPS))
 
 (defmethod  next-steps [:nonvar :compound] [term spec]
   (if (ru/compound-term? term)
     (next-step-answer
      (apply vector (map vector (:arglist term) (:arglist spec)))
-     (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1 :uuid (gensym)}) (:arglist term)))
+     (edges term))
     DEFAULT-NEXT-STEPS)
   )
 
@@ -71,8 +82,7 @@
     (next-step-answer
      [[(ru/head term) (:type spec)]
       [(ru/tail term) spec]]
-     [[(ru/head term) term {:relation :is-head :uuid (gensym)}]
-      [(ru/tail term) term {:relation :is-tail :uuid (gensym)}]])
+     (edges term))
     DEFAULT-NEXT-STEPS))
 
 (defmethod  next-steps [:nonvar :userdef] [term spec] DEFAULT-NEXT-STEPS) ;;TODO
@@ -82,7 +92,7 @@
    (if (ru/list-term? term)
      (create-or-part-specs term spec);;TODO: Add case for Compounds
      [])
-   []))
+   (edges term)))
 
 (defmethod  next-steps [:nonvar :and] [term spec]
   (next-step-answer
@@ -90,7 +100,7 @@
      (if (empty? r)
        [[term f]]
        [[term f] [term (assoc spec :arglist r)]]))
-   []))
+   (edges term)))
 
 (defmethod  next-steps [:nonvar :unnested] [term spec] DEFAULT-NEXT-STEPS)
 
