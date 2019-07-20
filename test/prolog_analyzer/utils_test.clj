@@ -21,8 +21,7 @@
                       [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))]
                       ]
           :post-specs {[(r/->VarSpec)  (r/->ListSpec (r/->IntegerSpec))]
-                       (r/->TupleSpec [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))])}
-          :inv-specs [[(r/->AnySpec) (r/->GroundSpec)]]}
+                       (r/->TupleSpec [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))])}}
          (sut/get-specs-of-pred ["spec_test" "member_int" 2] data))))
 
 (deftest get-pred-identities-test
@@ -46,7 +45,7 @@
   (is (= 1 (count (sut/get-clauses-of-pred ["spec_test" "foo" 3] data)))))
 
 (deftest get-terms-test
-  (is (= [:a :b :c] (sut/get-terms (uber/digraph :a :b :c :ENVIRONMENT)))))
+  (is (= [:a :b :c] (sut/get-terms (uber/digraph :a :b :c)))))
 
 (deftest get-dom-of-term-test
   (is (= [{:spec :integer} {:spec :any}] (sut/get-dom-of-term (-> (uber/digraph) (uber/add-nodes-with-attrs [:a {:dom [{:spec :integer} {:spec :any}]}]))

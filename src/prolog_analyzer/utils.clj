@@ -17,7 +17,7 @@
   "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
   [[module pred-name arity :as pred-identity] data]
   (let [result (-> data
-                   (select-keys [:pre-specs :post-specs :inv-specs])
+                   (select-keys [:pre-specs :post-specs])
                    (update :pre-specs #(get % pred-identity))
                    (update :post-specs #(get % pred-identity))
                    )]

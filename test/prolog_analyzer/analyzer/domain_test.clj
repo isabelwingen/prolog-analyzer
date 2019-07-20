@@ -17,9 +17,9 @@
        :spec     (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])
        :result   {"[A, B]"    ["List(Any)" "Tuple(Integer, Atom)"]
                   "[B]"       ["List(Any)" "Tuple(Atom)"]
-                  "A"         ["Any" "Integer"]
+                  "A"         ["Integer" "Any"]
                   "B"         ["Any" "Atom"]
-                  "[]"        ["EmptyList" "Tuple()"]
+                  "[]"        ["Tuple()" "List(Any)"]
                   ["A" "[A, B]"]    :is-head
                   ["[B]" "[A, B]"]  :is-tail
                   ["B" "[B]"]       :is-head
@@ -29,12 +29,12 @@
 
       {:term (r/->EmptyListTerm)
        :spec (r/->TupleSpec [])
-       :result {"[]" ["EmptyList" "Tuple()"]}}
+       :result {"[]" ["Tuple()" "EmptyList"]}}
 
       ;;Does not throw an error at the moment, as we only collect
       {:term (r/->EmptyListTerm)
        :spec (r/->TupleSpec [(r/->IntegerSpec)])
-       :result {"[]" ["EmptyList" "Tuple(Integer)"]}}
+       :result {"[]" ["Tuple(Integer)" "EmptyList"]}}
       ))
 
 (deftest add-to-dom:compound-spec
@@ -44,8 +44,8 @@
 
                {:term (r/->CompoundTerm "foo" [(r/->VarTerm "A") (r/->VarTerm "B")])
                 :spec (r/->CompoundSpec "foo" [(r/->IntegerSpec) (r/->AtomSpec)])
-                :result {"Compound(foo(A, B))"   ["Compound(foo(Any, Any))" "Compound(foo(Integer, Atom))"]
-                         "A"                     ["Any" "Integer"]
+                :result {"Compound(foo(A, B))"   ["Compound(foo(Integer, Atom))" "Compound(foo(Any, Any))"]
+                         "A"                     ["Integer" "Any"]
                          "B"                     ["Any" "Atom"]
                          ["A" "Compound(foo(A, B))"] :arg-at-pos
                          ["B" "Compound(foo(A, B))"] :arg-at-pos
@@ -61,9 +61,9 @@
        :spec     (r/->ListSpec (r/->IntegerSpec))
        :result   {"[A, B]"    ["List(Any)" "List(Integer)"]
                   "[B]"       ["List(Any)" "List(Integer)"]
-                  "A"         ["Any" "Integer"]
-                  "B"         ["Any" "Integer"]
-                  "[]"        ["EmptyList" "List(Integer)"]
+                  "A"         ["Integer" "Any"]
+                  "B"         ["Integer" "Any"]
+                  "[]"        ["List(Any)" "List(Integer)"]
                   ["A" "[A, B]"]    :is-head
                   ["[B]" "[A, B]"]  :is-tail
                   ["B" "[B]"]       :is-head
@@ -73,12 +73,12 @@
 
       {:term (r/->EmptyListTerm)
        :spec (r/->TupleSpec [])
-       :result {"[]" ["EmptyList" "Tuple()"]}}
+       :result {"[]" ["Tuple()" "EmptyList"]}}
 
       ;;Does not throw an error at the moment, as we only collect
       {:term (r/->EmptyListTerm)
        :spec (r/->TupleSpec [(r/->IntegerSpec)])
-       :result {"[]" ["EmptyList" "Tuple(Integer)"]}}
+       :result {"[]" ["Tuple(Integer)" "EmptyList"]}}
       ))
 
 
@@ -89,7 +89,7 @@
 
                {:term (r/->IntegerTerm 3)
                 :spec (r/->AndSpec #{(r/->GroundSpec) (r/->NumberSpec)})
-                :result {"3" ["Integer" "And(Ground, Number)" "Ground" "And(Number)" "Number"]}}
+                :result {"3" ["Ground" "And(Ground, Number)" "Integer" "Number" "And(Number)"]}}
 
                ))
 
@@ -100,6 +100,6 @@
 
                {:term (r/->IntegerTerm 3)
                 :spec (r/->OneOfSpec #{(r/->GroundSpec)})
-                :result {"3" ["Integer" "OneOf(Ground)" "Ground"]}}
+                :result {"3" ["OneOf(Ground)" "Integer"]}}
 
                ))
