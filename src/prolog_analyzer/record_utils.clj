@@ -87,20 +87,29 @@
 (defn- extract-single [spec]
   (if (and (= r/OR (r/spec-type spec)) (= 1 (count (:arglist spec)))) (first (:arglist spec)) spec))
 
+(defn- simplify-pair-tuples-in-or [{arglist :arglist :as spec}]
+  (let [tuple-arglists (map :arglist arglist)]
+    (if (apply = (map last tuple-arglists))
+      (r/->TupleSpec [(r/->OneOfSpec (set (map first tuple-arglists))) (last (first tuple-arglists))])
+      (if (apply = (map first tuple-arglists))
+        (r/->TupleSpec [(first (first tuple-arglists)) (r/->OneOfSpec (set (map last tuple-arglists)))])
+        spec))))
+
 (defn extract-singleton-tuples [{arglist :arglist :as spec}]
-  (if (and (= r/OR (r/spec-type spec)) (not-empty arglist) (every? #(and (= r/TUPLE (r/spec-type %)) (= 1 (count (:arglist %)))) arglist))
-    (r/->TupleSpec [(r/->OneOfSpec (->> arglist
-                                        (map :arglist)
-                                        (map first)
-                                        set))])
+  (if (and
+       (= r/OR (r/spec-type spec))
+       (not-empty arglist)
+       (every? #(= r/TUPLE (r/spec-type %)) arglist))
+    (if (every? #(= 1 (count (:arglist %))) arglist)
+      (r/->TupleSpec [(r/->OneOfSpec (->> arglist
+                                          (map :arglist)
+                                          (map first)
+                                          set))])
+      (if (every? #(= 2 (count (:arglist %))) arglist)
+        spec #_(simplify-pair-tuples-in-or spec)
+        spec))
     spec))
 
-(defn extract-lists [{arglist :arglist :as spec}]
-  (if (and (= r/OR (r/spec-type spec) (not-empty arglist)) (every? #(= r/LIST (r/spec-type %)) arglist))
-    (r/->ListSpec (r/->OneOfSpec (->> arglist
-                                      (map :type)
-                                      set)))
-    spec))
 
 (defn simplify
   ([spec defs] (simplify spec defs false))
@@ -112,7 +121,6 @@
                    (update :arglist (partial map #(simplify % defs initial?)))
                    (update :arglist set)
                    extract-singleton-tuples
-                   extract-lists
                    (remove-subsets-in-or defs)
                    error-if-empty-arglist
                    extract-single)
@@ -126,8 +134,6 @@
                         (update :arglist (partial map #(simplify % defs initial?)))
                         (update :arglist (partial apply vector))))
           spec)))
-
-(r/to-string (simplify (r/->TupleSpec [(r/->OneOfSpec #{(r/->ListSpec (r/->IntegerSpec))})]) {} true))
 
 (defn intersect
   ([spec-a spec-b defs] (intersect spec-a spec-b defs false))
