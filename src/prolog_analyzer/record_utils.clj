@@ -434,3 +434,7 @@
 
 (defn list-with-anys []
   (r/->ListSpec (r/->AnySpec)))
+
+
+(defn non-empty-intersection [spec1 spec2 defs initial?]
+  (not (r/error-spec? (intersect spec1 spec2 defs initial?))))
