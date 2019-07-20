@@ -66,6 +66,15 @@
      (assert (not= nil result) (str "Could not find domain of term " (r/to-string term)))
      result)))
 
+(defn get-shrinked-domain
+  [env term]
+  (let [result (if (uber/has-node? env term)
+                 (uber/attr env term :dom)
+                 nil)]
+    (assert (not= nil result) (str "Could not find domain of term " (r/to-string term)))
+    (assert (= 1 (count result)) (str "Found more than one domain entry"))
+    (first result)))
+
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to
    class and def'ed constants as well as java.util.Enum instances.

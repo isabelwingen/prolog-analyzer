@@ -31,8 +31,9 @@
 (defmulti edges (fn [term] (r/term-type term)))
 
 (defmethod edges :list [term]
-  [[(ru/head term) term {:relation :is-head :uuid (gensym)}]
-   [(ru/tail term) term {:relation :is-tail :uuid (gensym)}]])
+  (let [pair (gensym)]
+    [[(ru/head term) term {:relation :is-head :uuid (gensym) :pair pair}]
+     [(ru/tail term) term {:relation :is-tail :uuid (gensym) :pair pair}]]))
 
 (defmethod edges :compound [term]
   (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1 :uuid (gensym)}) (:arglist term)))

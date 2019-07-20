@@ -51,14 +51,34 @@
            term-dom
            nil)))
 
-
 (defmethod process-edge :is-head [env edge]
   (let [head (uber/src edge)
         term (uber/dest edge)
-        head-dom (first (utils/get-dom-of-term env head))
-        term-dom (first (utils/get-dom-of-term env term))
+        head-dom (utils/get-shrinked-domain env head)
+        term-dom (utils/get-shrinked-domain env term)
         filtered-dom (compatible-with-head head-dom term-dom)]
     (dom/add-to-dom env term filtered-dom)))
+
+(defmethod process-edge :is-tail [env edge]
+  (let [tail (uber/src edge)
+        term (uber/dest edge)
+        tail-dom (utils/get-shrinked-domain env tail)
+        term-dom (utils/get-shrinked-domain env term)
+        pair-id (uber/attr env edge :pair)
+        head (->> env
+                  uber/edges
+                  (filter #(= pair-id (uber/attr env % :pair)))
+                  (filter #(= :is-head (uber/attr env % :relation)))
+                  first
+                  uber/src)
+        head-dom (utils/get-shrinked-domain env head)
+        new-dom (case+ (r/spec-type tail-dom)
+                       r/TUPLE (update tail-dom :arglist #(->> %
+                                                               (cons head-dom)
+                                                               (apply vector)))
+                       r/LIST (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom)))
+                       term-dom)]
+    (dom/add-to-dom env term new-dom)))
 
 (defmethod process-edge :default [env edge]
   env)
@@ -67,14 +87,13 @@
   (reduce (comp shrink-domains process-edge) env (uber/edges env)))
 
 (defn post-process [env]
+  ;(pprint (utils/env->map env))
   (loop [res (shrink-domains env)]
-    (pprint (utils/env->map res))
+    ;(pprint (utils/env->map res))
     (let [next (process-edges res)]
-      (pprint (utils/env->map next))
+      ;(pprint (utils/env->map next))
       (if (utils/same? next res)
-        (do
-          (println "done")
-          res)
+        res
         (recur next)))))
 
 (defn get-env
