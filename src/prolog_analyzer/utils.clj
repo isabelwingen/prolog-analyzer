@@ -56,12 +56,15 @@
 (defn get-terms [env]
   (uber/nodes env))
 
-(defn get-dom-of-term [env term default]
-  (let [result (if (uber/has-node? env term)
-                 (uber/attr env term :dom)
-                 nil)]
-    (assert (not= nil result) (str "Could not find domain of term " (r/to-string term)))
-    result))
+
+(defn get-dom-of-term
+  ([env term default] (get-dom-of-term env term))
+  ([env term]
+   (let [result (if (uber/has-node? env term)
+                  (uber/attr env term :dom)
+                  nil)]
+     (assert (not= nil result) (str "Could not find domain of term " (r/to-string term)))
+     result)))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to
@@ -117,8 +120,6 @@
         ~(remodel-cases cases v1 v2)
         ))))
 
-
-
 (defn env->map
   "Mostly for test purpose"
   [env]
@@ -138,3 +139,11 @@
   [graph node key f & args]
   (let [attrs (uber/attrs graph node)]
     (uber/set-attrs graph node (apply update attrs key f args))))
+
+
+(defn- same-dom? [env1 env2 term]
+  (= (get-dom-of-term env1 term nil) (get-dom-of-term env2 term nil)))
+
+(defn same? [env1 env2]
+  (and (= (get-terms env1) (get-terms env2))
+       (every? (partial same-dom? env1 env2) (get-terms env1))))

@@ -22,4 +22,12 @@
     (utils/env->map (sut/get-env data first-clause pre-spec))))
 
 
+
+(defn test2 []
+  (let [data {}
+        clause {:arglist [(r/->VarTerm "H") (r/->ListTerm (r/->VarTerm "H") (r/->VarTerm "T"))]}
+        spec (r/->TupleSpec [(r/->IntegerSpec) (r/->OneOfSpec #{(r/->ListSpec (r/->OneOfSpec #{(r/->IntegerSpec) (r/->AtomSpec)})) (r/->ListSpec (r/->FloatSpec))})])]
+    (utils/env->map (sut/get-env data clause spec))))
+
+(test2)
 (simple-example)
