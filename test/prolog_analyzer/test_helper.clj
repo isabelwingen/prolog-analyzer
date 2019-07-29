@@ -26,9 +26,19 @@
 (defn is-compound? [s]
   (re-matches #"([a-z]*)\((.*)\)" s))
 
+(defn to-clojure-list [list-record]
+  (loop [term list-record
+         res []]
+    (let [head (ru/head term)
+          tail (ru/tail term)]
+      (if (nil? head)
+        res
+        (recur tail (conj res head))))))
+
 (defn to-compound [s]
   (if-let [[_ f args :as p] (is-compound? s)]
-    (r/->CompoundTerm f (to-term (str "[" args "]")))))
+    (r/->CompoundTerm f (to-clojure-list (to-term (str "[" args "]"))))))
+
 
 (defn term-to-list [s]
   (if-let [[_ left right] (re-matches #"\[([^|]]*)\|(.*)\]" s)]
@@ -59,15 +69,17 @@
 
 (defmacro to-spec [s]
   (if (coll? s)
-    (let [[p & [args]] s]
+    (let [[p & [args & [r]]] s]
       (cond
         (= "List" p) `(spec-to-list ~s)
+        (= "Compound" p) `((to-spec-function ~p) ~args (arglist ~r))
         (empty? args) `((to-spec-function ~p) [])
         :default `((to-spec-function ~p) (arglist ~args)))
       )
     `((to-spec-function (eval ~s))))
   )
 
+(to-spec ("Tuple" [("Compound" "foo" ["Atom" "Integer"])]))
 
 (defn read-in-file [path]
   (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))

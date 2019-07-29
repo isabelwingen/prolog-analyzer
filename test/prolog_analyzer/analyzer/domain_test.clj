@@ -20,7 +20,7 @@
              "[B]"       ["List(Any)" "Tuple(Atom)"]
              "A"         ["Integer" "Any"]
              "B"         ["Any" "Atom"]
-             "[]"        ["Tuple()" "List(Any)"]}))
+             "[]"        ["Tuple()" "List(Any)" "EmptyList"]}))
  (fact
   (test-wrapper
    "[]"

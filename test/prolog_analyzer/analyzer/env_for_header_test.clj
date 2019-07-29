@@ -10,12 +10,13 @@
   `(utils/env->map (sut/get-env {} {:arglist (apply vector (map to-term ~header-vars))} (to-spec ~spec))))
 
 (facts
+ "About Lists"
  (fact
   "Pass domain of head upwards"
   (test-wrapper
-   ["H" "[H|T]"]
-   ("Tuple" ["Integer" ("OneOf" [("List" ("OneOf" ["Integer" "Atom"]))
-                                 ("List" "Float")])]))
+     ["H" "[H|T]"]
+     ("Tuple" ["Integer" ("OneOf" [("List" ("OneOf" ["Integer" "Atom"]))
+                                   ("List" "Float")])]))
   =>
   (contains {"H" ["Integer"]
              "T" ["List(OneOf(Integer, Atom))"]
@@ -48,11 +49,31 @@
   (contains {"A" ["Integer"]
              "B" ["Integer"]
              "[B]" ["Tuple(Integer)"]
-             "[A, B]" ["Tuple(Integer, Integer)"]})
+             "[A, B]" ["Tuple(Integer, Integer)"]})))
+
+(facts
+ "About Compounds"
+ (fact
+  "Pass domain down"
+  (test-wrapper
+   ["foo(A, B)"]
+   ("Tuple" ["Ground"]))
+  => (contains {"A" ["Ground"]
+                "B" ["Ground"]})
+  (test-wrapper
+   ["foo(A, B)"]
+   ("Tuple" [("Compound" "foo" ["Integer" "Atom"])]))
+  => (contains {"A" ["Integer"]
+                "B" ["Atom"]})))
 
 
-
-  ))
-
-(map to-term ["[B]" "[A, B]"])
-(to-spec ("Tuple" [("Tuple" ["Integer"]) ("OneOf" [("List" "Integer") ("List" "Atom")])]))
+(facts
+ "About And"
+ (fact
+  "With Var"
+  (test-wrapper
+   ["foo(A, B)"]
+   ("Tuple" [("And" ["Ground"
+                     ("Compound" "foo" ["Var" "Atom"])])]))
+  => (contains {"A" ["Ground"]
+                "B" ["Atom"]})))
