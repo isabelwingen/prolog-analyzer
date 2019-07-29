@@ -19,7 +19,8 @@
         (map r/->TupleSpec)
         set
         r/->OneOfSpec)
-   (:specs data)))
+   (:specs data)
+   true))
 
 (defn complete-analysis [data]
   (when (empty? (utils/get-pred-identities data))

@@ -34,7 +34,6 @@
   [pred-id data]
   (keys (get-in data [:preds pred-id])))
 
-
 (defn get-clause-identities
   "Returns the clause ids of all clauses loaded in `data`."
   [data]
@@ -56,24 +55,24 @@
 (defn get-terms [env]
   (uber/nodes env))
 
-
 (defn get-dom-of-term
   ([env term default] (get-dom-of-term env term))
   ([env term]
-   (let [result (if (uber/has-node? env term)
-                  (uber/attr env term :dom)
-                  nil)]
-     (assert (not= nil result) (str "Could not find domain of term " (r/to-string term)))
-     result)))
+   (if-let [result (if (uber/has-node? env term)
+                     (uber/attr env term :dom)
+                     nil)]
+     result
+     [(r/->AnySpec)])))
 
 (defn get-shrinked-domain
   [env term]
-  (let [result (if (uber/has-node? env term)
+  (if-let [result (if (uber/has-node? env term)
                  (uber/attr env term :dom)
                  nil)]
-    (assert (not= nil result) (str "Could not find domain of term " (r/to-string term)))
-    (assert (= 1 (count result)) (str "Found more than one domain entry"))
-    (first result)))
+    (do
+      (assert (= 1 (count result)) (str "Found more than one domain entry"))
+      (first result))
+    (r/->AnySpec)))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to
@@ -149,10 +148,10 @@
   (let [attrs (uber/attrs graph node)]
     (uber/set-attrs graph node (apply update attrs key f args))))
 
-
 (defn- same-dom? [env1 env2 term]
   (= (get-dom-of-term env1 term nil) (get-dom-of-term env2 term nil)))
 
 (defn same? [env1 env2]
-  (and (= (get-terms env1) (get-terms env2))
-       (every? (partial same-dom? env1 env2) (get-terms env1))))
+  (and
+   (= (get-terms env1) (get-terms env2))
+   (every? (partial same-dom? env1 env2) (get-terms env1))))
