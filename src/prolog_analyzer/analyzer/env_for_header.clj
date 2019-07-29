@@ -10,35 +10,10 @@
 (def EMPTY-DEFS {})
 
 
-
-(defn calculate-new-dom [env term]
-  (let [spec (apply ru/intersect* INITIAL {} (utils/get-dom-of-term env term))
-        new-env (-> env
-                    (uber/remove-attr term dom/DOM)
-                    (dom/add-to-dom term spec)
-                    (uber/add-attr term :changed false)
-                    )
-        new-dom (seq (utils/get-dom-of-term new-env term))]
-    (assert
-     (= 1 (count new-dom))
-     (str "new-dom is wrong " (count new-dom) (apply vector (map r/to-string new-dom)) " " (r/to-string term)))
-    new-env))
-
-(defn simplify-env [env]
-  (reduce
-   #(let [spec (apply ru/intersect* INITIAL {} (utils/get-dom-of-term %1 %2))]
-      (uber/add-attr %1 %2 dom/DOM [spec]))
-   env
-   (utils/get-terms env)))
-
-(defn shrink-domains [env]
-  (loop [res env]
-    (let [p (dom/changed-terms res)]
-      (if (empty? p)
-        (simplify-env res)
-        (recur (reduce calculate-new-dom (dom/reset-changed-marker res) p))))))
-
 (defmulti process-edge (fn [env edge] (uber/attr env edge :relation)))
+
+(defn add-to-dom [env term spec defs]
+  (dom/add-to-dom env (dom/intersect-with-initial defs) term spec))
 
 (defn- compatible-with-head [head-dom term-dom]
   (case+ (r/safe-spec-type term-dom "compatible-with-head")
@@ -63,12 +38,10 @@
 (defmethod process-edge :is-head [env edge]
   (let [head (uber/src edge)
         term (uber/dest edge)
-        head-dom (utils/get-shrinked-domain env head)
-        term-dom (utils/get-shrinked-domain env term)
+        head-dom (utils/get-dom-of-term env head)
+        term-dom (utils/get-dom-of-term env term)
         filtered-dom (compatible-with-head head-dom term-dom)]
-    (if (nil? filtered-dom)
-      (uber/add-attr env term dom/DOM [(r/->ErrorSpec "hallo")])
-      (dom/add-to-dom env term filtered-dom))))
+    (add-to-dom env term (or filtered-dom (r/DISJOINT)) EMPTY-DEFS)))
 
 (defn get-matching-head [pair-id env]
   (let [head (some->> env
@@ -83,23 +56,23 @@
 (defmethod process-edge :is-tail [env edge]
   (let [tail (uber/src edge)
         term (uber/dest edge)
-        tail-dom (utils/get-shrinked-domain env tail)
-        term-dom (utils/get-shrinked-domain env term)
+        tail-dom (utils/get-dom-of-term env tail)
+        term-dom (utils/get-dom-of-term env term)
         pair-id (uber/attr env edge :pair)
         head (get-matching-head pair-id env)
-        head-dom (utils/get-shrinked-domain env head)
+        head-dom (utils/get-dom-of-term env head)
         new-dom (case+ (r/safe-spec-type tail-dom "process-tail")
                        r/TUPLE (update tail-dom :arglist #(->> %
                                                                (cons head-dom)
                                                                (apply vector)))
                        r/LIST (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom)))
                        term-dom)]
-    (dom/add-to-dom env term new-dom)))
+    (add-to-dom env term new-dom EMPTY-DEFS)))
 
 
 (defmethod process-edge :arg-at-pos [env edge]
   (let [child (uber/src edge)
-        child-dom (utils/get-shrinked-domain env child)
+        child-dom (utils/get-dom-of-term env child)
         parent (uber/dest edge)
         functor (:functor parent)
         args (count (:arglist parent))
@@ -110,16 +83,16 @@
                      (#(assoc % pos child-dom))
                      (apply vector)
                      (r/->CompoundSpec functor))]
-    (dom/add-to-dom env parent new-dom)))
+    (add-to-dom env parent new-dom EMPTY-DEFS)))
 
 (defmethod process-edge :default [env edge]
   env)
 
 (defn process-edges [env]
-  (reduce (comp shrink-domains process-edge) env (uber/edges env)))
+  (reduce process-edge env (uber/edges env)))
 
 (defn post-process [env]
-  (loop [res (shrink-domains env)]
+  (loop [res env]
     (let [next (process-edges res)]
       (if (utils/same? next res)
         res
@@ -129,13 +102,7 @@
   "Calculates an environment from the header terms and the prespec"
   [data {arglist :arglist :as clause} pre-spec]
   (-> (uber/digraph)
-      (dom/add-to-dom (apply ru/to-head-tail-list arglist) pre-spec)
+      (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec EMPTY-DEFS)
       dom/add-structural-edges
       post-process
       ))
-
-(clojure.pprint/pprint (utils/env->map (get-env {}
-                                                {:arglist [(r/->VarTerm "H") (r/->ListTerm (r/->VarTerm "H") (r/->VarTerm "T"))]}
-                                                (r/->TupleSpec [(r/->IntegerSpec)
-                                                                (r/->OneOfSpec #{(r/->ListSpec (r/->IntegerSpec))
-                                                                                 (r/->ListSpec (r/->FloatSpec))})]))))

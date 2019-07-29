@@ -303,8 +303,6 @@
         (recur right left false)
         (simplify (to-error-spec intersection) defs initial?)))))
 
-(intersect (r/->ListSpec (r/->IntegerSpec)) (r/->ListSpec (r/->FloatSpec)) {} true)
-
 (defn intersect* [initial? defs & specs]
   (simplify (reduce #(intersect %1 %2 defs initial?) (r/->AnySpec) specs) defs initial?))
 
@@ -449,3 +447,13 @@
 
 (defn non-empty-intersection [spec1 spec2 defs initial?]
   (not (error-spec? (intersect spec1 spec2 defs initial?))))
+
+(defn replace-var-with-any [spec]
+  (case+ (r/spec-type spec)
+         r/VAR (r/->AnySpec)
+         r/LIST (update spec :type replace-var-with-any)
+         (r/TUPLE, r/COMPOUND) (update spec :arglist #(->> %
+                                                           (map replace-var-with-any)
+                                                           (apply vector)))
+         (r/USERDEFINED) (if (nil? (:arglist spec)) spec (update spec :arglist #(->> % (map replace-var-with-any) (apply vector))))
+         spec))

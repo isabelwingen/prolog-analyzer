@@ -79,6 +79,7 @@
 (defmethod next-steps [:nonvar :userdef] [term spec]
   [])
 
+
 (defmethod next-steps [:nonvar :unnested] [term spec]
   [])
 
@@ -89,64 +90,46 @@
 (defmethod next-steps [:var :ground] [term spec] [])
 (defmethod next-steps [:var :unnested] [term spec] [])
 
+(defmulti process-next-steps (fn [_ _ _ spec] (ru/or-spec? spec)))
 
-(defn process-next-steps [env term spec]
+(defmethod process-next-steps false [env intersect-fn term spec]
   (if (ru/error-spec? spec)
     env
     (let [steps (next-steps term spec)]
       (reduce
-       #(apply add-to-dom %1 %2)
+       #(apply add-to-dom %1 intersect-fn %2)
        env
        steps))))
 
-(defn add-or-to-dom [env term spec]
+(defmethod process-next-steps true [env intersect-fn term spec]
   (let [arglist (:arglist spec)
-        envs (map (partial add-to-dom env term) arglist)]
-    (if (zero? (count envs))
-      env
-      (apply merge-envs envs))))
+        envs (map (partial add-to-dom env intersect-fn term) arglist)
+        terms-with-doms (apply merge-envs intersect-fn envs)]
+    (reduce #(apply add-to-dom %1 intersect-fn %2) env terms-with-doms)))
 
 (defn debug [term spec]
   (if (or (nil? term) (nil? spec))
     nil
     (println "add-to-dom for term " (r/to-string term) " and " (r/to-string spec))))
 
-(defn add-to-dom [env term spec]
+
+(defn add-to-dom [env intersect-fn term spec]
   (cond
     (not (uber/has-node? env term))  (-> env
                                          (uber/add-nodes term)
-                                         (add-to-dom term (r/initial-spec term))
-                                         (add-to-dom term spec))
-    (ru/or-spec? spec)               (add-or-to-dom env term spec)
-    (ru/and-spec? spec)              (reduce #(add-to-dom %1 term %2) env (:arglist spec))
-    :default                         (-> env
-                                         (utils/update-attr term DOM #(set (conj %1 %2)) spec)
-                                         (uber/add-attr term :changed true)
-                                         (process-next-steps term spec))))
+                                         (add-to-dom intersect-fn term (r/initial-spec term))
+                                         (add-to-dom intersect-fn term spec))
+    (ru/and-spec? spec)              (reduce #(add-to-dom %1 intersect-fn term %2) env (:arglist spec))
+    :default                         (let [before (uber/attr env term DOM)
+                                           new (intersect-fn before spec)]
+                                       (if (= before new)
+                                         env
+                                         (-> env
+                                             (uber/add-attr term DOM new)
+                                             (process-next-steps intersect-fn term spec))))))
 
 
-(defn reset-changed-marker [env]
-  (reduce #(uber/add-attr %1 %2 :changed false) env (utils/get-terms env)))
 
-(defn something-changed [env]
-  (some #(uber/attr env % :changed) (utils/get-terms env)))
-
-(defn changed-terms [env]
-  (filter #(uber/attr env % :changed) (utils/get-terms env)))
-
-
-(defn get-terms-with-multiple-doms [env]
-  (->> env
-       utils/get-terms
-       (filter #(> (count (utils/get-dom-of-term env % [])) 1))))
-
-(defn- and-or-single [specs]
-  (let [ds (->> specs
-                (remove ru/any-spec?)
-                distinct)]
-    (if (= 1 (count ds))
-      (first ds)
-      (r/->AndSpec (set ds)))))
 
 (defn- one-of-or-single [specs]
   (let [ds (distinct specs)]
@@ -157,20 +140,17 @@
 (defn- create-one-of-from-envs [term envs]
   (->> envs
        (map #(utils/get-dom-of-term % term))
-       (map and-or-single)
+       (remove ru/error-spec?)
        one-of-or-single))
 
-
-(defn- remove-doms [env]
-  (reduce #(uber/remove-attr %1 %2 DOM) env (utils/get-terms env)))
-
-(defn- merge-envs [& envs]
+(defn- merge-envs [intersect-fn & envs]
   (let [terms (distinct (mapcat utils/get-terms envs))
         new-doms (map #(create-one-of-from-envs % envs) terms)]
-    (reduce
-     (fn [env [term spec]]
-       (-> env
-           (uber/add-nodes term)
-           (uber/add-attr term DOM [spec])))
-     (remove-doms (first envs))
-     (map vector terms new-doms))))
+    (map vector terms new-doms)))
+
+(defn intersect-with-initial [defs]
+  #(ru/intersect (or %1 (r/->AnySpec)) %2 defs true))
+
+(defn intersect-with-overwrite [defs]
+  (fn [current-dom new-dom]
+    (ru/intersect (ru/replace-specvars-with-any (or current-dom (r/->AnySpec))) new-dom defs false)))

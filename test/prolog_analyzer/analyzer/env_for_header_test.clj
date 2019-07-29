@@ -18,9 +18,9 @@
      ("Tuple" ["Integer" ("OneOf" [("List" ("OneOf" ["Integer" "Atom"]))
                                    ("List" "Float")])]))
   =>
-  (contains {"H" ["Integer"]
-             "T" ["List(OneOf(Integer, Atom))"]
-             "[H|T]" ["List(OneOf(Integer, Atom))"]}))
+  (contains {"H" "Integer"
+             "T" "List(OneOf(Integer, Atom))"
+             "[H|T]" "List(OneOf(Integer, Atom))"}))
  (fact
   "Pass domain of head upwards and pass it down to tail"
   (test-wrapper
@@ -28,28 +28,28 @@
    ("Tuple" ["Integer" ("OneOf" [("Tuple" ["Integer" "Atom"])
                                  ("Tuple" ["Float" "Float"])])]))
   =>
-  (contains {"A" ["Integer"]
-             "B" ["Atom"]}))
+  (contains {"A" "Integer"
+             "B" "Atom"}))
  (fact
   "Pass domain of tail upwards"
   (test-wrapper
    ["A" "[B]" "[A, B]"]
    ("Tuple" ["Float" ("Tuple" ["Integer"]) "Any"]))
   =>
-  (contains {"A" ["Float"]
-             "B" ["Integer"]
-             "[B]" ["Tuple(Integer)"]
-             "[A, B]" ["Tuple(Float, Integer)"]})
+  (contains {"A" "Float"
+             "B" "Integer"
+             "[B]" "Tuple(Integer)"
+             "[A, B]" "Tuple(Float, Integer)"})
   (test-wrapper
-   ["[B]" "[A, B]"]
-   ("Tuple"
-    [("Tuple" ["Integer"])
-     ("OneOf" [("List" "Integer") ("List" "Atom")])]))
+     ["[B]" "[A, B]"]
+     ("Tuple"
+      [("Tuple" ["Integer"])
+       ("OneOf" [("List" "Integer") ("List" "Atom")])]))
   =>
-  (contains {"A" ["Integer"]
-             "B" ["Integer"]
-             "[B]" ["Tuple(Integer)"]
-             "[A, B]" ["Tuple(Integer, Integer)"]})))
+  (contains {"A" "Integer"
+             "B" "Integer"
+             "[B]" "Tuple(Integer)"
+             "[A, B]" "Tuple(Integer, Integer)"})))
 
 (facts
  "About Compounds"
@@ -58,13 +58,13 @@
   (test-wrapper
    ["foo(A, B)"]
    ("Tuple" ["Ground"]))
-  => (contains {"A" ["Ground"]
-                "B" ["Ground"]})
+  => (contains {"A" "Ground"
+                "B" "Ground"})
   (test-wrapper
    ["foo(A, B)"]
    ("Tuple" [("Compound" "foo" ["Integer" "Atom"])]))
-  => (contains {"A" ["Integer"]
-                "B" ["Atom"]})))
+  => (contains {"A" "Integer"
+                "B" "Atom"})))
 
 
 (facts
@@ -75,5 +75,5 @@
    ["foo(A, B)"]
    ("Tuple" [("And" ["Ground"
                      ("Compound" "foo" ["Var" "Atom"])])]))
-  => (contains {"A" ["Ground"]
-                "B" ["Atom"]})))
+  => (contains {"A" "Ground"
+                "B" "Atom"})))

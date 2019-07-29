@@ -8,7 +8,7 @@
 
 
 (defmacro test-wrapper [term spec]
-  `(utils/env->map (sut/add-to-dom (uber/digraph) (to-term ~term) (to-spec ~spec))))
+  `(utils/env->map (sut/add-to-dom (uber/digraph) (sut/intersect-with-initial {}) (to-term ~term) (to-spec ~spec))))
 
 (facts
  (fact
@@ -16,20 +16,20 @@
    "[A, B]"
    ("Tuple" ["Integer" "Atom"]))
   =>
-  (contains {"[A, B]"    ["List(Any)" "Tuple(Integer, Atom)"]
-             "[B]"       ["List(Any)" "Tuple(Atom)"]
-             "A"         ["Integer" "Any"]
-             "B"         ["Any" "Atom"]
-             "[]"        ["Tuple()" "List(Any)" "EmptyList"]}))
+  (contains {"[A, B]"    "Tuple(Integer, Atom)"
+             "[B]"       "Tuple(Atom)"
+             "A"         "Integer"
+             "B"         "Atom"
+             "[]"        "EmptyList"}))
  (fact
   (test-wrapper
    "[]"
    ("Tuple" []))
   =>
-  (contains {"[]" ["Tuple()" "EmptyList"]}))
+  (contains {"[]" "EmptyList"}))
  (fact
   (test-wrapper
    "[]"
    ("Tuple" ["Integer"]))
   =>
-  (contains {"[]" ["Tuple(Integer)" "EmptyList"]})))
+  (contains {"[]" "ERROR: No valid intersection of EmptyList and Tuple(Integer)"})))

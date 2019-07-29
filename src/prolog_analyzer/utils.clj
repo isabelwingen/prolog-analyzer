@@ -62,17 +62,7 @@
                      (uber/attr env term :dom)
                      nil)]
      result
-     [(r/->AnySpec)])))
-
-(defn get-shrinked-domain
-  [env term]
-  (if-let [result (if (uber/has-node? env term)
-                 (uber/attr env term :dom)
-                 nil)]
-    (do
-      (assert (= 1 (count result)) (str "Found more than one domain entry"))
-      (first result))
-    (r/->AnySpec)))
+     (r/->AnySpec))))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to
@@ -133,7 +123,7 @@
   [env]
   (let [nodes (for [term (get-terms env)
                     :let [dom (get-dom-of-term env term nil)]]
-                [(r/to-string term) (apply vector (map r/to-string dom))])
+                [(r/to-string term) (r/to-string dom)])
         edges (for [edge (uber/edges env)
                     :let [s (r/to-string (uber/src edge))
                           d (r/to-string (uber/dest edge))
