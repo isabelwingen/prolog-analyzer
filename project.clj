@@ -7,16 +7,11 @@
                  [org.clojure/tools.logging "0.4.1"]
                  [ch.qos.logback/logback-classic "1.1.3"]
                  [org.clojure/tools.namespace "0.2.11"]
-                 [lein-githooks "0.1.0"]
                  [org.clojure/tools.logging "0.4.1"]
-                 [simple-time "0.2.0"]
-                 [ubergraph "0.5.2"]
                  [midje "1.9.9"]
+                 [ubergraph "0.5.2"]
                  [tableflisp "0.1.0"]]
-  :plugins [[jonase/eastwood "0.3.5"]]
   :main ^:skip-aot prolog-analyzer.core
   :target-path "target/%s"
   :jvm-opts ["-Xms2g" "-Xmx6g"]
-  :profiles {:uberjar {:aot :all}
-             :dev {:dependencies [[org.clojure/test.check "0.9.0"]]
-                   :plugins []}})
+  :profiles {:uberjar {:aot :all}})
