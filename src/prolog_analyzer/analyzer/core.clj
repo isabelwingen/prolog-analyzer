@@ -18,12 +18,8 @@
    true))
 
 (defn- get-post-specs [pred-id data]
-  [{:guard [{:id 0 :type (r/->AtomSpec)}] :conclusion [{:id 1 :type (r/->IntegerSpec)}]}]
+  [])
 
-
-  [[{:id 0 :type (r/->AtomSpec)} {:id 1 :type (r/->IntegerSpec)}]])
-
-(i/simplify (r/->OneOfSpec #{(r/->TupleSpec [(r/->AnySpec)])}) {} true)
 
 (defn- subgoal-analyzer [{defs :specs :as data} env {goal-name :goal module :module arity :arity arglist :arglist}]
   (let [pred-id [module goal-name arity]

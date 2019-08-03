@@ -196,11 +196,13 @@
   printable
   (to-string [x] (str "Compatible(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
-(defrecord PlaceholderSpec [inner-spec]
+(defrecord PlaceholderSpec [name]
   spec
   (spec-type [spec] PLACEHOLDER)
   printable
-  (to-string [x] (str "Placeholder(" (to-string inner-spec) ")")))
+  (to-string [x] (if (contains? x :alias)
+                   (str "Placeholder(" name "):" (to-string (:alias x)))
+                   (str "Placeholder(" name ")"))))
 
 
 (defrecord SpecvarSpec [name]
