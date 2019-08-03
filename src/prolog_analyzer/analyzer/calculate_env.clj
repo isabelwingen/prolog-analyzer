@@ -112,3 +112,22 @@
         dom/add-structural-edges
         (post-process parameters)
         )))
+
+(defn- get-env-for-pre-spec-of-subgoal
+  "Calculates an environment from a subgoal and its pre-specs"
+  [in-env defs arglist pre-spec]
+  (let [parameters {:defs defs :initial false}]
+    (-> in-env
+        (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
+        dom/add-structural-edges
+        (post-process parameters))))
+
+(defn- get-env-for-post-spec-of-subgoal
+  [in-env defs arglist post-specs]
+  (post-specs/register-post-specs in-env arglist post-specs))
+
+(defn get-env-for-subgoal
+  [defs in-env arglist pre-spec post-specs]
+  (-> in-env
+      (get-env-for-pre-spec-of-subgoal defs arglist pre-spec)
+      (get-env-for-post-spec-of-subgoal defs arglist post-specs)))
