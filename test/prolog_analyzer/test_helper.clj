@@ -61,7 +61,7 @@
 (defmacro arglist [[p & q]]
   (if (empty? q)
     `[(to-spec ~p)]
-    `(concat [(to-spec ~p)] (arglist ~q))
+    `(apply vector (concat [(to-spec ~p)] (arglist ~q)))
     ))
 
 (defmacro spec-to-list [[_ b]]
@@ -80,6 +80,8 @@
   )
 
 (to-spec ("Tuple" [("Compound" "foo" ["Atom" "Integer"])]))
+
+
 
 (defn read-in-file [path]
   (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))

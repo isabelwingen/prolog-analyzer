@@ -362,3 +362,9 @@
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
+
+
+(=
+ (->TupleSpec '((->AtomSpec)))
+ (->TupleSpec [(->AtomSpec)])
+   )

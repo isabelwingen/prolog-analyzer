@@ -105,16 +105,19 @@
         (r/->TupleSpec [(first (first tuple-arglists)) (r/->OneOfSpec (set (map last tuple-arglists)))])
         spec))))
 
-(defn extract-singleton-tuples [{arglist :arglist :as spec}]
+(defn extract-singleton-tuples [{arglist :arglist :as spec} defs initial?]
   (if (and
        (or-spec? spec)
        (not-empty arglist)
        (every? tuple-spec? arglist))
     (if (every? #(= 1 (count (:arglist %))) arglist)
-      (r/->TupleSpec [(r/->OneOfSpec (->> arglist
-                                          (map :arglist)
-                                          (map first)
-                                          set))])
+      (simplify
+       (r/->TupleSpec [(r/->OneOfSpec (->> arglist
+                                           (map :arglist)
+                                           (map first)
+                                           set))])
+       defs
+       initial?)
       (if (every? #(= 2 (count (:arglist %))) arglist)
         (simplify-pair-tuples-in-or spec)
         spec))
@@ -134,7 +137,7 @@
                   remove-error-specs
                   (update :arglist (partial map #(simplify % defs initial?)))
                   (update :arglist set)
-                  extract-singleton-tuples
+                  (extract-singleton-tuples defs initial?)
                   (remove-subsets-in-or defs)
                   remove-error-specs
                   error-if-empty-arglist
@@ -149,10 +152,6 @@
                        (update :arglist (partial map #(simplify % defs initial?)))
                        (update :arglist (partial apply vector))))
          spec))
-
-(simplify (r/->OneOfSpec #{(r/->TupleSpec [(r/->IntegerSpec)])
-                               (r/->TupleSpec [(r/->FloatSpec)])}) {} true)
-
 
 (defn intersect [spec-a spec-b defs initial?]
   (loop [left spec-a
@@ -457,3 +456,14 @@
                                                            (apply vector)))
          (r/USERDEFINED) (if (nil? (:arglist spec)) spec (update spec :arglist #(->> % (map replace-var-with-any) (apply vector))))
          spec))
+
+(defn same? [spec1 spec2]
+  (if (= (r/spec-type spec1) (r/spec-type spec2))
+    (case+ (r/spec-type spec1)
+           r/TUPLE (every? #(apply same? %) (map vector (:arglist spec1) (:arglist spec2)))
+           r/LIST (same? (:type spec1) (:type spec2))
+           r/COMPOUND (and (= (:functor spec1) (:functor spec2)) (every? #(apply same? %) (map vector (:arglist spec1) (:arglist spec2))))
+           (r/OR, r/AND) (= (set (:arglist spec1)) (set (:arglist spec2)))
+           r/EXACT (= (:value spec1) (:value spec2))
+           true)
+    false))

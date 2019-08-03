@@ -34,7 +34,7 @@
 (defmulti next-steps
   (fn [term spec]
     [(if (ru/nonvar-term? term) :nonvar :var)
-     (case+ (r/safe-spec-type spec (str "next-steps" (r/to-string term)))
+     (case+ (r/safe-spec-type spec (str "next-steps"))
             r/TUPLE :tuple
             r/COMPOUND :compound
             r/LIST :list
@@ -154,3 +154,6 @@
 (defn intersect-with-overwrite [defs]
   (fn [current-dom new-dom]
     (ru/intersect (ru/replace-specvars-with-any (or current-dom (r/->AnySpec))) new-dom defs false)))
+
+(defn intersect [defs]
+  #(ru/intersect (or %1 (r/->AnySpec)) %2 defs false))

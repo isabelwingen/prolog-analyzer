@@ -53,7 +53,10 @@
 
 
 (defn get-terms [env]
-  (uber/nodes env))
+  (remove #(= % :environment) (uber/nodes env)))
+
+(defn get-active-post-specs [env]
+  (uber/attr env :environment :post-specs))
 
 (defn get-dom-of-term
   ([env term default] (get-dom-of-term env term))

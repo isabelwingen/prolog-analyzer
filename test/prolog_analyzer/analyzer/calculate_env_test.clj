@@ -1,5 +1,5 @@
-(ns prolog-analyzer.analyzer.env-for-header-test
-  (:require [prolog-analyzer.analyzer.env-for-header :as sut]
+(ns prolog-analyzer.analyzer.calculate-env-test
+  (:require [prolog-analyzer.analyzer.calculate-env :as sut]
             [prolog-analyzer.test-helper :refer [to-term to-spec] :as th]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.record-utils :as ru]
@@ -7,7 +7,7 @@
             [midje.sweet :refer :all]))
 
 (defmacro test-wrapper [header-vars spec]
-  `(utils/env->map (sut/get-env {} {:arglist (apply vector (map to-term ~header-vars))} (to-spec ~spec))))
+  `(utils/env->map (sut/get-env-for-header {} (apply vector (map to-term ~header-vars)) (to-spec ~spec))))
 
 (facts
  "About Lists"
@@ -77,3 +77,6 @@
                      ("Compound" "foo" ["Var" "Atom"])])]))
   => (contains {"A" "Ground"
                 "B" "Atom"})))
+
+(to-spec ("Tuple" [("And" ["Ground"
+                           ("Compound" "foo" ["Var" "Atom"])])]))
