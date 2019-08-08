@@ -13,17 +13,14 @@
 (defn self-calling? [[pred-id clause-number] data]
   (get-in data [:preds pred-id clause-number :self-calling?]))
 
-(defn get-specs-of-pred
-  "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
-  [[module pred-name arity :as pred-identity] data]
-  (let [result (-> data
-                   (select-keys [:pre-specs :post-specs])
-                   (update :pre-specs #(get % pred-identity))
-                   (update :post-specs #(get % pred-identity))
-                   )]
-    (assert (not (nil? (:pre-specs data))) (str "Could not find pre-specs for " pred-identity))
-    (assert (not (nil? (:post-specs data))) (str "Could not find post-specs for " pred-identity))
-    result))
+(defn- default-spec [n]
+  (repeat n (r/->AnySpec)))
+
+(defn get-pre-specs [pred-identity data]
+  (get (:pre-specs data) pred-identity))
+
+(defn get-post-specs [pred-identity data]
+  (get (:post-specs data) pred-identity))
 
 (defn get-pred-identities
   [data]

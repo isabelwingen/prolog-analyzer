@@ -130,8 +130,23 @@
 (defmethod specs-to-map :default [{module :module functor :functor arity :arity arglist :arglist}]
   {[module functor arity] (vector (map transform-spec arglist))})
 
-(defmethod specs-to-map :spec-post [{module :module functor :functor arity :arity prem :premisse conc :conclusion}]
-  {[module functor arity] (vector (vector (map transform-spec prem) (map transform-spec conc)))})
+
+(defn create-guard [guard]
+  (->> guard
+       (map #(update % :type transform-spec))
+       (apply vector)))
+
+(defn create-conclusion [conc]
+  (->> conc
+       (map create-guard)
+       (apply vector)))
+
+(defmethod specs-to-map :spec-post [{module :module functor :functor arity :arity guard :guard conc :conclusion}]
+  (when (nil? guard)
+    (println module functor arity))
+  {[module functor arity]
+   [[(create-guard guard)
+     (create-conclusion conc)]]})
 
 
 (defn- order-specs [specs]
@@ -141,31 +156,10 @@
        (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
        ))
 
-
-(defn- simple-simplify-or [spec]
-  (if (= 1 (count (.arglist spec)))
-    (first (.arglist spec))
-    spec))
-
-(defn- create-post-spec-map [post-specs]
-  (->> post-specs
-       (group-by first)
-       (reduce-kv (fn [m k v] (assoc m k (->> v
-                                             (map second)
-                                             (map (partial apply ru/to-tuple-spec))
-                                             set
-                                             r/->OneOfSpec
-                                             simple-simplify-or
-                                             ))) {})))
-
 (defn order-post-specs [specs]
   (->> specs
        (map specs-to-map)
        (apply merge-with into)
-       (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
-       (reduce-kv (fn [m k v]
-                    (assoc m k (create-post-spec-map v)))
-                  {})
        ))
 
 (defn- order-define-specs [define-specs]

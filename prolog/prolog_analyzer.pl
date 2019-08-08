@@ -361,6 +361,26 @@ spec_to_string(Userdefspec,String) :-
     spec_to_string(Arglist,Inner),
     multi_string_concat(["{:type :userdef :name \"",EdnName,"\" :arglist ",Inner,"}"],String).
 
+guard_format([],"[]") :- !.
+guard_format(L, Res) :-
+    is_list(L), !,
+    maplist(guard_format, L, S),
+    join(", ", S, P),
+    multi_string_concat(["[",P,"]"], Res).
+guard_format(Id:Type, Res) :-
+    !,
+    spec_to_string(Type,S),
+    multi_string_concat(["{:id ", Id, " :type ", S, "}"], Res).
+
+conclusion_or_list([A;B],[A|T]) :-
+    !,
+    conclusion_or_list([B],T).
+conclusion_or_list(X,X).
+
+conclusion_format(Conc, Res) :-
+    conclusion_or_list(Conc, Or),
+    guard_format(Or,Res).
+
 expand(':-'(A,B),Module,Result) :-
     !,
     body_list(B,Body),
@@ -393,9 +413,9 @@ expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,R
     multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
     multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
     my_string_concat(":arity ",Arity,ArityPart),
-    spec_to_string(Arglist1,Premisse),
-    spec_to_string(Arglist2,Conclusion),
-    my_string_concat(":premisse ",Premisse,PremissePart),
+    guard_format(Arglist1,Premisse),
+    conclusion_format(Arglist2,Conclusion),
+    my_string_concat(":guard ",Premisse,PremissePart),
     my_string_concat(":conclusion ",Conclusion,ConclusionPart),
     End = "}}",
     create_map([Start,ModulePart,FunctorPart,ArityPart,PremissePart,ConclusionPart,End],Result).

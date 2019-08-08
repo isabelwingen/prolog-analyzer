@@ -8,9 +8,8 @@
 
 (defn- get-pre-spec [pred-id data]
   (i/simplify
-   (->> (utils/get-specs-of-pred pred-id data)
-        :pre-specs
-                                        ;(map replace-specvars-with-uuid)
+   (->> data
+        (utils/get-pre-specs pred-id)
         (map r/->TupleSpec)
         set
         r/->OneOfSpec)
@@ -22,10 +21,12 @@
 
 
 (defn- subgoal-analyzer [{defs :specs :as data} env {goal-name :goal module :module arity :arity arglist :arglist}]
-  (let [pred-id [module goal-name arity]
-        pre-spec (get-pre-spec pred-id data)
-        post-specs (get-post-specs pred-id data)]
-    (calc/get-env-for-subgoal defs env arglist pre-spec post-specs)))
+  (if (zero? arity)
+    env
+    (let [pred-id [module goal-name arity]
+          pre-spec (get-pre-spec pred-id data)
+          post-specs (get-post-specs pred-id data)]
+      (calc/get-env-for-subgoal defs env arglist pre-spec post-specs))))
 
 (defn- analyze-clause [data {arglist :arglist body :body} pre-spec]
   (reduce

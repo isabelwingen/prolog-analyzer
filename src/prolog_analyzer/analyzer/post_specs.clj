@@ -13,7 +13,7 @@
   (-> postspec
       (update :guard (partial map (partial replace-id-with-arg arglist)))
       (update :guard (partial apply vector))
-      (update :conclusion (partial map (partial replace-id-with-arg arglist)))
+      (update :conclusion (partial map (partial map (partial replace-id-with-arg arglist))))
       (update :conclusion (partial apply vector))
       ))
 
@@ -61,7 +61,7 @@
   (let [res (->> guard-maps
                  (apply merge-with (comp flatten vector))
                  (reduce-kv #(assoc %1 %2 (if (coll? %3) (apply vector %3) [%3])) {})
-                 (reduce-kv #(assoc %1 %2 (ru/simplify (r/->AndSpec %3) defs false)))
+                 (reduce-kv #(assoc %1 %2 (ru/simplify (r/->AndSpec %3) defs false)) {})
                  )]
     (if (some ru/error-spec? (vals res))
       nil
@@ -73,15 +73,30 @@
        (map (partial is-guard-true? defs env))
        (merge-single-guard-values defs)))
 
+(defn complete-conclusion [part arglist]
+  (->> arglist
+       (reduce (fn [p arg] (if (some #(= arg (:arg %)) p) p (conj p {:arg arg :type (r/->AnySpec)}))) part)
+       (reduce #(assoc %1 (:arg %2) (:type %2)) {})))
 
 (defn- create-steps-from-post-spec [{conclusions :conclusion}]
-  (map (juxt :arg :type) conclusions))
+  (let [args (set (mapcat #(map :arg %) conclusions))
+        new-conc (map #(complete-conclusion % args) conclusions)
+        spec (->> new-conc
+                  (map (apply juxt (map #(fn [x] (get x %)) args)))
+                  (map r/->TupleSpec)
+                  set
+                  r/->OneOfSpec
+                  ru/simplify)
+        tuple (apply ru/to-head-tail-list args)]
+    [tuple spec]))
+
+
 
 (defn- create-steps-from-post-specs [& post-specs]
-  (mapcat create-steps-from-post-spec post-specs))
+  (apply vector (map create-steps-from-post-spec post-specs)))
 
-(defn apply-post-specs [env]
+(defn get-next-steps-from-post-specs [env defs]
   (->> env
        get-post-specs
-       (filter (partial is-post-spec-applicable? env))
+       (filter (partial is-post-spec-applicable? defs env))
        (apply create-steps-from-post-specs)))

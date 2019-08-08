@@ -60,7 +60,8 @@
        (map :arglist)
        (map (partial map r/initial-spec))
        (map (partial apply vector))
-       (map (partial vector (apply vector (repeatedly arity r/->AnySpec))))
+       (map (partial vector (->> (range 0 arity)
+                           (map #(hash-map :id % :type (r/->AnySpec))))))
        (apply vector)
        (group-by first)
        (reduce-kv (fn [m k v] (assoc m k (->> v
@@ -78,7 +79,7 @@
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
-      (if (nil? (:pre-specs (utils/get-specs-of-pred pred-id data)))
+      (if (nil? (utils/get-pre-specs pred-id data))
         (recur (rest pred-ids) (assoc-in result [:pre-specs [module pred-name arity]] (create-pre-spec pred-id data)))
         (recur (rest pred-ids) result))
       result)))
@@ -89,8 +90,8 @@
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
-      (if (nil? (:post-specs (utils/get-specs-of-pred pred-id data)))
-        (recur (rest pred-ids) (assoc-in result [:post-specs [module pred-name arity]] (create-post-spec pred-id data)))
+      (if (nil? (utils/get-post-specs pred-id data))
+        (recur (rest pred-ids) (assoc-in result [:post-specs [module pred-name arity]] []))
         (recur (rest pred-ids) result))
       result)))
 

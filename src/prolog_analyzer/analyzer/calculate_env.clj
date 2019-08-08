@@ -92,9 +92,13 @@
 (defn process-edges [env parameters]
   (reduce (partial process-edge parameters) env (uber/edges env)))
 
+(defn process-post-specs [env {defs :defs :as parameters}]
+  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env defs)))
+
 (defn- post-process-step [env parameters]
   (-> env
-      (process-edges parameters)))
+      (process-edges parameters)
+      (process-post-specs parameters)))
 
 (defn- post-process [env {defs :defs :as parameters}]
   (loop [res env]
@@ -102,6 +106,8 @@
       (if (utils/same? next res)
         res
         (recur next)))))
+
+
 
 (defn get-env-for-header
   "Calculates an environment from the header terms and the prespec"
@@ -124,7 +130,11 @@
 
 (defn- get-env-for-post-spec-of-subgoal
   [in-env defs arglist post-specs]
-  (post-specs/register-post-specs in-env arglist post-specs))
+  (let [parameters {:defs defs :initial false :overwrite true}]
+    (-> in-env
+        (post-specs/register-post-specs arglist post-specs)
+        dom/add-structural-edges
+        (post-process parameters))))
 
 (defn get-env-for-subgoal
   [defs in-env arglist pre-spec post-specs]
