@@ -2,42 +2,42 @@
 :- use_module(annotations,[spec_pre/2, spec_post/3, declare_spec/1, define_spec/2]).
 
 :- spec_pre(user:acyclic_term/1, [any]).
-%% :- spec_post(user:acyclic_term/1, [any], [any]).
+:- spec_post(user:acyclic_term/1, [], [[0:any]]).
 
 :- spec_pre(user:atom/1, [any]).
-%% :- spec_post(user:atom/1, [any], [atom]).
+:- spec_post(user:atom/1, [], [[0:atom]]).
 
 :- spec_pre(user:atomic/1, [any]).
-%% :- spec_post(user:atomic/1, [any], [atomic]).
+:- spec_post(user:atomic/1, [], [[0:atomic]]).
 
 :- declare_spec(callable).
 
 :- define_spec(callable, one_of([compound, atom])).
 
 :- spec_pre(user:callable/1, [any]).
-%% :- spec_post(user:callable/1, [any], [callable]).
+:- spec_post(user:callable/1, [], [[0:callable]]).
 
 
 :- spec_pre(user:compound/1, [any]).
-%% :- spec_post(user:compound/1, [any], [compound]).
+:- spec_post(user:compound/1, [], [[0:compound]]).
 
 :- spec_pre(user:float/1, [any]).
-%% :- spec_post(user:float/1, [any], [float]).
+:- spec_post(user:float/1, [], [[0:float]]).
 
 :- spec_pre(user:ground/1, [any]).
-%% :- spec_post(user:ground/1, [any], [ground]).
+:- spec_post(user:ground/1, [], [[0:ground]]).
 
 :- spec_pre(user:integer/1, [any]).
-%% :- spec_post(user:integer/1, [any], [integer]).
+:- spec_post(user:integer/1, [any], [[0:integer]]).
 
 :- spec_pre(user:number/1, [any]).
-%% :- spec_post(user:number/1, [any], [number]).
+:- spec_post(user:number/1, [], [[0:number]]).
 
 :- spec_pre(user:nonvar/1, [any]).
-%% :- spec_post(user:nonvar/1, [any], [nonvar]).
+:- spec_post(user:nonvar/1, [], [[0:nonvar]]).
 
 :- spec_pre(user:var/1, [any]).
-%% :- spec_post(user:var/1, [any], [var]).
+:- spec_post(user:var/1, [any], [[0:var]]).
 
 
 :- declare_spec(maybe(specvar(_X))).
@@ -46,33 +46,33 @@
 :- spec_pre(user:atom_chars/2, [atom, list(atom)]).
 :- spec_pre(user:atom_chars/2, [atom, var]).
 :- spec_pre(user:atom_chars/2, [var, list(atom)]).
-%% :- spec_post(user:atom_chars/2, [any, any], [atom, list(atom)]).
+:- spec_post(user:atom_chars/2, [], [[0:atom, 1:list(atom)]]).
 
 :- spec_pre(user:atom_codes/2, [atom, list(int)]).
 :- spec_pre(user:atom_codes/2, [atom, var]).
 :- spec_pre(user:atom_codes/2, [var, list(int)]).
-%% :- spec_post(user:atom_codes/2, [any, any], [atom, list(int)]).
+:- spec_post(user:atom_codes/2, [], [[0:atom, 1:list(int)]]).
 
 :- spec_pre(user:atom_concat/3, [var, atom, atom]).
 :- spec_pre(user:atom_concat/3, [atom, var, atom]).
 :- spec_pre(user:atom_concat/3, [atom, atom, atom]).
 :- spec_pre(user:atom_concat/3, [var, var, atom]).
 :- spec_pre(user:atom_concat/3, [atom, atom, var]).
-%% :- spec_post(user:atom_concat/3, [any, any, any], [atom, atom, atom]).
+:- spec_post(user:atom_concat/3, [], [[0:atom, 1:atom, 2:atom]]).
 
 :- spec_pre(user:atom_length/2, [atom, int]).
 :- spec_pre(user:atom_length/2, [atom, var]).
-%% :- spec_post(user:atom_length/2, [any, any], [atom, int]).
+:- spec_post(user:atom_length/2, [], [[0:atom, 1:int]]).
 
 :- spec_pre(user:number_chars/2, [int, list(atom)]).
 :- spec_pre(user:number_chars/2, [int, var]).
 :- spec_pre(user:number_chars/2, [var, list(atom)]).
-%% :- spec_post(user:number_chars/2, [any, any], [int, list(atom)]).
+:- spec_post(user:number_chars/2, [], [[0:int, 1:list(atom)]]).
 
 :- spec_pre(user:number_codes/2, [int, list(int)]).
 :- spec_pre(user:number_codes/2, [int, var]).
 :- spec_pre(user:number_codes/2, [var, list(int)]).
-%% :- spec_post(user:number_codes/2, [any, any], [int, list(int)]).
+:- spec_post(user:number_codes/2, [], [[0:int, 1:list(int)]]).
 
 :- spec_pre(user:halt/1, [int]).
 % no spec_post

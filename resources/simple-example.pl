@@ -9,12 +9,8 @@ mmember(E,[_|T]) :-
 
 
 foo(X, Y) :-
-    a(X),
+    atom(X),
     bar(X, Y).
-
-:- spec_pre(a/1, [any]).
-:- spec_post(a/1, [], [[0:atom]]).
-a(X).
 
 :- spec_pre(bar/2, [int, atom]).
 :- spec_pre(bar/2, [atom, int]).
