@@ -17,7 +17,9 @@
    true))
 
 (defn- get-post-specs [pred-id data]
-  [])
+  (if-let [pss (utils/get-post-specs pred-id data)]
+    pss
+    []))
 
 
 (defn- subgoal-analyzer [{defs :specs :as data} env {goal-name :goal module :module arity :arity arglist :arglist}]

@@ -23,7 +23,9 @@
  (fact
   (register-post-specs [:a :b :c] [{:guard [{:id 0 :type :x} {:id 1 :type :y}] :conclusion [[{:id 2 :type :z}], [{:id 2 :type :x}]]}
                                    {:guard [{:id 2 :type :p}] :conclusion [[{:id 0 :type :q} {:id 1 :type :q}]]}])
-  => (contains [{:conclusion [[{:arg :c :type :z}], {:arg :c :type :x}] :guard [{:arg :a :type :x} {:arg :b :type :y}]}
+
+
+  => (contains [{:conclusion [[{:arg :c :type :z}], [{:arg :c :type :x}]] :guard [{:arg :a :type :x} {:arg :b :type :y}]}
                 {:conclusion [[{:arg :a :type :q} {:arg :b :type :q}]] :guard [{:arg :c :type :p}]}])))
 
 
@@ -44,14 +46,36 @@
    [(r/->VarTerm "X") (r/->VarTerm "Y") (r/->VarTerm "Z")]
    [(r/->AtomSpec) (r/->AnySpec) (r/->AnySpec)]
    [{:guard [{:id 0 :type (r/->AtomSpec)}] :conclusion [[{:id 1 :type (r/->FloatSpec)}], [{:id 1 :type (r/->IntegerSpec)} {:id 2 :type (r/->AtomSpec)}]]}])
-  => (contains {"Y" "Integer"
-                "Z" "Atom"}))
+  => (contains {"[Z, Y]" "OneOf(Tuple(Any, Float), Tuple(Atom, Integer))"}))
  (fact
   (test-wrapper
    [(r/->VarTerm "X") (r/->VarTerm "Y")]
    [(r/->AtomSpec) (r/->AnySpec)]
    [{:guard [{:id 0 :type (r/->PlaceholderSpec "A")}] :conclusion [[{:id 1 :type (r/->PlaceholderSpec "A")}]]}])
-  => (contains {"Y" "Atom"}))
+  => (contains {"[Y]" "Tuple(Atom)"}))
 
 
  )
+
+(defn test-guard-true [term actual-type guard-type exact?]
+  (sut/is-guard-true?
+   {}
+   (-> (uber/digraph) (uber/add-nodes-with-attrs [term {:dom actual-type}]))
+   {:arg term :type guard-type :exact exact?}))
+
+(facts
+ "About is-guard-true?"
+ (fact
+  "Simple Specs"
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->NumberSpec) false) => {}
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->NumberSpec) true) => nil
+  )
+ (fact
+  "Any"
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->AnySpec) false) => {}
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->AnySpec) true) => nil)
+ (fact
+  "With Placeholder"
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->PlaceholderSpec "A") true) => (contains {"A" (r/->IntegerSpec)})
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->PlaceholderSpec "A") true) => (contains {"A" (r/->IntegerSpec)})
+  ))

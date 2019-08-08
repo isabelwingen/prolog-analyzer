@@ -145,8 +145,8 @@
   (when (nil? guard)
     (println module functor arity))
   {[module functor arity]
-   [[(create-guard guard)
-     (create-conclusion conc)]]})
+   [{:guard (create-guard guard)
+     :conclusion (create-conclusion conc)}]})
 
 
 (defn- order-specs [specs]

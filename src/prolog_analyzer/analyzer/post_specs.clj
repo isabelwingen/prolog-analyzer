@@ -50,22 +50,33 @@
       nil
       map)))
 
-(defn- is-guard-true? [defs env {arg :arg type :type exact? :exact}]
-  (if (ru/contains-placeholder? type)
-    (match-guard-with-type defs type (utils/get-dom-of-term env arg) exact?)
-    (if (ru/same? type (utils/get-dom-of-term env arg))
+(defmulti is-guard-true? (fn [_ _ {exact? :exact}] exact?))
+
+(defmethod is-guard-true? true [defs env {arg :arg guard-type :type}]
+  (if (ru/contains-placeholder? guard-type)
+    (match-guard-with-type defs guard-type (utils/get-dom-of-term env arg) true)
+    (if (ru/same? guard-type (utils/get-dom-of-term env arg))
       {}
       nil)))
+
+(defmethod is-guard-true? :default [defs env {arg :arg guard-type :type}]
+  (let [actual-type (utils/get-dom-of-term env arg)]
+    (if (ru/contains-placeholder? guard-type)
+      (match-guard-with-type defs guard-type actual-type false)
+      (if (ru/same? actual-type (ru/intersect actual-type guard-type defs false))
+        {}
+        nil))))
 
 (defn- merge-single-guard-values [defs guard-maps]
   (let [res (->> guard-maps
                  (apply merge-with (comp flatten vector))
-                 (reduce-kv #(assoc %1 %2 (if (coll? %3) (apply vector %3) [%3])) {})
+                 (reduce-kv #(assoc %1 %2 (if (seq? %3) (apply vector %3) [%3])) {})
                  (reduce-kv #(assoc %1 %2 (ru/simplify (r/->AndSpec %3) defs false)) {})
                  )]
     (if (some ru/error-spec? (vals res))
       nil
       res)))
+
 
 
 (defn- is-post-spec-applicable? [defs env {guards :guard}]
@@ -78,7 +89,7 @@
        (reduce (fn [p arg] (if (some #(= arg (:arg %)) p) p (conj p {:arg arg :type (r/->AnySpec)}))) part)
        (reduce #(assoc %1 (:arg %2) (:type %2)) {})))
 
-(defn- create-steps-from-post-spec [{conclusions :conclusion}]
+(defn- create-step-from-post-spec [{conclusions :conclusion} alias-map]
   (let [args (set (mapcat #(map :arg %) conclusions))
         new-conc (map #(complete-conclusion % args) conclusions)
         spec (->> new-conc
@@ -86,17 +97,21 @@
                   (map r/->TupleSpec)
                   set
                   r/->OneOfSpec
-                  ru/simplify)
+                  ru/simplify
+                  (ru/replace-placeholder-with-alias alias-map))
         tuple (apply ru/to-head-tail-list args)]
     [tuple spec]))
 
 
 
-(defn- create-steps-from-post-specs [& post-specs]
-  (apply vector (map create-steps-from-post-spec post-specs)))
+(defn create-steps [postspecs alias-maps]
+  (->> alias-maps
+       (map vector postspecs)
+       (remove #(nil? (second %)))
+       (map (fn [[a b]] (create-step-from-post-spec a b)))
+       (apply vector)))
 
 (defn get-next-steps-from-post-specs [env defs]
-  (->> env
-       get-post-specs
-       (filter (partial is-post-spec-applicable? defs env))
-       (apply create-steps-from-post-specs)))
+  (let [post-specs (get-post-specs env)
+        alias-maps (map (partial is-post-spec-applicable? defs env) post-specs)]
+    (create-steps post-specs alias-maps)))
