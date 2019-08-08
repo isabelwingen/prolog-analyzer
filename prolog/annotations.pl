@@ -49,8 +49,6 @@ spec(ground).
 spec(nonvar).
 spec(any).
 spec(specvar(X)) :- var(X),!.
-spec(compatible(X)) :- var(X),!.
-spec(union(X)) :- var(X),!.
 
 % Definition of spec predicates
 spec(atomic).

@@ -143,11 +143,13 @@
 
 (defn pre-process-single [data]
   (println (pr-str "Start Pre Process Single"))
-  (-> data
-      mark-self-calling-clauses
-      transform-singleton-lists
-      transform-args-to-term-records
-      add-any-pre-specs
-      add-any-post-specs
-      set-correct-modules
-      ))
+  (let [p (-> data
+              mark-self-calling-clauses
+              transform-singleton-lists
+              transform-args-to-term-records
+              add-any-pre-specs
+              add-any-post-specs
+              set-correct-modules
+              )]
+    (println (pr-str "Done Pre Process Single"))
+    p))

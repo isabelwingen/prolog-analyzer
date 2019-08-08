@@ -15,16 +15,21 @@
 
 (defn parse-tmp [s]
   (spit PATH (str PREAMBLE s))
- ; (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" PATH)
+  (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" PATH)
   )
 
-(parse-tmp "foo(_).")
 
-;(parse PATH)
 
-#_(facts
+(facts
  "Simple Example"
  (fact "First Example"
        (utils/env->map (nth (sut/complete-analysis (parse "resources/simple-example.pl")) 2))
        => (contains {"X" "Atom"
                      "Y" "Integer"})))
+
+
+(facts
+ "Check Built-Ins"
+ (fact "Placeholder in sort"
+       (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- sort([1,2,a], X)."))))
+       => (contains {"X" "List(OneOf(atom, int))"})))

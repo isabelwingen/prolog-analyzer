@@ -326,10 +326,6 @@
                                 [r/PLACEHOLDER :idclol] (-> left
                                                             (update :alias #(or % (r/->AnySpec)))
                                                             (update :alias intersect right defs initial?))
-
-                                [r/UNION :idclol] right
-                                [r/COMPATIBLE :idclol] right
-
                                 [r/ERROR :idclol] left
 
 
@@ -357,8 +353,7 @@
 
 (defn replace-specvar-name-with-value [spec specvar-name replace-value]
   (case+ (r/safe-spec-type spec "replace-with-value")
-         (r/SPECVAR,r/UNION,r/COMPATIBLE)
-         (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
+         r/SPECVAR (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
          (r/OR,r/AND) (-> spec
                       (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))

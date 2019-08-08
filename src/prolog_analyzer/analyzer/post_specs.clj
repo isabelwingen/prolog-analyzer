@@ -41,7 +41,7 @@
         placeholders (ru/find-placeholders (ru/intersect guard-type actual-type defs false))
         map (->> placeholders
                  (group-by :name)
-                 (mapcat (fn [[k v]] [k (map :alias v)]))
+                 (mapcat (fn [[k v]] [k (map #(or (:alias %) (r/->AnySpec)) v)]))
                  (apply hash-map)
                  (reduce-kv #(assoc %1 %2 (merge-fn %3)) {}))]
     (if (or

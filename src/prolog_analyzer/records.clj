@@ -22,8 +22,6 @@
 
 (def USERDEFINED :user-defined)
 (def SPECVAR :specvar)
-(def UNION :union)
-(def COMPATIBLE :compatible)
 (def ERROR :error)
 
 (def AND :and)
@@ -183,18 +181,6 @@
   (spec-type [spec] NONVAR)
   printable
   (to-string [x] "Nonvar"))
-
-(defrecord UnionSpec [name]
-  spec
-  (spec-type [spec] UNION)
-  printable
-  (to-string [x] (str "Union(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
-
-(defrecord CompatibleSpec [name]
-  spec
-  (spec-type [spec] COMPATIBLE)
-  printable
-  (to-string [x] (str "Compatible(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
 
 (defrecord PlaceholderSpec [name]
   spec

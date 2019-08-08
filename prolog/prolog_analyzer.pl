@@ -342,16 +342,10 @@ spec_to_string(specvar(X),String) :-
     !,
     spec_to_string(X,Inner),
     multi_string_concat(["{:type :specvar :name \"",Inner,"\"}"],String).
-spec_to_string(compatible(X),String) :-
+spec_to_string(placeholder(X),String) :-
     !,
-    spec_to_string(X,Inner),
-    multi_string_concat(["{:type :compatible :name \"",Inner,"\"}"],String).
-
-spec_to_string(union(X),String) :-
-    !,
-    spec_to_string(X,Inner),
-    multi_string_concat(["{:type :union :name \"",Inner,"\"}"],String).
-
+    ednify_atom(X,Inner),
+    multi_string_concat(["{:type :placeholder :name \"",Inner,"\"}"],String).
 
 
 spec_to_string(Userdefspec,String) :-
