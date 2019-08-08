@@ -90,8 +90,8 @@
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
-      (if (nil? (utils/get-post-specs pred-id data))
-        (recur (rest pred-ids) (assoc-in result [:post-specs [module pred-name arity]] []))
+      (if (nil? (utils/get-post-specs pred-id result))
+        (recur (rest pred-ids) (assoc-in result [:post-specs pred-id] []))
         (recur (rest pred-ids) result))
       result)))
 

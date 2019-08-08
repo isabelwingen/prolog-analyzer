@@ -5,11 +5,24 @@
             [midje.sweet :refer :all]))
 
 
+(def PATH "resources/test.tmp")
+
+(def PREAMBLE ":- module(tmp,[]).\n:- use_module('../prolog/annotations',[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).\n\n\n" )
+
 
 (defn parse [path]
   (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))
 
-(facts
+(defn parse-tmp [s]
+  (spit PATH (str PREAMBLE s))
+ ; (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" PATH)
+  )
+
+(parse-tmp "foo(_).")
+
+;(parse PATH)
+
+#_(facts
  "Simple Example"
  (fact "First Example"
        (utils/env->map (nth (sut/complete-analysis (parse "resources/simple-example.pl")) 2))
