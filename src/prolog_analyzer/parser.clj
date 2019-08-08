@@ -111,12 +111,8 @@
 (defmethod transform-spec :specvar [{n :name}]
   (r/->SpecvarSpec n))
 
-(defmethod transform-spec :union [{n :name}]
-  (r/->UnionSpec n))
-
-(defmethod transform-spec :compatible [{n :name}]
-  (r/->CompatibleSpec n))
-
+(defmethod transform-spec :placeholder [{n :name}]
+  (r/->PlaceholderSpec n))
 
 (defmethod transform-spec :userdef [{n :name arglist :arglist}]
   (assoc (r/->UserDefinedSpec n) :arglist (map transform-spec arglist)))
@@ -247,19 +243,20 @@
 
 (defn- format-and-clean-up [data]
   (println (pr-str "Start formatting of edn"))
-  (-> data
-      (group-by-and-apply :type (partial map :content))
-      (update :define-spec order-define-specs)
-      clean-up-spec-definitions
-      (update :pre-spec order-specs)
-      (update :post-spec order-post-specs)
-      (update :inv-spec order-specs)
-      (update :pred order-preds)
-      (update :module order-modules)
-      (update :singletons order-singletons)
-      order-imports
-      (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :inv-spec :inv-specs :pred :preds})
-      ))
+  (let [p (-> data
+              (group-by-and-apply :type (partial map :content))
+              (update :define-spec order-define-specs)
+              clean-up-spec-definitions
+              (update :pre-spec order-specs)
+              (update :post-spec order-post-specs)
+              (update :pred order-preds)
+              (update :module order-modules)
+              (update :singletons order-singletons)
+              order-imports
+              (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :pred :preds})
+              )]
+    (println (pr-str "Done formatting of edn"))
+    p))
 
 (defn add-built-ins [data]
   (let [built-in-edn (get-edn-file-name "prolog/builtins.pl")]
