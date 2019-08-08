@@ -35,6 +35,9 @@
       (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
       ))
 
+(defn empty-list-term? [term]
+  (= r/EMPTYLIST (r/term-type term)))
+
 (defn tuple-spec? [spec]
   (= r/TUPLE (r/safe-spec-type spec "tuple-spec?")))
 

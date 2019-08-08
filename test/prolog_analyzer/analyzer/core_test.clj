@@ -32,4 +32,4 @@
  "Check Built-Ins"
  (fact "Placeholder in sort"
        (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- sort([1,2,a], X)."))))
-       => (contains {"X" "List(OneOf(atom, int))"})))
+       => (contains {"X" "List(OneOf(Integer, Atom))"})))

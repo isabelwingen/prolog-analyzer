@@ -36,13 +36,18 @@
            term-dom
            nil)))
 
+(defn- singleton-list? [term]
+  (and (ru/empty-list-term? (ru/tail term))))
+
 (defmethod process-edge :is-head [parameters env edge]
   (let [head (uber/src edge)
         term (uber/dest edge)
         head-dom (utils/get-dom-of-term env head)
         term-dom (utils/get-dom-of-term env term)
         filtered-dom (compatible-with-head parameters head-dom term-dom)]
-    (add-to-dom env term (or filtered-dom (r/DISJOINT)) parameters)))
+    (if (singleton-list? term)
+      (add-to-dom env term (r/->TupleSpec [head-dom]) parameters)
+      (add-to-dom env term (or filtered-dom (r/DISJOINT)) parameters))))
 
 (defn get-matching-head [pair-id env]
   (let [head (some->> env
