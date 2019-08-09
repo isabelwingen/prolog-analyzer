@@ -38,7 +38,7 @@
   (let [merge-fn (if exact?
                    #(ru/simplify (r/->AndSpec %) defs false)
                    #(ru/simplify (r/->OneOfSpec %) defs false))
-        placeholders (ru/find-placeholders (ru/intersect guard-type actual-type defs false))
+        placeholders (ru/find-placeholders defs (ru/intersect guard-type actual-type defs false))
         map (->> placeholders
                  (group-by :name)
                  (mapcat (fn [[k v]] [k (map #(or (:alias %) (r/->AnySpec)) v)]))
@@ -89,7 +89,7 @@
        (reduce (fn [p arg] (if (some #(= arg (:arg %)) p) p (conj p {:arg arg :type (r/->AnySpec)}))) part)
        (reduce #(assoc %1 (:arg %2) (:type %2)) {})))
 
-(defn- create-step-from-post-spec [{conclusions :conclusion} alias-map]
+(defn- create-step-from-post-spec [defs {conclusions :conclusion} alias-map]
   (let [args (set (mapcat #(map :arg %) conclusions))
         new-conc (map #(complete-conclusion % args) conclusions)
         spec (->> new-conc
@@ -98,20 +98,20 @@
                   set
                   r/->OneOfSpec
                   ru/simplify
-                  (ru/replace-placeholder-with-alias alias-map))
+                  (ru/replace-placeholder-with-alias defs alias-map))
         tuple (apply ru/to-head-tail-list args)]
     [tuple spec]))
 
 
 
-(defn create-steps [postspecs alias-maps]
+(defn create-steps [defs postspecs alias-maps]
   (->> alias-maps
        (map vector postspecs)
        (remove #(nil? (second %)))
-       (map (fn [[a b]] (create-step-from-post-spec a b)))
+       (map (fn [[a b]] (create-step-from-post-spec defs a b)))
        (apply vector)))
 
 (defn get-next-steps-from-post-specs [env defs]
   (let [post-specs (get-post-specs env)
         alias-maps (map (partial is-post-spec-applicable? defs env) post-specs)]
-    (create-steps post-specs alias-maps)))
+    (create-steps defs post-specs alias-maps)))

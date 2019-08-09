@@ -377,7 +377,8 @@
 % no spec post
 
 :- spec_pre(user:member/2, [any, maybe(list(any))]).
-%% :- spec_post(user:member/2, [], [[?,?]]).
+:- spec_post(user:member/2, [1:list(placeholder(a))], [[0:placeholder(a)]]).
+:- spec_post(user:member/2, [0:placeholder(a)], [[1:list(placeholder(b,super(a)))]]).
 
 %    11.3.56 current_prolog_flag/2   ISO
 %    11.3.206 set_prolog_flag/2   ISO
@@ -405,7 +406,7 @@
 :- define_spec(ordset(specvar(X)), list(specvar(X))). %% TODO: this would make a great deferred spec
 
 :- spec_pre(user:length/2, [maybe(list(any)), maybe(int)]).
-%% :- spec_post(user:length/2, [any, any], [list(any), int]).
+:- spec_post(user:length/2, [], [[0:list(any), 1:int]]).
 
 :- spec_pre(user:is_list/1, [any]).
 %% :- spec_post(user:is_list/1, [any], [list(any)]).
@@ -419,13 +420,14 @@
                                         %% compatible(Y)]).
 
 :- spec_pre(user:append/3,  [maybe(list(any)), maybe(list(any)), maybe(list(any))]).
-%% :- spec_post(user:append/3, [any,any,any], [list(union(X)), list(union(X)), list(compatible(X))]).
+:- spec_post(user:append/3, [0:list(placeholder(a)), 1:list(placeholder(b))], [[2:list(one_of(placeholder(a), placeholder(b)))]]).
+:- spec_post(user:append/3, [2:list(placeholder(a))], [[0:list(placeholder(a)), 1:list(placeholder(a))]]).
 
 :- spec_pre(lists:append/2,  [list(list(any)), maybe(list(any))]).
 %% :- spec_post(lists:append/2,  [any, any], [list(list(union(X))), list(compatible(X))]).
 
 :- spec_pre(lists:flatten/2,  [list(list(any)), maybe(list(any))]).
-%% :- spec_post(lists:flatten/2,  [any, any], [list(list(any)), list(any)]).
+:- spec_post(lists:flatten/2,  [0:list(list(placeholder(a)))], [[1:list(placeholder(a))]]).
 
 :- spec_pre(lists:prefix/2,  [maybe(list(any)), maybe(list(any))]).
 %% :- spec_post(lists:prefix/2, [any,any], [list(union(X)), list(union(X))]).

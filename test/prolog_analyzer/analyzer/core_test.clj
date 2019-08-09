@@ -32,4 +32,11 @@
  "Check Built-Ins"
  (fact "Placeholder in sort"
        (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- sort([1,2,a], X)."))))
-       => (contains {"X" "List(OneOf(Integer, Atom))"})))
+       => (contains {"X" "List(OneOf(Integer, Atom))"}))
+ (fact "Placeholder in member"
+       (utils/env->map (first (sut/complete-analysis (parse-tmp "foo :- member(1,[a,b,c])."))))
+       => (contains {"1" "ERROR: No valid intersection of Atom and Integer"})
+
+       (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- member(X,[a,b,2])."))))
+       => (contains {"X" "OneOf(Integer, Atom)"})
+       ))

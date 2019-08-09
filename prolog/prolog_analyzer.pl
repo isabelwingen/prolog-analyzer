@@ -346,6 +346,12 @@ spec_to_string(placeholder(X),String) :-
     !,
     ednify_atom(X,Inner),
     multi_string_concat(["{:type :placeholder :name \"",Inner,"\"}"],String).
+spec_to_string(placeholder(X,super(Y)),String) :-
+    !,
+    ednify_atom(X,Inner),
+    ednify_atom(Y,Sub),
+    multi_string_concat(["{:type :placeholder :name \"",Inner,"\" :super-of \"",Sub,"\"}"],String).
+
 
 
 spec_to_string(Userdefspec,String) :-

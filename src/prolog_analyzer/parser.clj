@@ -111,8 +111,10 @@
 (defmethod transform-spec :specvar [{n :name}]
   (r/->SpecvarSpec n))
 
-(defmethod transform-spec :placeholder [{n :name}]
-  (r/->PlaceholderSpec n))
+(defmethod transform-spec :placeholder [{n :name super-of :super-of :as a}]
+  (if (nil? super-of)
+    (r/->PlaceholderSpec n)
+    (assoc (r/->PlaceholderSpec n) :super-of super-of)))
 
 (defmethod transform-spec :userdef [{n :name arglist :arglist}]
   (assoc (r/->UserDefinedSpec n) :arglist (map transform-spec arglist)))

@@ -56,6 +56,21 @@
 
 (declare replace-specvars-with-spec)
 
+(defn replace-specvars-with-spec [type specvar-name replace-spec]
+  (case+ (r/spec-type type)
+         r/SPECVAR (if (= specvar-name (:name type)) replace-spec type)
+
+         (r/OR,r/AND) (-> type
+                      (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+                      (update :arglist set))
+
+         (r/USERDEFINED, r/COMPOUND, r/TUPLE) (-> type
+                                            (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
+                                            (update :arglist (partial apply vector)))
+         r/LIST (update type :type #(replace-specvars-with-spec % specvar-name replace-spec))
+         type
+         ))
+
 (defn resolve-definition-with-parameters
   "User-defined specs can have parameters and when in use in spec annotations,
   there are values assigned to these parameters. To get the correct definition,
@@ -388,31 +403,31 @@
        (reduce #(assoc %1 (:name %2) (:alias %2)) {})
        ))
 
-(defn replace-alias [replace-map placeholder-spec]
+(defn replace-alias [defs replace-map placeholder-spec]
   (if (contains? placeholder-spec :alias)
-    (update placeholder-spec :alias (partial replace-placeholder-with-alias replace-map))
+    (update placeholder-spec :alias (partial replace-placeholder-with-alias defs replace-map))
     placeholder-spec))
 
-(defn simplify-placeholders [placeholders]
+(defn simplify-placeholders [defs placeholders]
   (let [replace-map (create-replace-map placeholders)]
     (if (->> placeholders
              (map :alias)
              (remove nil?)
              (some contains-placeholder?))
-      (simplify-placeholders (map (partial replace-alias replace-map) placeholders))
+      (simplify-placeholders defs (map (partial replace-alias defs replace-map) placeholders))
       placeholders)))
 
-(defn find-placeholders [spec]
+(defn find-placeholders [defs spec]
   (let [placeholders (case+ (r/safe-spec-type spec "Find Placeholders")
-                            r/PLACEHOLDER (if (contains-placeholder? (or (:alias spec) (r/->AnySpec))) (conj (find-placeholders (:alias spec)) spec) [spec])
-                            (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat find-placeholders (.arglist spec)))
-                            r/USERDEFINED (if (contains? spec :arglist) (set (mapcat find-placeholders (:arglist spec))) [])
-                            r/LIST (find-placeholders (.type spec))
+                            r/PLACEHOLDER (if (contains-placeholder? (or (:alias spec) (r/->AnySpec))) (conj (find-placeholders defs (:alias spec)) spec) [spec])
+                            (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat (partial find-placeholders defs) (.arglist spec)))
+                            r/USERDEFINED (if (contains? spec :arglist) (set (mapcat (partial find-placeholders defs) (:arglist spec))) [])
+                            r/LIST (find-placeholders defs (.type spec))
                             [])]
     (->> placeholders
          set
          pack-together
-         simplify-placeholders
+         (simplify-placeholders defs)
          set)))
 
 (defn contains-placeholder? [spec]
@@ -423,22 +438,31 @@
          r/LIST (contains-placeholder? (:type spec))
          false))
 
+(defn- compatible [defs super sub]
+  (if (error-spec? (intersect super sub defs false))
+    (r/->ErrorSpec (str "Placeholder was not compatible"))
+    super))
 
-(defn replace-placeholder-with-alias [alias-map spec]
+(defn- fill-placeholder [defs {super-of :super-of n :name :as spec} alias-map]
+  (if (nil? super-of)
+    (get alias-map n (r/->AnySpec))
+    (compatible defs (get alias-map n (r/->AnySpec)) (get alias-map super-of (r/->AnySpec)))))
+
+(defn replace-placeholder-with-alias [defs alias-map spec]
   (case+ (r/safe-spec-type spec "Replace Placeholder")
-         r/PLACEHOLDER (get alias-map (:name spec) spec)
+         r/PLACEHOLDER (fill-placeholder defs spec alias-map)
          (r/OR, r/AND) (-> spec
-                           (update :arglist (partial map (partial replace-placeholder-with-alias alias-map)))
+                           (update :arglist (partial map (partial replace-placeholder-with-alias defs alias-map)))
                            (update :arglist set))
          (r/COMPOUND, r/TUPLE) (-> spec
-                                   (update :arglist (partial map (partial replace-placeholder-with-alias alias-map)))
+                                   (update :arglist (partial map (partial replace-placeholder-with-alias defs alias-map)))
                                    (update :arglist (partial apply vector)))
          r/USERDEFINED (if (contains? spec :arglist)
                          (-> spec
-                             (update :arglist (partial map (partial replace-placeholder-with-alias alias-map)))
+                             (update :arglist (partial map (partial replace-placeholder-with-alias defs alias-map)))
                              (update :arglist (partial apply vector)))
                          spec)
-         r/LIST (update spec :type (partial replace-placeholder-with-alias alias-map))
+         r/LIST (update spec :type (partial replace-placeholder-with-alias defs alias-map))
          spec
          ))
 
