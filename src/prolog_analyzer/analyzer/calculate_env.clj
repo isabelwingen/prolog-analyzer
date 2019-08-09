@@ -7,32 +7,32 @@
             [ubergraph.core :as uber]
             [prolog-analyzer.analyzer.post-specs :as post-specs]))
 
-(defn add-to-dom [env term spec {defs :defs initial? :initial overwrite? :overwrite}]
+(defn add-to-dom [env term spec {initial? :initial overwrite? :overwrite}]
   (if overwrite?
-    (dom/add-to-dom env (dom/intersect-with-overwrite defs) term spec)
+    (dom/add-to-dom env dom/intersect-with-overwrite term spec)
     (if initial?
-      (dom/add-to-dom env (dom/intersect-with-initial defs) term spec)
-      (dom/add-to-dom env (dom/intersect defs) term spec))))
+      (dom/add-to-dom env dom/intersect-with-initial term spec)
+      (dom/add-to-dom env dom/intersect term spec))))
 
 (defmulti process-edge (fn [_ env edge] (uber/attr env edge :relation)))
 
-(defn- compatible-with-head [{defs :defs initial? :initial :as parameters} head-dom term-dom]
+(defn- compatible-with-head [{initial? :initial :as parameters} head-dom term-dom]
   (case+ (r/safe-spec-type term-dom "compatible-with-head")
          r/TUPLE (let [new-dom (update term-dom :arglist #(assoc % 0 head-dom))]
-                   (if (ru/non-empty-intersection new-dom term-dom defs initial?)
+                   (if (ru/non-empty-intersection new-dom term-dom initial?)
                      new-dom
                      nil))
          r/OR (let [new-dom (-> term-dom
                                 (update :arglist (partial filter (partial compatible-with-head parameters head-dom)))
                                 (update :arglist set)
-                                (ru/simplify defs initial?))]
-                (if (ru/non-empty-intersection new-dom term-dom defs initial?)
+                                (ru/simplify initial?))]
+                (if (ru/non-empty-intersection new-dom term-dom initial?)
                   new-dom
                   nil))
-         r/LIST (if (ru/non-empty-intersection head-dom (:type term-dom) defs initial?)
+         r/LIST (if (ru/non-empty-intersection head-dom (:type term-dom) initial?)
                   term-dom
                   nil)
-         (if (ru/non-empty-intersection (r/->ListSpec head-dom) term-dom defs initial?)
+         (if (ru/non-empty-intersection (r/->ListSpec head-dom) term-dom initial?)
            term-dom
            nil)))
 
@@ -97,27 +97,25 @@
 (defn process-edges [env parameters]
   (reduce (partial process-edge parameters) env (uber/edges env)))
 
-(defn process-post-specs [env {defs :defs :as parameters}]
-  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env defs)))
+(defn process-post-specs [env parameters]
+  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
 
 (defn- post-process-step [env parameters]
   (-> env
       (process-edges parameters)
       (process-post-specs parameters)))
 
-(defn- post-process [env {defs :defs :as parameters}]
+(defn- post-process [env parameters]
   (loop [res env]
     (let [next (post-process-step res parameters)]
       (if (utils/same? next res)
         res
         (recur next)))))
 
-
-
 (defn get-env-for-header
   "Calculates an environment from the header terms and the prespec"
-  [defs arglist pre-spec]
-  (let [parameters {:defs defs :initial true}]
+  [arglist pre-spec]
+  (let [parameters {:initial true}]
     (-> (uber/digraph)
         (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
@@ -126,23 +124,23 @@
 
 (defn- get-env-for-pre-spec-of-subgoal
   "Calculates an environment from a subgoal and its pre-specs"
-  [in-env defs arglist pre-spec]
-  (let [parameters {:defs defs :initial false}]
+  [in-env arglist pre-spec]
+  (let [parameters {:initial false}]
     (-> in-env
         (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
         (post-process parameters))))
 
 (defn- get-env-for-post-spec-of-subgoal
-  [in-env defs arglist post-specs]
-  (let [parameters {:defs defs :initial false :overwrite true}]
+  [in-env arglist post-specs]
+  (let [parameters {:initial false :overwrite true}]
     (-> in-env
         (post-specs/register-post-specs arglist post-specs)
         dom/add-structural-edges
         (post-process parameters))))
 
 (defn get-env-for-subgoal
-  [defs in-env arglist pre-spec post-specs]
+  [in-env arglist pre-spec post-specs]
   (-> in-env
-      (get-env-for-pre-spec-of-subgoal defs arglist pre-spec)
-      (get-env-for-post-spec-of-subgoal defs arglist post-specs)))
+      (get-env-for-pre-spec-of-subgoal arglist pre-spec)
+      (get-env-for-post-spec-of-subgoal arglist post-specs)))

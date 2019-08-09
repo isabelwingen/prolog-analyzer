@@ -9,18 +9,18 @@
  "About simplify"
  (fact
   "OneOf"
-  (sut/simplify (r/->OneOfSpec #{}) {} true) => (just {:reason string?})
+  (sut/simplify (r/->OneOfSpec #{}) true) => (just {:reason string?})
 
-  (sut/simplify (r/->OneOfSpec #{(r/->IntegerSpec)}) {} true) => (exactly (r/->IntegerSpec))
+  (sut/simplify (r/->OneOfSpec #{(r/->IntegerSpec)}) true) => (exactly (r/->IntegerSpec))
 
-  (sut/simplify (r/->OneOfSpec #{(r/->OneOfSpec #{(r/->IntegerSpec) (r/->FloatSpec)}) (r/->AtomSpec)}) {} true)
+  (sut/simplify (r/->OneOfSpec #{(r/->OneOfSpec #{(r/->IntegerSpec) (r/->FloatSpec)}) (r/->AtomSpec)}) true)
   => (exactly   (r/->OneOfSpec #{(r/->IntegerSpec) (r/->FloatSpec) (r/->AtomSpec)}))
 
   (sut/simplify (r/->OneOfSpec #{(r/->TupleSpec [(r/->IntegerSpec)])
-                                   (r/->TupleSpec [(r/->FloatSpec)])}) {} true)
+                                   (r/->TupleSpec [(r/->FloatSpec)])}) true)
   =>   (exactly (r/->TupleSpec [(r/->OneOfSpec #{(r/->IntegerSpec) (r/->FloatSpec)})]))
 
   (sut/simplify (r/->OneOfSpec #{(r/->TupleSpec [(r/->IntegerSpec) (r/->FloatSpec)])
-                                 (r/->TupleSpec [(r/->AtomSpec) (r/->FloatSpec)])}) {} true)
+                                 (r/->TupleSpec [(r/->AtomSpec) (r/->FloatSpec)])}) true)
   =>   (exactly (r/->TupleSpec [(r/->OneOfSpec #{(r/->IntegerSpec) (r/->AtomSpec)}) (r/->FloatSpec)]))
   ))

@@ -148,12 +148,11 @@
         new-doms (map #(create-one-of-from-envs % envs) terms)]
     (map vector terms new-doms)))
 
-(defn intersect-with-initial [defs]
-  #(ru/intersect (or %1 (r/->AnySpec)) %2 defs true))
+(defn intersect-with-initial [a b]
+  (ru/intersect (or a (r/->AnySpec)) b true))
 
-(defn intersect-with-overwrite [defs]
-  (fn [current-dom new-dom]
-    (ru/intersect (ru/replace-var-with-any (or current-dom (r/->AnySpec))) new-dom defs false)))
+(defn intersect-with-overwrite [a b]
+  (ru/intersect (ru/replace-var-with-any (or a (r/->AnySpec))) b false))
 
-(defn intersect [defs]
-  #(ru/intersect (or %1 (r/->AnySpec)) %2 defs false))
+(defn intersect [a b]
+  (ru/intersect (or a (r/->AnySpec)) b false))

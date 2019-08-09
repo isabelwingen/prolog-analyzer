@@ -36,7 +36,7 @@
      {}
      (-> env
          (sut/register-post-specs arglist post-specs)
-         (sut/get-next-steps-from-post-specs {})))))
+         sut/get-next-steps-from-post-specs))))
 
 
 (facts
@@ -57,25 +57,21 @@
 
  )
 
-(defn test-guard-true [term actual-type guard-type exact?]
+(defn test-guard-true [term actual-type guard-type]
   (sut/is-guard-true?
-   {}
    (-> (uber/digraph) (uber/add-nodes-with-attrs [term {:dom actual-type}]))
-   {:arg term :type guard-type :exact exact?}))
+   {:arg term :type guard-type}))
 
 (facts
  "About is-guard-true?"
  (fact
   "Simple Specs"
-  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->NumberSpec) false) => {}
-  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->NumberSpec) true) => nil
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->NumberSpec)) => {}
   )
  (fact
   "Any"
-  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->AnySpec) false) => {}
-  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->AnySpec) true) => nil)
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->AnySpec)) => {})
  (fact
   "With Placeholder"
-  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->PlaceholderSpec "A") true) => (contains {"A" (r/->IntegerSpec)})
-  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->PlaceholderSpec "A") true) => (contains {"A" (r/->IntegerSpec)})
+  (test-guard-true (r/->VarTerm "X") (r/->IntegerSpec) (r/->PlaceholderSpec "A")) => (contains {"A" (r/->IntegerSpec)})
   ))

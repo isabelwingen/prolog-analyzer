@@ -8,7 +8,7 @@
 
 
 (defmacro test-wrapper [term spec]
-  `(utils/env->map (sut/add-to-dom (uber/digraph) (sut/intersect-with-initial {}) (to-term ~term) (to-spec ~spec))))
+  `(utils/env->map (sut/add-to-dom (uber/digraph) sut/intersect-with-initial (to-term ~term) (to-spec ~spec))))
 
 (facts
  (fact

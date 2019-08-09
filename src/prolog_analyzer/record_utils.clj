@@ -1,5 +1,6 @@
 (ns prolog-analyzer.record-utils
   (:require [prolog-analyzer.records :as r]
+            [prolog-analyzer.state :refer [user-typedefs]]
             [prolog-analyzer.utils :as utils :refer [case+ duocase]]))
 
 (declare intersect)
@@ -41,18 +42,10 @@
 (defn tuple-spec? [spec]
   (= r/TUPLE (r/safe-spec-type spec "tuple-spec?")))
 
-(defn supertype? [defs parent child]
+(defn supertype? [initial? parent child]
   (if (= r/OR (r/safe-spec-type parent "supertype"))
-    (some #(= child (intersect % child defs false)) (:arglist parent))
-    (= child (intersect parent child defs false))))
-
-(defn to-or-spec
-  "Transforms a bunch of `specs` to a one-of spec."
-  [defs & specs]
-  (case (count specs)
-    0 (r/->ErrorSpec "Cannot build empty one-of")
-    1 (first specs)
-    (simplify (r/->OneOfSpec (set specs)) defs)))
+    (some #(= child (intersect % child initial?)) (:arglist parent))
+    (= child (intersect parent child initial?))))
 
 (declare replace-specvars-with-spec)
 
@@ -75,15 +68,15 @@
   "User-defined specs can have parameters and when in use in spec annotations,
   there are values assigned to these parameters. To get the correct definition,
   we have to replace the parameter with their value."
-  [{n :name arglist :arglist :as user-def-spec} defs]
+  [{n :name arglist :arglist :as user-def-spec}]
   (let [res (if (nil? arglist)
-              (get defs user-def-spec nil)
-              (let [alias (->> defs
+              (get @user-typedefs user-def-spec nil)
+              (let [alias (->> @user-typedefs
                                keys
                                (filter #(= (:name %) n))
                                (filter #(= (count (:arglist %)) (count arglist)))
                                first)
-                    definition (get defs alias nil)
+                    definition (get @user-typedefs alias nil)
                     replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))
                     result (reduce-kv replace-specvars-with-spec definition replace-map)]
                 (if (= r/OR (r/safe-spec-type result "resolve-definition-with-parameters"))
@@ -95,11 +88,11 @@
         (throw (Exception. (str "Could not find definition of userdefined spec " (r/to-string user-def-spec)))))
       res)))
 
-(defn remove-subsets-in-or [{arglist :arglist :as spec} defs]
+(defn remove-subsets-in-or [{arglist :arglist :as spec} initial?]
   (if (= r/OR (r/safe-spec-type spec "remove subsets"))
     (r/->OneOfSpec (reduce
                     (fn [new-arglist type]
-                      (if (some #(supertype? defs % type) (remove #(= type %) arglist))
+                      (if (some #(supertype? initial? % type) (remove #(= type %) arglist))
                         new-arglist
                         (conj new-arglist type)))
                     #{}
@@ -131,23 +124,22 @@
         spec))))
 
 (defn extract-singleton-tuples
-  ([spec] (extract-singleton-tuples spec :simple nil))
-  ([{arglist :arglist :as spec} defs initial?]
-   (let [simplify-fn (if (= defs :simple) simplify #(simplify % defs initial?))]
-     (if (and
-          (or-spec? spec)
-          (not-empty arglist)
-          (every? tuple-spec? arglist))
-       (if (every? #(= 1 (count (:arglist %))) arglist)
-         (simplify-fn
-          (r/->TupleSpec [(r/->OneOfSpec (->> arglist
-                                              (map :arglist)
-                                              (map first)
-                                              set))]))
-         (if (every? #(= 2 (count (:arglist %))) arglist)
-           (simplify-pair-tuples-in-or spec)
-           spec))
-       spec))))
+  ([{arglist :arglist :as spec} initial?]
+   (if (and
+        (or-spec? spec)
+        (not-empty arglist)
+        (every? tuple-spec? arglist))
+     (if (every? #(= 1 (count (:arglist %))) arglist)
+       (simplify
+        (r/->TupleSpec [(r/->OneOfSpec (->> arglist
+                                            (map :arglist)
+                                            (map first)
+                                            set))])
+        initial?)
+       (if (every? #(= 2 (count (:arglist %))) arglist)
+         (simplify-pair-tuples-in-or spec)
+         spec))
+     spec)))
 
 (defn remove-error-specs [spec]
   (if (= or-spec? spec)
@@ -157,56 +149,33 @@
     spec))
 
 (defn simplify
-  ([spec]
+  ([spec] (simplify spec false))
+  ([spec initial?]
    (case+ (r/safe-spec-type spec "simplify")
           r/OR (-> spec
                    (update :arglist (partial mapcat #(if (or-spec? %) (:arglist %) [%])))
                    remove-error-specs
-                   (update :arglist (partial map simplify))
+                   (update :arglist (partial map #(simplify % initial?)))
                    (update :arglist set)
-                   extract-singleton-tuples
+                   (extract-singleton-tuples initial?)
+                   (remove-subsets-in-or initial?)
                    remove-error-specs
                    error-if-empty-arglist
                    extract-single)
-          r/AND (-> spec
-                    (update :arglist simplify)
-                    (update :arglist set))
+          r/AND (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (:arglist spec))
           r/LIST (if (error-spec? (:type spec))
                    (:type spec)
-                   (update spec :type simplify))
+                   (update spec :type simplify initial?))
           r/TUPLE (if (empty? (:arglist spec))
                     (r/->EmptyListSpec)
                     (-> spec
-                        (update :arglist (partial map simplify))
-                        (update :arglist (partial apply vector))))
-          spec
-          ))
-  ([spec defs initial?]
-   (case+ (r/safe-spec-type spec "simplify")
-          r/OR (-> spec
-                   (update :arglist (partial mapcat #(if (or-spec? %) (:arglist %) [%])))
-                   remove-error-specs
-                   (update :arglist (partial map #(simplify % defs initial?)))
-                   (update :arglist set)
-                   (extract-singleton-tuples defs initial?)
-                   (remove-subsets-in-or defs)
-                   remove-error-specs
-                   error-if-empty-arglist
-                   extract-single)
-          r/AND (reduce #(intersect %1 %2 defs initial?) (r/->AnySpec) (:arglist spec))
-          r/LIST (if (error-spec? (:type spec))
-                   (:type spec)
-                   (update spec :type simplify defs initial?))
-          r/TUPLE (if (empty? (:arglist spec))
-                    (r/->EmptyListSpec)
-                    (-> spec
-                        (update :arglist (partial map #(simplify % defs initial?)))
+                        (update :arglist (partial map #(simplify % initial?)))
                         (update :arglist (partial apply vector))))
           spec)))
 
 (def SWAP :swap)
 
-(defn intersect [spec-a spec-b defs initial?]
+(defn intersect [spec-a spec-b initial?]
   (loop [left spec-a
          right spec-b
          first-time true]
@@ -221,11 +190,11 @@
                                 [r/VAR r/PLACEHOLDER] SWAP
                                 [r/VAR :idclol] (if initial? right nil)
 
-                                [r/GROUND r/LIST] (update right :type #(intersect left % defs initial?))
+                                [r/GROUND r/LIST] (update right :type #(intersect left % initial?))
                                 [r/GROUND r/COMPOUND] (if (nil? (:arglist right))
                                                         right
-                                                        (update right :arglist (partial map #(intersect left % defs initial?))))
-                                [r/GROUND r/TUPLE] (update right :arglist (partial map #(intersect left % defs initial?)))
+                                                        (update right :arglist (partial map #(intersect left % initial?))))
+                                [r/GROUND r/TUPLE] (update right :arglist (partial map #(intersect left % initial?)))
                                 [r/GROUND r/NONVAR] left
                                 [r/GROUND r/VAR] (if initial? left nil)
                                 [r/GROUND r/ANY] left
@@ -285,15 +254,15 @@
                                 [r/STRING r/STRING] right
                                 [r/STRING :idclol] SWAP
 
-                                [r/LIST r/LIST] (update left :type #(intersect % (:type right) defs initial?))
+                                [r/LIST r/LIST] (update left :type #(intersect % (:type right) initial?))
                                 [r/LIST r/COMPOUND] (cond
                                                       (nil? (:functor right)) left
                                                       :else nil)
-                                [r/LIST r/TUPLE] (update right :arglist (partial map #(intersect % (:type left) defs initial?)))
+                                [r/LIST r/TUPLE] (update right :arglist (partial map #(intersect % (:type left) initial?)))
                                 [r/LIST :idclol] SWAP
 
                                 [r/TUPLE r/TUPLE] (if (same-arg-number? left right)
-                                                    (update left :arglist (partial map #(intersect %1 %2 defs initial?) (:arglist right)))
+                                                    (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right)))
                                                     nil)
                                 [r/TUPLE r/COMPOUND] (cond
                                                        (nil? (:functor right)) left
@@ -305,7 +274,7 @@
                                                           (nil? (:functor right)) left
 
                                                           (and (same-functors? left right) (same-arg-number? left right))
-                                                          (update left :arglist (partial map #(intersect %1 %2 defs initial?) (:arglist right)))
+                                                          (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right)))
 
                                                           :default nil)
                                 [r/COMPOUND :idclol] SWAP
@@ -320,30 +289,30 @@
                                                                 (and
                                                                  (= (:name left) (:name right))
                                                                  (= (count (:arglist left)) (count (:arglist right))))
-                                                                (update left :arglist (partial map #(intersect %1 %2 defs initial?) (:arglist right)))
+                                                                (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right)))
 
                                                                 :default
-                                                                (intersect (resolve-definition-with-parameters left defs) right defs initial?))
-                                [r/USERDEFINED :idclol] (intersect (resolve-definition-with-parameters left defs) right defs initial?)
+                                                                (intersect (resolve-definition-with-parameters left) right initial?))
+                                [r/USERDEFINED :idclol] (intersect (resolve-definition-with-parameters left) right initial?)
 
                                 [r/OR r/OR] (let [new-arglist (set (for [a (:arglist left)
                                                                          b (:arglist right)]
-                                                                     (intersect a b defs initial?)))]
+                                                                     (intersect a b initial?)))]
                                               (assoc left :arglist new-arglist))
                                 [r/OR r/AND] SWAP
-                                [r/OR :idclol] (update left :arglist (partial map #(intersect % right defs initial?)))
+                                [r/OR :idclol] (update left :arglist (partial map #(intersect % right initial?)))
 
-                                [r/AND r/AND] (reduce #(intersect %1 %2 defs initial?) (r/->AnySpec) (concat (:arglist left) (:arglist right)))
-                                [r/AND r/OR] (let [new-left (reduce #(intersect %1 %2 defs initial?) (r/->AnySpec) (:arglist left))
+                                [r/AND r/AND] (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (concat (:arglist left) (:arglist right)))
+                                [r/AND r/OR] (let [new-left (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (:arglist left))
                                                    new-arglist (set (for [a (:arglist right)]
-                                                                      (intersect new-left a defs initial?)))]
+                                                                      (intersect new-left a initial?)))]
                                                (assoc right :arglist new-arglist))
-                                [r/AND :idclol] (reduce #(intersect %1 %2 defs initial?) right (:arglist left))
+                                [r/AND :idclol] (reduce #(intersect %1 %2 initial?) right (:arglist left))
 
                                 [r/PLACEHOLDER r/ANY] left
                                 [r/PLACEHOLDER :idclol] (-> left
                                                             (update :alias #(or % (r/->AnySpec)))
-                                                            (update :alias intersect right defs initial?))
+                                                            (update :alias intersect right initial?))
                                 [r/ERROR :idclol] left
 
 
@@ -351,11 +320,8 @@
           to-error-spec (fn [i] (if (or (nil? i) (= SWAP i)) (r/DISJOINT left right) i))]
       (if (and first-time (= SWAP intersection))
         (recur right left false)
-        (simplify (to-error-spec intersection) defs initial?)))))
+        (simplify (to-error-spec intersection) initial?)))))
 
-
-(defn intersect* [initial? defs & specs]
-  (simplify (reduce #(intersect %1 %2 defs initial?) (r/->AnySpec) specs) defs initial?))
 
 (defn to-tuple-spec
   "Transforms a bunch of `specs` to a tuple spec."
@@ -394,7 +360,7 @@
   (->> placeholders
        (group-by :name)
        (reduce-kv #(assoc %1 %2 (remove nil? (map :alias %3))) {})
-       (reduce-kv #(assoc %1 %2 (if (empty? %3) nil (simplify (r/->OneOfSpec (set (map remove-alias %3)))))) {})
+       (reduce-kv #(assoc %1 %2 (if (empty? %3) nil (simplify (r/->OneOfSpec (set (map remove-alias %3))) false))) {})
        (reduce-kv #(conj %1 (if (nil? %3) (r/->PlaceholderSpec %2) (assoc (r/->PlaceholderSpec %2) :alias %3))) [])))
 
 (defn create-replace-map [placeholders]
@@ -403,31 +369,31 @@
        (reduce #(assoc %1 (:name %2) (:alias %2)) {})
        ))
 
-(defn replace-alias [defs replace-map placeholder-spec]
+(defn replace-alias [replace-map placeholder-spec]
   (if (contains? placeholder-spec :alias)
-    (update placeholder-spec :alias (partial replace-placeholder-with-alias defs replace-map))
+    (update placeholder-spec :alias (partial replace-placeholder-with-alias replace-map))
     placeholder-spec))
 
-(defn simplify-placeholders [defs placeholders]
+(defn simplify-placeholders [placeholders]
   (let [replace-map (create-replace-map placeholders)]
     (if (->> placeholders
              (map :alias)
              (remove nil?)
              (some contains-placeholder?))
-      (simplify-placeholders defs (map (partial replace-alias defs replace-map) placeholders))
+      (simplify-placeholders (map (partial replace-alias replace-map) placeholders))
       placeholders)))
 
-(defn find-placeholders [defs spec]
+(defn find-placeholders [spec]
   (let [placeholders (case+ (r/safe-spec-type spec "Find Placeholders")
-                            r/PLACEHOLDER (if (contains-placeholder? (or (:alias spec) (r/->AnySpec))) (conj (find-placeholders defs (:alias spec)) spec) [spec])
-                            (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat (partial find-placeholders defs) (.arglist spec)))
-                            r/USERDEFINED (if (contains? spec :arglist) (set (mapcat (partial find-placeholders defs) (:arglist spec))) [])
-                            r/LIST (find-placeholders defs (.type spec))
+                            r/PLACEHOLDER (if (contains-placeholder? (or (:alias spec) (r/->AnySpec))) (conj (find-placeholders (:alias spec)) spec) [spec])
+                            (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat find-placeholders (.arglist spec)))
+                            r/USERDEFINED (if (contains? spec :arglist) (set (mapcat find-placeholders (:arglist spec))) [])
+                            r/LIST (find-placeholders (.type spec))
                             [])]
     (->> placeholders
          set
          pack-together
-         (simplify-placeholders defs)
+         simplify-placeholders
          set)))
 
 (defn contains-placeholder? [spec]
@@ -438,31 +404,31 @@
          r/LIST (contains-placeholder? (:type spec))
          false))
 
-(defn- compatible [defs super sub]
-  (if (error-spec? (intersect super sub defs false))
+(defn- compatible [super sub]
+  (if (error-spec? (intersect super sub false))
     (r/->ErrorSpec (str "Placeholder was not compatible"))
     super))
 
-(defn- fill-placeholder [defs {super-of :super-of n :name :as spec} alias-map]
+(defn- fill-placeholder [{super-of :super-of n :name :as spec} alias-map]
   (if (nil? super-of)
     (get alias-map n (r/->AnySpec))
-    (compatible defs (get alias-map n (r/->AnySpec)) (get alias-map super-of (r/->AnySpec)))))
+    (compatible (get alias-map n (r/->AnySpec)) (get alias-map super-of (r/->AnySpec)))))
 
-(defn replace-placeholder-with-alias [defs alias-map spec]
+(defn replace-placeholder-with-alias [alias-map spec]
   (case+ (r/safe-spec-type spec "Replace Placeholder")
-         r/PLACEHOLDER (fill-placeholder defs spec alias-map)
+         r/PLACEHOLDER (fill-placeholder spec alias-map)
          (r/OR, r/AND) (-> spec
-                           (update :arglist (partial map (partial replace-placeholder-with-alias defs alias-map)))
+                           (update :arglist (partial map (partial replace-placeholder-with-alias alias-map)))
                            (update :arglist set))
          (r/COMPOUND, r/TUPLE) (-> spec
-                                   (update :arglist (partial map (partial replace-placeholder-with-alias defs alias-map)))
+                                   (update :arglist (partial map (partial replace-placeholder-with-alias alias-map)))
                                    (update :arglist (partial apply vector)))
          r/USERDEFINED (if (contains? spec :arglist)
                          (-> spec
-                             (update :arglist (partial map (partial replace-placeholder-with-alias defs alias-map)))
+                             (update :arglist (partial map (partial replace-placeholder-with-alias alias-map)))
                              (update :arglist (partial apply vector)))
                          spec)
-         r/LIST (update spec :type (partial replace-placeholder-with-alias defs alias-map))
+         r/LIST (update spec :type (partial replace-placeholder-with-alias alias-map))
          spec
          ))
 
@@ -532,8 +498,8 @@
 (defn list-with-anys []
   (r/->ListSpec (r/->AnySpec)))
 
-(defn non-empty-intersection [spec1 spec2 defs initial?]
-  (not (error-spec? (intersect spec1 spec2 defs initial?))))
+(defn non-empty-intersection [spec1 spec2 initial?]
+  (not (error-spec? (intersect spec1 spec2 initial?))))
 
 (defn replace-var-with-any [spec]
   (case+ (r/spec-type spec)
