@@ -12,9 +12,7 @@
 (defn- replace-ids-with-args [postspec arglist]
   (-> postspec
       (update :guard (partial map (partial replace-id-with-arg arglist)))
-      (update :guard (partial apply vector))
       (update :conclusion (partial map (partial map (partial replace-id-with-arg arglist))))
-      (update :conclusion (partial apply vector))
       ))
 
 (defn- register-post-spec [env arglist {guard :guard conclusion :conclusion :as post-spec}]
@@ -57,16 +55,13 @@
         nil))))
 
 (defn- merge-single-guard-values [guard-maps]
-  (let [res (->> guard-maps
+  (let [to-seq (fn [x] (if (seq? x) x [x]))
+        res (->> guard-maps
                  (apply merge-with (comp flatten vector))
-                 (reduce-kv #(assoc %1 %2 (if (seq? %3) (apply vector %3) [%3])) {})
-                 (reduce-kv #(assoc %1 %2 (ru/simplify (r/->AndSpec %3) false)) {})
-                 )]
+                 (reduce-kv #(assoc %1 %2 (ru/simplify (r/->AndSpec (to-seq %3)) false)) {}))]
     (if (some ru/error-spec? (vals res))
       nil
       res)))
-
-
 
 (defn- is-post-spec-applicable? [env {guards :guard}]
   (->> guards
@@ -74,15 +69,15 @@
        merge-single-guard-values))
 
 (defn complete-conclusion [part arglist]
-  (->> arglist
-       (reduce (fn [p arg] (if (some #(= arg (:arg %)) p) p (conj p {:arg arg :type (r/->AnySpec)}))) part)
-       (reduce #(assoc %1 (:arg %2) (:type %2)) {})))
+  (let [specifics-as-map (reduce #(assoc %1 (:arg %2) (:type %2)) {} part)
+        all-as-map (reduce #(assoc %1 %2 (r/->AnySpec)) {} arglist)]
+    (merge all-as-map specifics-as-map)))
 
 (defn- create-step-from-post-spec [{conclusions :conclusion} alias-map]
   (let [args (set (mapcat #(map :arg %) conclusions))
         new-conc (map #(complete-conclusion % args) conclusions)
         spec (->> new-conc
-                  (map (apply juxt (map #(fn [x] (get x %)) args)))
+                  (map (fn [conc] (map conc args)))
                   (map r/->TupleSpec)
                   set
                   r/->OneOfSpec
@@ -90,8 +85,6 @@
                   (ru/replace-placeholder-with-alias alias-map))
         tuple (apply ru/to-head-tail-list args)]
     [tuple spec]))
-
-
 
 (defn create-steps [postspecs alias-maps]
   (->> alias-maps
