@@ -8,7 +8,6 @@
 (declare merge-envs)
 
 (def DOM :dom)
-(def HIST :history)
 
 (defmulti edges (fn [term] (r/term-type term)))
 
@@ -23,24 +22,25 @@
 (defmethod edges :default [term]
   [])
 
-
 (defn add-structural-edges [env]
-  (loop [res env]
-    (let [next (reduce #(apply uber/add-edges %1 (edges %2)) res (utils/get-terms res))]
-      (if (utils/same? next res)
-        next
-        (recur next)))))
+  (loop [res env
+         terms (vec (utils/get-terms env))]
+    (if-let [first-term (first terms)]
+      (let [edges (edges first-term)
+            new-terms (map first edges)
+            queue (vec (rest terms))]
+        (recur (apply uber/add-edges res edges) (apply conj queue new-terms)))
+      res)))
 
 (defmulti next-steps
   (fn [term spec]
-    [(if (ru/nonvar-term? term) :nonvar :var)
-     (case+ (r/safe-spec-type spec (str "next-steps"))
-            r/TUPLE :tuple
-            r/COMPOUND :compound
-            r/LIST :list
-            r/USERDEFINED :userdef
-            r/GROUND :ground
-            :unnested)]))
+    (case+ (r/safe-spec-type spec (str "next-steps"))
+           r/TUPLE :tuple
+           r/COMPOUND :compound
+           r/LIST :list
+           r/USERDEFINED :userdef
+           r/GROUND :ground
+           :other)))
 
 (defn- split-spec-for-list [spec]
   (case+ (r/safe-spec-type spec "split-spec-for-list")
@@ -51,44 +51,36 @@
          [spec spec]))
 
 
-(defmethod next-steps [:nonvar :tuple] [term spec]
+(defmethod next-steps :tuple [term spec]
   (if (ru/list-term? term)
     [[(ru/head term) (first (:arglist spec))]
      [(ru/tail term) (update spec :arglist rest)]]
     []))
 
-(defmethod next-steps [:nonvar :compound] [term spec]
+(defmethod next-steps :compound [term spec]
   (if (ru/compound-term? term)
     (apply vector (map vector (:arglist term) (:arglist spec)))
     []))
 
-(defmethod next-steps [:nonvar :list] [term spec]
+(defmethod next-steps :list [term spec]
   (if (ru/list-term? term)
     [[(ru/head term) (:type spec)]
      [(ru/tail term) spec]]
     []))
 
-(defmethod next-steps [:nonvar :ground] [term spec]
+(defmethod next-steps :ground [term spec]
   (cond
     (ru/list-term? term) [[(ru/head term) spec]
                           [(ru/tail term) spec]]
     (ru/compound-term? term) (apply vector (map #(vector % spec) (:arglist term)))
     :else []))
 
+(defmethod next-steps :userdef [term spec]
+  (let [resolved (ru/resolve-definition-with-parameters spec)]
+    [term resolved]))
 
-(defmethod next-steps [:nonvar :userdef] [term spec]
+(defmethod next-steps :default [term spec]
   [])
-
-
-(defmethod next-steps [:nonvar :unnested] [term spec]
-  [])
-
-(defmethod next-steps [:var :tuple] [term spec] [])
-(defmethod next-steps [:var :compound] [term spec] [])
-(defmethod next-steps [:var :list] [term spec] [])
-(defmethod next-steps [:var :userdef] [term spec] [])
-(defmethod next-steps [:var :ground] [term spec] [])
-(defmethod next-steps [:var :unnested] [term spec] [])
 
 (defmulti process-next-steps (fn [_ _ _ spec] (ru/or-spec? spec)))
 
@@ -127,9 +119,6 @@
                                          (-> env
                                              (uber/add-attr term DOM new)
                                              (process-next-steps intersect-fn term spec))))))
-
-
-
 
 (defn- one-of-or-single [specs]
   (let [ds (distinct specs)]

@@ -22,10 +22,10 @@
     []))
 
 
-(defn- subgoal-analyzer [data env {goal-name :goal module :module arity :arity arglist :arglist}]
+(defn- subgoal-analyzer [data env {:keys [goal module arity arglist]}]
   (if (zero? arity)
     env
-    (let [pred-id [module goal-name arity]
+    (let [pred-id [module goal arity]
           pre-spec (get-pre-spec pred-id data)
           post-specs (get-post-specs pred-id data)]
       (calc/get-env-for-subgoal env arglist pre-spec post-specs))))

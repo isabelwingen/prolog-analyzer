@@ -115,8 +115,7 @@
    (let [v1 (gensym)
          v2 (gensym)]
      `(let [[~v1 ~v2] ~expr]
-        ~(remodel-cases cases v1 v2)
-        ))))
+        ~(remodel-cases cases v1 v2)))))
 
 (defn env->map
   "Mostly for test purpose"
