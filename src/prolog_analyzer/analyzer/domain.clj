@@ -77,7 +77,7 @@
 
 (defmethod next-steps :userdef [term spec]
   (let [resolved (ru/resolve-definition-with-parameters spec)]
-    [term resolved]))
+    [[term resolved]]))
 
 (defmethod next-steps :default [term spec]
   [])
@@ -108,6 +108,8 @@
   (and (uber/has-node? env term) (uber/attr env term :dom)))
 
 (defn add-to-dom [env intersect-fn term spec]
+  (when (not (record? term))
+    (println term))
   (cond
     (not (has-dom? env term))  (-> env
                                    (uber/add-nodes term)

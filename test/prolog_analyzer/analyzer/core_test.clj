@@ -102,6 +102,6 @@
        (utils/env->map (first (sut/complete-analysis (parse-tmp "foo :- member(1,[a,b,c])."))))
        => (contains {"1" "ERROR: No valid intersection of Atom and Integer"})
 
-       (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- member(X,[a,b,2])."))))
+       (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- member(X,[p,b,2])."))))
        => (contains {"X" "OneOf(Integer, Atom)"})
        ))
