@@ -37,6 +37,7 @@
 (declare ->AndSpec)
 (declare has-specvars)
 (declare var-spec?)
+(declare create-incomplete-list-spec)
 
 (defn safe-spec-type [spec msg]
   (assert (not (nil? spec)) msg)
@@ -256,7 +257,7 @@
 (defrecord ListTerm [head tail]
   term
   (term-type [term] LIST)
-  (initial-spec [term] (->AnySpec))
+  (initial-spec [term] (create-incomplete-list-spec (initial-spec head)))
   printable
   (to-string [x]
     (case (term-type tail)
@@ -349,3 +350,14 @@
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
+
+(defn create-incomplete-list-spec
+  ([] (create-incomplete-list-spec (->AnySpec)))
+  ([head-dom]
+   (->CompoundSpec "." [head-dom (->AnySpec)])))
+
+(defn incomplete-list-spec? [spec]
+  (and
+   (= COMPOUND (spec-type spec))
+   (= "." (:functor spec))
+   (= 2 (count (:arglist spec)))))

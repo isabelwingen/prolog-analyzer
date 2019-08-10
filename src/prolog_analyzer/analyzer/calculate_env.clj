@@ -7,12 +7,10 @@
             [ubergraph.core :as uber]
             [prolog-analyzer.analyzer.post-specs :as post-specs]))
 
-(defn add-to-dom [env term spec {initial? :initial overwrite? :overwrite}]
+(defn xyzabc [env term spec {initial? :initial overwrite? :overwrite}]
   (if overwrite?
-    (dom/add-to-dom env dom/intersect-with-overwrite term spec)
-    (if initial?
-      (dom/add-to-dom env dom/intersect-with-initial term spec)
-      (dom/add-to-dom env dom/intersect term spec))))
+    (dom/add-to-dom-post-spec env term spec)
+    (dom/add-to-dom env initial? term spec)))
 
 (defmulti process-edge (fn [_ env edge] (uber/attr env edge :relation)))
 
@@ -36,6 +34,16 @@
            term-dom
            nil)))
 
+
+(compatible-with-head
+ {}
+ (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)})
+ (r/->OneOfSpec #{
+                  (r/->TupleSpec [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))])
+                  (r/->TupleSpec [(r/->IntegerSpec) (r/->VarSpec)])
+                  (r/->TupleSpec [(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))])
+                  }))
+
 (defn- singleton-list? [term]
   (and (ru/empty-list-term? (ru/tail term))))
 
@@ -46,8 +54,8 @@
         term-dom (utils/get-dom-of-term env term)
         filtered-dom (compatible-with-head parameters head-dom term-dom)]
     (if (singleton-list? term)
-      (add-to-dom env term (r/->TupleSpec [head-dom]) parameters)
-      (add-to-dom env term (or filtered-dom (r/DISJOINT)) parameters))))
+      (xyzabc env term (r/->TupleSpec [head-dom]) parameters)
+      (xyzabc env term (or filtered-dom (r/DISJOINT)) parameters))))
 
 (defn get-matching-head [pair-id env]
   (let [head (some->> env
@@ -73,7 +81,7 @@
                                                                (apply vector)))
                        r/LIST (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom)))
                        term-dom)]
-    (add-to-dom env term new-dom parameters)))
+    (xyzabc env term new-dom parameters)))
 
 
 (defmethod process-edge :arg-at-pos [parameters env edge]
@@ -89,7 +97,7 @@
                      (#(assoc % pos child-dom))
                      (apply vector)
                      (r/->CompoundSpec functor))]
-    (add-to-dom env parent new-dom parameters)))
+    (xyzabc env parent new-dom parameters)))
 
 (defmethod process-edge :default [defs env edge]
   env)
@@ -98,7 +106,7 @@
   (reduce (partial process-edge parameters) env (uber/edges env)))
 
 (defn process-post-specs [env parameters]
-  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
+  (reduce (fn [e [term spec]] (xyzabc e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
 
 (defn- post-process-step [env parameters]
   (-> env
@@ -129,7 +137,7 @@
     (-> (uber/digraph)
         (add-args-of-head arglist)
         (add-title title)
-        (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
+        (xyzabc (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
         (post-process parameters)
         )))
@@ -139,7 +147,7 @@
   [in-env arglist pre-spec]
   (let [parameters {:initial false}]
     (-> in-env
-        (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
+        (xyzabc (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
         (post-process parameters))))
 

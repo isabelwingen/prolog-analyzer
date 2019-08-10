@@ -81,8 +81,8 @@
                                   "mmember(H,[H|_]) :- !.\n"
                                   "mmember(E,[_|T]) :- mmember(E,T).\n")))))
        => (contains {"E" "OneOf(Integer, Var)"
-                     "T" "List(Integer)"
-                     "[E, T]" "Tuple(OneOf(Integer, Var), OneOf(List(Integer), Var))"}))
+                     "T" "OneOf(List(Integer), Var)"
+                     "[E, T]" "OneOf(Tuple(Integer, List(Integer)), Tuple(Integer, Var), Tuple(Var, List(Integer)))"}))
  (fact "nothing"
        (utils/env->map
         (first

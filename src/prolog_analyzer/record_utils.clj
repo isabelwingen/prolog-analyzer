@@ -9,7 +9,6 @@
 (declare contains-placeholder?)
 (declare replace-placeholder-with-alias)
 
-
 (defn var-spec? [spec]
   (if (nil? spec)
     false
@@ -21,7 +20,7 @@
     (= r/ANY (r/safe-spec-type spec "any-spec"))))
 
 (defn or-spec? [spec]
-  (= r/OR (r/safe-spec-type spec "or-spec?")))
+  (= r/OR (r/spec-type spec)))
 
 (defn and-spec? [spec]
   (= r/AND (r/safe-spec-type spec "and-spec?")))
@@ -38,6 +37,12 @@
 
 (defn empty-list-term? [term]
   (= r/EMPTYLIST (r/term-type term)))
+
+(defn var-term? [term]
+  (= r/VAR (r/term-type term)))
+
+(defn nonvar-term? [term]
+  ((complement var-term?) term))
 
 (defn tuple-spec? [spec]
   (= r/TUPLE (r/safe-spec-type spec "tuple-spec?")))
@@ -143,7 +148,7 @@
      spec)))
 
 (defn remove-error-specs [spec]
-  (if (= or-spec? spec)
+  (if (or-spec? spec)
     (-> spec
         (update :arglist (partial remove #(error-spec? %)))
         (update :arglist set))
@@ -174,8 +179,7 @@
                         (update :arglist (partial apply vector))))
           spec)))
 
-
-(defn- intersect* [left right initial? swap?]
+(defn intersect* [left right initial? swap?]
   (let [swap (fn [] (when swap?
                      (intersect* right left initial? false)))
         intersection (duocase [(r/safe-spec-type left "left") (r/safe-spec-type right "right")]
@@ -247,14 +251,19 @@
                               [r/STRING :idclol] (swap)
 
                               [r/LIST r/LIST] (update left :type #(intersect % (:type right) initial?))
-                              [r/LIST r/COMPOUND] (when (nil? (:functor right)) left)
+                              [r/LIST r/COMPOUND] (cond
+                                                    (nil? (:functor right)) left
+                                                    (r/incomplete-list-spec? right) left
+                                                    :else nil)
                               [r/LIST r/TUPLE] (update right :arglist (partial map #(intersect % (:type left) initial?)))
                               [r/LIST :idclol] (swap)
 
                               [r/TUPLE r/TUPLE] (when (same-arg-number? left right)
                                                   (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right))))
-                              [r/TUPLE r/COMPOUND] (when
-                                                     (nil? (:functor right)) left)
+                              [r/TUPLE r/COMPOUND] (cond
+                                                     (nil? (:functor right)) left
+                                                     (r/incomplete-list-spec? right) left
+                                                     :else nil)
                               [r/TUPLE :idclol] (swap)
 
                               [r/COMPOUND r/COMPOUND] (cond
@@ -304,9 +313,9 @@
                               nil)]
     (simplify (or intersection (r/DISJOINT left right)) initial?)))
 
+
 (defn intersect [spec-a spec-b initial?]
   (intersect* spec-a spec-b initial? true))
-
 
 
 (defn to-tuple-spec
@@ -507,3 +516,14 @@
            r/EXACT (= (:value spec1) (:value spec2))
            true)
     false))
+
+(def init false)
+
+(simplify
+ (intersect
+  (r/->ListSpec (r/->AnySpec))
+  (r/->OneOfSpec #{(r/->TupleSpec [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))])
+                   (r/->TupleSpec [(r/->IntegerSpec) (r/->VarSpec)])
+                   (r/->TupleSpec [(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))])})
+  init)
+ init)
