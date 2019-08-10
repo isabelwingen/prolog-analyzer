@@ -34,7 +34,6 @@
 (declare empty-list?)
 (declare spec-type)
 (declare term-type)
-(declare supertype?)
 (declare ->AndSpec)
 (declare has-specvars)
 (declare var-spec?)
@@ -350,9 +349,3 @@
 
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
-
-
-(=
- (->TupleSpec '((->AtomSpec)))
- (->TupleSpec [(->AtomSpec)])
-   )

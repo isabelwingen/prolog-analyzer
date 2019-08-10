@@ -5,6 +5,8 @@
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
             [tableflisp.core :refer :all]
+            [clojure.java.io :refer [writer]]
+            [prolog-analyzer.result-visualizer :as visualizer]
             ))
 
 (declare analyze-swi-packs)
@@ -28,6 +30,9 @@
           analyzer/complete-analysis
           ))))
 
+(defn write [envs]
+  (visualizer/to-json envs "tmp/result.tmp"))
+
 (defn -main [& args]
-  (apply run args)
+  (write (apply run args))
   (<╯°□°>╯︵┻━┻))

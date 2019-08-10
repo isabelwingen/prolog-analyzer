@@ -95,7 +95,7 @@
 
 (defmethod process-next-steps true [env intersect-fn term spec]
   (let [arglist (:arglist spec)
-        envs (map (partial add-to-dom env intersect-fn term) arglist)
+        envs (map (partial add-to-dom (uber/digraph) intersect-fn term) arglist)
         terms-with-doms (apply merge-envs intersect-fn envs)]
     (reduce #(apply add-to-dom %1 intersect-fn %2) env terms-with-doms)))
 
@@ -104,21 +104,38 @@
     nil
     (println "add-to-dom for term " (r/to-string term) " and " (r/to-string spec))))
 
+(defn has-dom? [env term]
+  (and (uber/has-node? env term) (uber/attr env term :dom)))
 
 (defn add-to-dom [env intersect-fn term spec]
   (cond
-    (not (uber/has-node? env term))  (-> env
-                                         (uber/add-nodes term)
-                                         (add-to-dom intersect-fn term (r/initial-spec term))
-                                         (add-to-dom intersect-fn term spec))
-    (ru/and-spec? spec)              (reduce #(add-to-dom %1 intersect-fn term %2) env (:arglist spec))
-    :default                         (let [before (uber/attr env term DOM)
-                                           new (intersect-fn before spec)]
-                                       (if (= before new)
-                                         env
-                                         (-> env
-                                             (uber/add-attr term DOM new)
-                                             (process-next-steps intersect-fn term spec))))))
+    (not (has-dom? env term))  (-> env
+                                   (uber/add-nodes term)
+                                   (uber/add-attr term DOM (r/->AnySpec))
+                                   (add-to-dom intersect-fn term (r/initial-spec term))
+                                   (add-to-dom intersect-fn term spec))
+    (ru/and-spec? spec)         (reduce #(add-to-dom %1 intersect-fn term %2) env (:arglist spec))
+    :default                    (let [before (uber/attr env term DOM)
+                                      new (intersect-fn before spec)]
+                                  (if (= before new)
+                                    env
+                                    (-> env
+                                        (uber/add-attr term DOM new)
+                                        (utils/update-attr term :history conj spec)
+                                        (process-next-steps intersect-fn term spec))))))
+
+
+#_(-> (uber/digraph)
+    (add-to-dom intersect-with-initial
+                (r/->VarTerm "E")
+                (r/->VarSpec))
+    (uber/attr (r/->VarTerm "E") :dom))
+
+#_(-> (uber/digraph)
+    (add-to-dom intersect-with-initial
+                (ru/to-head-tail-list (r/->VarTerm "E"))
+                (r/->OneOfSpec #{(r/->TupleSpec [(r/->VarSpec)])}))
+    (uber/attr (r/->VarTerm "E") :dom))
 
 (defn- one-of-or-single [specs]
   (let [ds (distinct specs)]
@@ -130,7 +147,9 @@
   (->> envs
        (map #(utils/get-dom-of-term % term))
        (remove ru/error-spec?)
-       one-of-or-single))
+       set
+       r/->OneOfSpec
+       ru/simplify))
 
 (defn- merge-envs [intersect-fn & envs]
   (let [terms (distinct (mapcat utils/get-terms envs))

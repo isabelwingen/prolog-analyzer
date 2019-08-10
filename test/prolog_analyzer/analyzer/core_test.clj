@@ -23,9 +23,74 @@
 (facts
  "Simple Example"
  (fact "First Example"
-       (utils/env->map (nth (sut/complete-analysis (parse "resources/simple-example.pl")) 2))
+       (utils/env->map
+        (first
+         (sut/complete-analysis (parse-tmp
+                                 (str
+                                  "foo(X, Y) :- atom(X), bar(X, Y).\n"
+                                  ":- spec_pre(bar/2, [int, atom]).\n"
+                                  ":- spec_pre(bar/2, [atom, int]).\n"
+                                  "bar(3, a).\n"
+                                  "bar(a, 3).\n")))))
        => (contains {"X" "Atom"
                      "Y" "Integer"})))
+(facts
+ "Vars"
+ (fact "int or var"
+       (utils/env->map
+        (first
+         (sut/complete-analysis (parse-tmp
+                                 (str
+                                  ":- spec_pre(foo/1,[int]).\n"
+                                  ":- spec_pre(foo/1,[var]).\n"
+                                  "foo(E).")))))
+       => (contains {"E" "OneOf(Integer, Var)"})
+       )
+ (fact "Three combinations"
+       (utils/env->map
+        (first
+         (sut/complete-analysis (parse-tmp
+                                 (str
+                                  ":- spec_pre(foo/1,[var]).\n"
+                                  "foo(E).")))))
+       => (contains {"E" "Var"})
+       (utils/env->map
+        (first
+         (sut/complete-analysis (parse-tmp
+                                 (str
+                                  ":- spec_pre(foo/1,[int]).\n"
+                                  "foo(E).")))))
+       => (contains {"E" "Integer"})
+
+       (utils/env->map
+        (first
+         (sut/complete-analysis (parse-tmp
+                                 (str
+                                  ":- spec_pre(foo/1,[var]).\n"
+                                  "foo(1).")))))
+       => (contains {"1" "Integer"})
+       )
+ (fact "member"
+       (utils/env->map
+        (second
+         (sut/complete-analysis (parse-tmp
+                                 (str
+                                  ":- spec_pre(mmember/2, [int, list(int)]).\n"
+                                  ":- spec_pre(mmember/2, [var, list(int)]).\n"
+                                  ":- spec_pre(mmember/2, [int, var]).\n"
+                                  "mmember(H,[H|_]) :- !.\n"
+                                  "mmember(E,[_|T]) :- mmember(E,T).\n")))))
+       => (contains {"E" "OneOf(Integer, Var)"
+                     "T" "List(Integer)"
+                     "[E, T]" "Tuple(OneOf(Integer, Var), OneOf(List(Integer), Var))"}))
+ (fact "nothing"
+       (utils/env->map
+        (first
+         (sut/complete-analysis
+          (parse-tmp
+           (str
+            "foo(X).")))))
+       => (contains {"X" "Any"})))
 
 
 (facts

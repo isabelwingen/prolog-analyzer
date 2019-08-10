@@ -42,11 +42,6 @@
 (defn tuple-spec? [spec]
   (= r/TUPLE (r/safe-spec-type spec "tuple-spec?")))
 
-(defn supertype? [initial? parent child]
-  (if (= r/OR (r/safe-spec-type parent "supertype"))
-    (some #(= child (intersect % child initial?)) (:arglist parent))
-    (= child (intersect parent child initial?))))
-
 (declare replace-specvars-with-spec)
 
 (defn replace-specvars-with-spec [type specvar-name replace-spec]
@@ -88,11 +83,17 @@
         (throw (Exception. (str "Could not find definition of userdefined spec " (r/to-string user-def-spec)))))
       res)))
 
-(defn remove-subsets-in-or [{arglist :arglist :as spec} initial?]
+(defn- supertype? [parent child]
+  (if (= r/OR (r/safe-spec-type parent "supertype"))
+    (some #(= child (intersect % child false)) (:arglist parent))
+    (= child (intersect parent child false))))
+
+
+(defn- remove-subsets-in-or [{arglist :arglist :as spec}]
   (if (= r/OR (r/safe-spec-type spec "remove subsets"))
     (r/->OneOfSpec (reduce
                     (fn [new-arglist type]
-                      (if (some #(supertype? initial? % type) (remove #(= type %) arglist))
+                      (if (some #(supertype? % type) (remove #(= type %) arglist))
                         new-arglist
                         (conj new-arglist type)))
                     #{}
@@ -158,7 +159,7 @@
                    (update :arglist (partial map #(simplify % initial?)))
                    (update :arglist set)
                    (extract-singleton-tuples initial?)
-                   (remove-subsets-in-or initial?)
+                   remove-subsets-in-or
                    remove-error-specs
                    error-if-empty-arglist
                    extract-single)
@@ -172,6 +173,7 @@
                         (update :arglist (partial map #(simplify % initial?)))
                         (update :arglist (partial apply vector))))
           spec)))
+
 
 (defn- intersect* [left right initial? swap?]
   (let [swap (fn [] (when swap?

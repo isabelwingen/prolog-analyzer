@@ -9,6 +9,7 @@
                  [org.clojure/tools.namespace "0.2.11"]
                  [org.clojure/tools.logging "0.4.1"]
                  [midje "1.9.9"]
+                 [org.clojure/data.json "0.2.6"]
                  [ubergraph "0.5.2"]
                  [tableflisp "0.1.0"]]
   :main ^:skip-aot prolog-analyzer.core

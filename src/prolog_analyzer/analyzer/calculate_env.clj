@@ -112,11 +112,23 @@
         res
         (recur next)))))
 
-(defn get-env-for-header
+(defn- add-args-of-head [env arglist]
+  (-> env
+      (uber/add-nodes :environment)
+      (uber/add-attr :environment :arglist arglist)))
+
+(defn- add-title [env title]
+  (-> env
+      (uber/add-nodes :environment)
+      (uber/add-attr :environment :title title)))
+
+(defn get-env-for-head
   "Calculates an environment from the header terms and the prespec"
-  [arglist pre-spec]
+  [title arglist pre-spec]
   (let [parameters {:initial true}]
     (-> (uber/digraph)
+        (add-args-of-head arglist)
+        (add-title title)
         (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
         (post-process parameters)
