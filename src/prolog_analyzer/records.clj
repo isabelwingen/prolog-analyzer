@@ -256,7 +256,7 @@
 (defrecord ListTerm [head tail]
   term
   (term-type [term] LIST)
-  (initial-spec [term] (->ListSpec (->AnySpec)))
+  (initial-spec [term] (->AnySpec))
   printable
   (to-string [x]
     (case (term-type tail)
