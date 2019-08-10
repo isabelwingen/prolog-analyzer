@@ -24,3 +24,10 @@
                                  (r/->TupleSpec [(r/->AtomSpec) (r/->FloatSpec)])}) true)
   =>   (exactly (r/->TupleSpec [(r/->OneOfSpec #{(r/->IntegerSpec) (r/->AtomSpec)}) (r/->FloatSpec)]))
   ))
+
+
+(facts
+ "About intersect"
+ (fact
+  "Placeholder"
+  (sut/intersect (r/->ListSpec (r/->PlaceholderSpec "a")) (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)]) false) => (r/->TupleSpec [(assoc (r/->PlaceholderSpec "a") :alias (r/->IntegerSpec)) (assoc (r/->PlaceholderSpec "a") :alias (r/->AtomSpec))])))
