@@ -12,7 +12,7 @@
     (dom/add-to-dom-post-spec env term spec)
     (dom/add-to-dom env initial? term spec)))
 
-(defmulti process-edge (fn [_ env edge] (uber/attr env edge :relation)))
+(defmulti ^{:private true} process-edge (fn [_ env edge] (uber/attr env edge :relation)))
 
 (defn- compatible-with-head [{initial? :initial :as parameters} head-dom term-dom]
   (case+ (r/safe-spec-type term-dom "compatible-with-head")

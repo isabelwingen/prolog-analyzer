@@ -36,7 +36,7 @@
       (println (pr-str "No .edn file was created"))
       [])))
 
-(defmulti call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
+(defmulti ^{:private true} call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
   (println (pr-str "Call prolog"))
@@ -70,7 +70,7 @@
        (apply-function-on-values g)
        ))
 
-(defmulti transform-spec "Transforms the raw edn of specs to a better suited format."
+(defmulti ^{:private true} transform-spec "Transforms the raw edn of specs to a better suited format."
   :type)
 
 (defmethod transform-spec :default [term]
@@ -123,7 +123,7 @@
 (defn- validation-spec? [{[_ & args] :arglist}]
   (= 1 (count args)))
 
-(defmulti specs-to-map :goal)
+(defmulti ^{:private true} specs-to-map :goal)
 
 (defmethod specs-to-map :default [{module :module functor :functor arity :arity arglist :arglist}]
   {[module functor arity] (vector (map transform-spec arglist))})
