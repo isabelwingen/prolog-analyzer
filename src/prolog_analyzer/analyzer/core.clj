@@ -38,12 +38,12 @@
    (calc/get-env-for-head title arglist pre-spec)
    body))
 
-(defn build-tasks []
+(defn- build-tasks []
   (for [pred-id (utils/get-pred-identities @data)
         clause-number (utils/get-clause-identities-of-pred pred-id @data)]
     [pred-id clause-number]))
 
-(defn execute-task [[pred-id clause-number]]
+(defn- execute-task [[pred-id clause-number]]
   (analyze-clause
    (conj pred-id clause-number)
    (utils/get-clause pred-id clause-number @data)

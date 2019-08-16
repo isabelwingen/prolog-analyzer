@@ -34,6 +34,8 @@
                                   "bar(a, 3).\n")))))
        => (contains {"X" "Atom"
                      "Y" "Integer"})))
+
+
 (facts
  "Vars"
  (fact "int or var"

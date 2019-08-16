@@ -102,6 +102,21 @@
     (next-steps term spec)
     []))
 
+(defn- create-one-of-from-envs [term envs]
+  (->> envs
+       (map #(utils/get-dom-of-term % term))
+       (remove ru/error-spec?)
+       set
+       r/->OneOfSpec
+       ru/simplify))
+
+(defn- merge-envs [envs]
+  (let [terms (distinct (mapcat utils/get-terms envs))
+        new-doms (map #(create-one-of-from-envs % envs) terms)]
+    (map vector terms new-doms)))
+
+
+
 (defn add-steps [env steps initial?]
   (reduce #(apply add-to-dom %1 initial? %2) env steps))
 
@@ -110,7 +125,6 @@
 (defmethod process-next-steps false [env term spec initial?]
   (cond
     (ru/error-spec? spec) env
-    (ru/list-term? term) (add-steps env (next-steps-of-list-term env term spec) initial?)
     :ese  (add-steps env (next-steps term spec) initial?)))
 
 (defmethod process-next-steps true [env term spec initial?]
@@ -122,6 +136,12 @@
 
 (defn- has-dom? [env term]
   (and (uber/has-node? env term) (uber/attr env term :dom)))
+
+(defn- one-of-or-single [specs]
+  (let [ds (distinct specs)]
+    (if (= 1 (count ds))
+      (first ds)
+      (r/->OneOfSpec (set ds)))))
 
 (defn add-to-dom
   ([env term spec]
@@ -145,31 +165,7 @@
                                        (-> env
                                            (uber/add-attr term DOM new)
                                            (utils/update-attr term :history conj spec)
-                                           (process-next-steps term spec initial?))))))))
-
-(-> (uber/digraph)
-    (add-to-dom true (r/->ListTerm (r/->IntegerTerm 1) (r/->VarTerm "X")) (r/->VarSpec))
-    utils/env->map)
+                                           (process-next-steps term new initial?))))))))
 
 (defn add-to-dom-post-spec [env term spec]
   (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))
-
-
-(defn- one-of-or-single [specs]
-  (let [ds (distinct specs)]
-    (if (= 1 (count ds))
-      (first ds)
-      (r/->OneOfSpec (set ds)))))
-
-(defn- create-one-of-from-envs [term envs]
-  (->> envs
-       (map #(utils/get-dom-of-term % term))
-       (remove ru/error-spec?)
-       set
-       r/->OneOfSpec
-       ru/simplify))
-
-(defn- merge-envs [envs]
-  (let [terms (distinct (mapcat utils/get-terms envs))
-        new-doms (map #(create-one-of-from-envs % envs) terms)]
-    (map vector terms new-doms)))

@@ -35,15 +35,6 @@
            nil)))
 
 
-(compatible-with-head
- {}
- (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)})
- (r/->OneOfSpec #{
-                  (r/->TupleSpec [(r/->IntegerSpec) (r/->ListSpec (r/->IntegerSpec))])
-                  (r/->TupleSpec [(r/->IntegerSpec) (r/->VarSpec)])
-                  (r/->TupleSpec [(r/->VarSpec) (r/->ListSpec (r/->IntegerSpec))])
-                  }))
-
 (defn- singleton-list? [term]
   (and (ru/empty-list-term? (ru/tail term))))
 
@@ -56,6 +47,14 @@
     (if (singleton-list? term)
       (xyzabc env term (r/->TupleSpec [head-dom]) parameters)
       (xyzabc env term (or filtered-dom (r/DISJOINT)) parameters))))
+
+(def e
+  (-> (uber/digraph)
+      (uber/add-edges [(r/->VarTerm "X") (ru/to-head-tail-list (r/->VarTerm "X") (r/->VarTerm "Y")) {:relation :is-head}])
+      (uber/add-nodes-with-attrs
+       [(r/->VarTerm "X") {:dom (r/->AtomSpec)}]
+       [(ru/to-head-tail-list (r/->VarTerm "X") (r/->VarTerm "Y")) {:dom (r/->OneOfSpec #{(r/->TupleSpec [(r/->AtomSpec) (r/->IntegerSpec)])
+                                                                                                        (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])})}])))
 
 (defn get-matching-head [pair-id env]
   (let [head (some->> env
