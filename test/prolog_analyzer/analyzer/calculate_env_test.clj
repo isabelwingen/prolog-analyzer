@@ -77,6 +77,3 @@
                      ("Compound" "foo" ["Var" "Atom"])])]))
   => (contains {"A" "Ground"
                 "B" "Atom"})))
-
-(to-spec ("Tuple" [("And" ["Ground"
-                           ("Compound" "foo" ["Var" "Atom"])])]))
