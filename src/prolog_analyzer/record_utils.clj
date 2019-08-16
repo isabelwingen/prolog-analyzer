@@ -1,6 +1,7 @@
 (ns prolog-analyzer.record-utils
   (:require [prolog-analyzer.records :as r]
             [prolog-analyzer.state :refer [user-typedefs]]
+            [clojure.tools.logging :as log]
             [prolog-analyzer.utils :as utils :refer [case+ duocase]]))
 
 (declare intersect)
@@ -24,6 +25,9 @@
 
 (defn and-spec? [spec]
   (= r/AND (r/safe-spec-type spec "and-spec?")))
+
+(defn user-defined-spec? [spec]
+  (= r/USERDEFINED (r/safe-spec-type spec "user-defined-spec?")))
 
 (defn placeholder-spec? [spec]
   (= r/PLACEHOLDER (r/safe-spec-type spec "placeholder-spec?")))
@@ -69,7 +73,8 @@
   there are values assigned to these parameters. To get the correct definition,
   we have to replace the parameter with their value."
   [{n :name arglist :arglist :as user-def-spec}]
-  (let [res (if (nil? arglist)
+  (let [beautify (fn [spec] (if (or-spec? spec) (update spec :arglist set) spec))
+        res (if (nil? arglist)
               (get @user-typedefs user-def-spec nil)
               (let [alias (->> @user-typedefs
                                keys
@@ -79,14 +84,13 @@
                     definition (get @user-typedefs alias nil)
                     replace-map (apply hash-map (interleave (map :name (:arglist alias)) arglist))
                     result (reduce-kv replace-specvars-with-spec definition replace-map)]
-                (if (= r/OR (r/safe-spec-type result "resolve-definition-with-parameters"))
-                  (update result :arglist set)
-                  result)))]
-    (if (nil? res)
-      (if (nil? user-def-spec)
-        (throw (Exception. "User-defined spec was nil"))
-        (throw (Exception. (str "Could not find definition of userdefined spec " (r/to-string user-def-spec)))))
-      res)))
+                (some-> result beautify)
+                ))]
+    (or
+     res
+     (do
+       (log/error "Spec " n " was used, but not defined, falling back to any.")
+       (r/->AnySpec)))))
 
 (defn- supertype? [parent child]
   (if (= r/OR (r/safe-spec-type parent "supertype"))
@@ -274,7 +278,6 @@
                                                         :default nil)
                               [r/COMPOUND :idclol] (swap)
 
-                              [r/USERDEFINED r/ANY] left
                               [r/USERDEFINED r/USERDEFINED] (cond
                                                               (and
                                                                (= (:name left) (:name right))
