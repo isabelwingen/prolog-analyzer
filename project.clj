@@ -8,6 +8,7 @@
                  [ch.qos.logback/logback-classic "1.1.3"]
                  [org.clojure/tools.namespace "0.2.11"]
                  [org.clojure/tools.logging "0.4.1"]
+                 [hiccup "1.0.5"]
                  [midje "1.9.9"]
                  [org.clojure/data.json "0.2.6"]
                  [ubergraph "0.5.2"]
