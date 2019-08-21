@@ -31,7 +31,7 @@
           ))))
 
 (defn write [envs]
-  (visualizer/to-json envs "tmp/result.tmp"))
+  (println "done"))
 
 (defn -main [& args]
   (write (apply run args))

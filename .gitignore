@@ -10,9 +10,10 @@
 .#*
 *.edn
 
-doc/auto
+doc/
 *.txt
 *.result
 bla.tmp
 data.tmp
 plstatic.tmp
+*.html
