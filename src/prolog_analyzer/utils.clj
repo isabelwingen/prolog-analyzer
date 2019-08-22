@@ -144,3 +144,35 @@
   (and
    (= (get-terms env1) (get-terms env2))
    (every? (partial same-dom? env1 env2) (get-terms env1))))
+
+
+(defn set-title [env title]
+  (-> env
+      (uber/add-nodes :environment)
+      (uber/add-attr :environment :title title)))
+
+(defn get-title [env]
+  (if (uber/has-node? env :environment)
+    (uber/attr env :environment :title)
+    (do
+      (log/error "No title found")
+      ["no" "no" 0 0])))
+
+(defn set-arguments [env arglist]
+  (-> env
+      (uber/add-nodes :environment)
+      (uber/add-attr :environment :arglist arglist)))
+
+(defn get-arguments [env]
+  (if (uber/has-node? env :environment)
+    (uber/attr env :environment :arglist)
+    []))
+
+
+(defmulti format-log (fn [a & args] (type a)))
+
+(defmethod format-log ubergraph.core.Ubergraph [env & msgs]
+  (apply format-log (get-title env) msgs))
+
+(defmethod format-log :default [title & msgs]
+  (apply str title " - " msgs))

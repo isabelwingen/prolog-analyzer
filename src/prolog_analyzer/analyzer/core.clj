@@ -3,56 +3,59 @@
             [prolog-analyzer.record-utils :as i]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.record-utils :as ru]
+            [clojure.tools.logging :as log]
             [prolog-analyzer.analyzer.calculate-env :as calc]
-            [prolog-analyzer.state :as state]
-   ))
+            [prolog-analyzer.state :as state]))
 
-(def data (atom {}))
 
-(defn- get-pre-spec [pred-id]
-  (->> @data
+(defn- get-pre-spec [data pred-id]
+  (->> data
        (utils/get-pre-specs pred-id)
        (map r/->TupleSpec)
        set
        r/->OneOfSpec
-   ;    ru/simplify
+       ru/simplify
        ))
 
-(defn- get-post-specs [pred-id]
-  (if-let [pss (utils/get-post-specs pred-id @data)]
+(defn- get-post-specs [data pred-id]
+  (if-let [pss (utils/get-post-specs pred-id data)]
     pss
     []))
 
-
-(defn- subgoal-analyzer [env {:keys [goal module arity arglist]}]
-  (if (zero? arity)
+(defn- subgoal-analyzer [data env {:keys [goal module arity arglist]}]
+  (log/debug (utils/format-log env "Analysis of Subgoal " goal))
+  (if (or
+       (zero? arity)
+       (= :or goal)
+       (= :if goal))
     env
     (let [pred-id [module goal arity]
-          pre-spec (get-pre-spec pred-id)
-          post-specs (get-post-specs pred-id)]
+          pre-spec (get-pre-spec data pred-id)
+          post-specs (get-post-specs data pred-id)]
       (calc/get-env-for-subgoal env arglist pre-spec post-specs))))
 
-(defn- analyze-clause [title {arglist :arglist body :body} pre-spec]
+(defn- analyze-clause [data title {arglist :arglist body :body} pre-spec]
+  (log/debug (utils/format-log title "Analyse clause"))
   (reduce
-   subgoal-analyzer
+   (partial subgoal-analyzer data)
    (calc/get-env-for-head title arglist pre-spec)
    body))
 
-(defn- build-tasks []
-  (for [pred-id (utils/get-pred-identities @data)
-        clause-number (utils/get-clause-identities-of-pred pred-id @data)]
-    [pred-id clause-number]))
+(defn- build-tasks [data]
+  (let [res (for [pred-id (utils/get-pred-identities data)
+                  clause-number (utils/get-clause-identities-of-pred pred-id data)]
+              [pred-id clause-number])]
+    (log/debug "Number of tasks: " (count res))
+    res))
 
-(defn- execute-task [[pred-id clause-number]]
+(defn- execute-task [data [pred-id clause-number]]
+  (log/debug (utils/format-log (vec (conj pred-id clause-number)) "Execute Analysis"))
   (analyze-clause
+   data
    (conj pred-id clause-number)
-   (utils/get-clause pred-id clause-number @data)
-   (get-pre-spec pred-id)))
+   (utils/get-clause pred-id clause-number data)
+   (get-pre-spec data pred-id)))
 
-(defn complete-analysis [in-data]
-  (reset! data in-data)
-  (when (empty? (utils/get-pred-identities in-data))
-    (println (pr-str "No predicates found")))
-  (reset! state/user-typedefs (:specs in-data))
-  (let [tasks (build-tasks)]
-    (pmap execute-task tasks)))
+(defn complete-analysis [data]
+  (let [tasks (build-tasks data)]
+    (map (partial execute-task data) tasks)))

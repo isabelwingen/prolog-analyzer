@@ -11,6 +11,11 @@
                  [hiccup "1.0.5"]
                  [midje "1.9.9"]
                  [org.clojure/data.json "0.2.6"]
+                 [org.slf4j/slf4j-log4j12 "1.7.1"]
+                 [log4j/log4j "1.2.17" :exclusions [javax.mail/mail
+                                                    javax.jms/jms
+                                                    com.sun.jmdk/jmxtools
+                                                    com.sun.jmx/jmxri]]
                  [ubergraph "0.5.2"]
                  [tableflisp "0.1.0"]]
   :main ^:skip-aot prolog-analyzer.core

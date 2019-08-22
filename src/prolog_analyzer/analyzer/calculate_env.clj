@@ -5,6 +5,7 @@
             [prolog-analyzer.record-utils :as ru]
             [clojure.pprint :refer [pprint]]
             [ubergraph.core :as uber]
+            [clojure.tools.logging :as log]
             [prolog-analyzer.analyzer.post-specs :as post-specs]))
 
 (defn xyzabc [env term spec {initial? :initial overwrite? :overwrite}]
@@ -48,22 +49,15 @@
       (xyzabc env term (r/->TupleSpec [head-dom]) parameters)
       (xyzabc env term (or filtered-dom (r/DISJOINT)) parameters))))
 
-(def e
-  (-> (uber/digraph)
-      (uber/add-edges [(r/->VarTerm "X") (ru/to-head-tail-list (r/->VarTerm "X") (r/->VarTerm "Y")) {:relation :is-head}])
-      (uber/add-nodes-with-attrs
-       [(r/->VarTerm "X") {:dom (r/->AtomSpec)}]
-       [(ru/to-head-tail-list (r/->VarTerm "X") (r/->VarTerm "Y")) {:dom (r/->OneOfSpec #{(r/->TupleSpec [(r/->AtomSpec) (r/->IntegerSpec)])
-                                                                                                        (r/->TupleSpec [(r/->IntegerSpec) (r/->AtomSpec)])})}])))
 
-(defn get-matching-head [pair-id env]
+(defn get-matching-head [tail pair-id env]
   (let [head (some->> env
                       uber/edges
                       (filter #(= :is-head (uber/attr env % :relation)))
                       (filter #(= pair-id (uber/attr env % :pair)))
                       first
                       uber/src)]
-    (assert (not (nil? head)))
+    (assert (not (nil? head)) (str (utils/get-title env) " " (r/to-string tail)))
     head))
 
 (defmethod process-edge :is-tail [parameters env edge]
@@ -71,8 +65,7 @@
         term (uber/dest edge)
         tail-dom (utils/get-dom-of-term env tail)
         term-dom (utils/get-dom-of-term env term)
-        pair-id (uber/attr env edge :pair)
-        head (get-matching-head pair-id env)
+        head (ru/head term)
         head-dom (utils/get-dom-of-term env head)
         new-dom (case+ (r/safe-spec-type tail-dom "process-tail")
                        r/TUPLE (update tail-dom :arglist #(->> %
@@ -113,29 +106,22 @@
       (process-post-specs parameters)))
 
 (defn- post-process [env parameters]
-  (loop [res env]
+  (loop [counter 0
+         res env]
+    (log/debug (utils/format-log env "Post Process - " counter))
     (let [next (post-process-step res parameters)]
       (if (utils/same? next res)
         res
-        (recur next)))))
-
-(defn- add-args-of-head [env arglist]
-  (-> env
-      (uber/add-nodes :environment)
-      (uber/add-attr :environment :arglist arglist)))
-
-(defn- add-title [env title]
-  (-> env
-      (uber/add-nodes :environment)
-      (uber/add-attr :environment :title title)))
+        (recur (inc counter) next)))))
 
 (defn get-env-for-head
   "Calculates an environment from the header terms and the prespec"
   [title arglist pre-spec]
+  (log/debug (utils/format-log title "Calculate env for head"))
   (let [parameters {:initial true}]
     (-> (uber/digraph)
-        (add-args-of-head arglist)
-        (add-title title)
+        (utils/set-arguments arglist)
+        (utils/set-title title)
         (xyzabc (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
         (post-process parameters)
@@ -144,6 +130,7 @@
 (defn- get-env-for-pre-spec-of-subgoal
   "Calculates an environment from a subgoal and its pre-specs"
   [in-env arglist pre-spec]
+  (log/debug (utils/format-log in-env "Calculate env for pre spec"))
   (let [parameters {:initial false}]
     (-> in-env
         (xyzabc (apply ru/to-head-tail-list arglist) pre-spec parameters)
@@ -152,6 +139,7 @@
 
 (defn- get-env-for-post-spec-of-subgoal
   [in-env arglist post-specs]
+  (log/debug (utils/format-log in-env "Calculate env for post spec"))
   (let [parameters {:initial false :overwrite true}]
     (-> in-env
         (post-specs/register-post-specs arglist post-specs)
@@ -160,6 +148,7 @@
 
 (defn get-env-for-subgoal
   [in-env arglist pre-spec post-specs]
+  (log/debug (utils/format-log in-env "Calculate env for subgoal"))
   (-> in-env
       (get-env-for-pre-spec-of-subgoal arglist pre-spec)
       (get-env-for-post-spec-of-subgoal arglist post-specs)))

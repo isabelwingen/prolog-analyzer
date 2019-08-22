@@ -54,25 +54,6 @@
        ))
 
 
-(defn- create-post-spec [[_ _ arity :as pred-id] data]
-  (->> data
-       (utils/get-clauses-of-pred pred-id)
-       (map :arglist)
-       (map (partial map r/initial-spec))
-       (map (partial apply vector))
-       (map (partial vector (->> (range 0 arity)
-                           (map #(hash-map :id % :type (r/->AnySpec))))))
-       (apply vector)
-       (group-by first)
-       (reduce-kv (fn [m k v] (assoc m k (->> v
-                                             (map second)
-                                             (map (partial apply ru/to-tuple-spec))
-                                             set
-                                             r/->OneOfSpec
-                                             )))
-                  {})))
-
-
 (defn- add-any-pre-specs
   "If there are no pre-specs, add one"
   [data]
@@ -84,14 +65,18 @@
         (recur (rest pred-ids) result))
       result)))
 
+(defn- create-any-conclusion [n]
+  (vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 n))))
+
 (defn- add-any-post-specs
   "If there are no post-specs, add one"
   [data]
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
-      (if (nil? (utils/get-post-specs pred-id result))
-        (recur (rest pred-ids) (assoc-in result [:post-specs pred-id] []))
+      result
+      #_(if (nil? (utils/get-post-specs pred-id result))
+        (recur (rest pred-ids) (assoc-in result [:post-specs pred-id] [{:guard [] :conclusion (vector (create-any-conclusion arity))}]))
         (recur (rest pred-ids) result))
       result)))
 
@@ -142,7 +127,7 @@
 
 
 (defn pre-process-single [data]
-  (println (pr-str "Start Pre Process Single"))
+  (log/debug "Start Pre Process Single")
   (let [p (-> data
               mark-self-calling-clauses
               transform-singleton-lists
@@ -151,5 +136,5 @@
               add-any-post-specs
               set-correct-modules
               )]
-    (println (pr-str "Done Pre Process Single"))
+    (log/debug "Done Pre Process Single")
     p))

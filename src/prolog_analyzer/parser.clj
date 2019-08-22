@@ -9,6 +9,7 @@
             [clojure.edn :as edn]
             [clojure.java.shell :as sh]
             [clojure.set :refer [rename-keys]]
+            [clojure.tools.logging :as log]
             [clojure.string]))
 
 (defn- get-name-without-ending [file-name]
@@ -33,13 +34,13 @@
   (if (.exists (io/file clojure-file))
     (read-string (str \[ (slurp clojure-file) \]))
     (do
-      (println (pr-str "No .edn file was created"))
+      (log/error "No .edn file was created")
       [])))
 
 (defmulti ^{:private true} call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
-  (println (pr-str "Call prolog"))
+  (log/info "Call prolog")
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
@@ -50,7 +51,7 @@
     err))
 
 (defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file edn-file]
-  (println (pr-str "Call prolog"))
+  (log/info "Call prolog")
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
@@ -140,8 +141,6 @@
        (apply vector)))
 
 (defmethod specs-to-map :spec-post [{module :module functor :functor arity :arity guard :guard conc :conclusion}]
-  (when (nil? guard)
-    (println module functor arity))
   {[module functor arity]
    [{:guard (create-guard guard)
      :conclusion (create-conclusion conc)}]})
@@ -244,7 +243,7 @@
        ))
 
 (defn- format-and-clean-up [data]
-  (println (pr-str "Start formatting of edn"))
+  (log/info "Start formatting of edn")
   (let [p (-> data
               (group-by-and-apply :type (partial map :content))
               (update :define-spec order-define-specs)
@@ -257,13 +256,13 @@
               order-imports
               (rename-keys {:pre-spec :pre-specs :post-spec :post-specs :pred :preds})
               )]
-    (println (pr-str "Done formatting of edn"))
+    (log/info "Done formatting of edn")
     p))
 
 (defn add-built-ins [data]
   (let [built-in-edn (get-edn-file-name "prolog/builtins.pl")]
     (when (not (.exists (io/file built-in-edn)))
-      (println (pr-str "Create built-ins"))
+      (log/info "Create built-ins")
       (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl" built-in-edn))
     (let [built-in (-> built-in-edn
                        transform-to-edn

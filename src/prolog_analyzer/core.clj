@@ -1,7 +1,7 @@
 (ns prolog-analyzer.core
   (:gen-class)
   (:require [prolog-analyzer.parser :as parser]
-            [prolog-analyzer.analyzer.core :as analyzer]
+            [prolog-analyzer.analyzer.global-analysis :as global]
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
             [tableflisp.core :refer :all]
@@ -11,11 +11,15 @@
 
 (declare analyze-swi-packs)
 
+(defn write [data]
+  (visualizer/htmlify-data data))
+
+
 (defn run
   ([edn edn?]
    (->> edn
         parser/process-edn
-        analyzer/complete-analysis
+        (global/global-analysis write)
         ))
   ([dialect term-expander file prolog-exe]
    (run dialect term-expander file prolog-exe "false"))
@@ -23,15 +27,12 @@
    (if (.isDirectory (io/file file))
      (->> file
           (parser/process-prolog-directory dialect term-expander prolog-exe)
-          analyzer/complete-analysis
+          (global/global-analysis write)
           )
      (->> file
           (parser/process-prolog-file dialect term-expander prolog-exe)
-          analyzer/complete-analysis
+          (global/global-analysis write)
           ))))
-
-(defn write [envs]
-  (println "done"))
 
 (defn -main [& args]
   (write (apply run args))
