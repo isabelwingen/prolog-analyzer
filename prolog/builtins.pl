@@ -420,7 +420,7 @@
                                         %% compatible(Y)]).
 
 :- spec_pre(user:append/3,  [maybe(list(any)), maybe(list(any)), maybe(list(any))]).
-:- spec_post(user:append/3, [0:list(placeholder(a)), 1:list(placeholder(b))], [[2:list(one_of(placeholder(a), placeholder(b)))]]).
+:- spec_post(user:append/3, [0:list(placeholder(a)), 1:list(placeholder(b))], [[2:list(one_of([placeholder(a), placeholder(b)]))]]).
 :- spec_post(user:append/3, [2:list(placeholder(a))], [[0:list(placeholder(a)), 1:list(placeholder(a))]]).
 
 :- spec_pre(lists:append/2,  [list(list(any)), maybe(list(any))]).

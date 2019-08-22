@@ -19,7 +19,7 @@
 
 :- spec_pre(member_int/2,[int,list(int)]).
 :- spec_pre(member_int/2,[var,list(int)]).
-:- spec_post(member_int/2,[var,list(int)],[int,list(int)]).
+:- spec_post(member_int/2,[],[[0:int,1:list(int)]]).
 :- spec_invariant(member_int/2,[any,ground]).
 member_int(H,[H,_]) :- !.
 member_int(E,[_,T]) :-
@@ -27,6 +27,5 @@ member_int(E,[_,T]) :-
 
 
 :- spec_pre(foo/3,[foo,intOrVar,intOrVar]).
-:- spec_post(foo/3,[foo,intOrVar,intOrVar],[foo,int,int]).
-:- spec_post(foo/3,[nonvar,int,int],[foo,int,int]).
+:- spec_post(foo/3,[],[[0:foo,1:int,2:int]]).
 foo(foo(A,B),A,B).

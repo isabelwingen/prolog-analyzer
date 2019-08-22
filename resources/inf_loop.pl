@@ -10,6 +10,5 @@
 :- define_spec(cst,compound(cst(int))).
 
 :- spec_pre(int_expr/1,[expr]).
-:- spec_post(int_expr/1,[expr],[ground]).
 int_expr(expr(Op,A,B)) :-
     int_expr(A).

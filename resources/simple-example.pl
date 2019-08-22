@@ -9,7 +9,7 @@ mmember(E,[_|T]) :-
     mmember(E,T).
 
 
-foo(X, Y) :-
+grr(X, Y) :-
     atom(X),
     bar(X, Y).
 
@@ -23,3 +23,5 @@ bar(a, 3),
 :- spec_post(foo/2, [], [[0:int, 1:int]; [0:atom,1:atom]]).
 foo(1,1).
 foo(a,a).
+
+raw_machine_term(properties(_,P),'PROPERTIES',P).
