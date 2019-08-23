@@ -43,11 +43,13 @@
 
 
 (defn add-if-new [data [_ _ arity :as pred-id] post-spec]
-  (update-in data [:post-specs pred-id] #(-> %
-                                             drop-last
-                                             vec
-                                             (conj post-spec)
-                                             vec)))
+  (if (> (length-of-post-spec post-spec) 200)
+    data
+    (update-in data [:post-specs pred-id] #(-> %
+                                               drop-last
+                                               vec
+                                               (conj post-spec)
+                                               vec))))
 
 (defn- create-new-data [in-data envs]
   (->> envs
