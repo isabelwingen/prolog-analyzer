@@ -47,7 +47,8 @@
   (to-string [x]))
 
 (defprotocol spec
-  (spec-type [spec]))
+  (spec-type [spec])
+  (length [x]))
 
 (defprotocol term
   (term-type [term])
@@ -56,6 +57,7 @@
 (defrecord AnySpec []
   spec
   (spec-type [spec] ANY)
+  (length [x] 1)
   printable
   (to-string [x] "Any"))
 
@@ -63,6 +65,7 @@
 (defrecord ErrorSpec [reason]
   spec
   (spec-type [spec] ERROR)
+  (length [x] (count reason))
   printable
   (to-string [x] (str "ERROR: " reason)))
 
@@ -76,54 +79,63 @@
 (defrecord VarSpec []
   spec
   (spec-type [spec] VAR)
+  (length [x] 1)
   printable
   (to-string [x] "Var"))
 
 (defrecord EmptyListSpec []
   spec
   (spec-type [spec] EMPTYLIST)
+  (length [x] 1)
   printable
   (to-string [x] "EmptyList"))
 
 (defrecord StringSpec []
   spec
   (spec-type [spec] STRING)
+  (length [x] 1)
   printable
   (to-string [x] "String"))
 
 (defrecord AtomSpec []
   spec
   (spec-type [spec] ATOM)
+  (length [x] 1)
   printable
   (to-string [x] "Atom"))
 
 (defrecord IntegerSpec []
   spec
   (spec-type [spec] INTEGER)
+  (length [x] 1)
   printable
   (to-string [x] "Integer"))
 
 (defrecord FloatSpec []
   spec
   (spec-type [spec] FLOAT)
+  (length [x] 1)
   printable
   (to-string [x] "Float"))
 
 (defrecord NumberSpec []
   spec
   (spec-type [spec] NUMBER)
+  (length [x] 1)
   printable
   (to-string [x] "Number"))
 
 (defrecord AtomicSpec []
   spec
   (spec-type [spec] ATOMIC)
+  (length [x] 1)
   printable
   (to-string [x] "Atomic"))
 
 (defrecord ExactSpec [value]
   spec
   (spec-type [spec] EXACT)
+  (length [x] 1)
   printable
   (to-string [x] (str "Exact(" value ")")))
 
@@ -133,12 +145,14 @@
 (defrecord ListSpec [type]
   spec
   (spec-type [spec] LIST)
+  (length [x] 2)
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
 
 (defrecord TupleSpec [arglist]
   spec
   (spec-type [spec] TUPLE)
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
@@ -146,6 +160,7 @@
 (defrecord CompoundSpec [functor arglist]
   spec
   (spec-type [spec] COMPOUND)
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (if (nil? functor) "Compound" (str "Compound(" functor "(" (to-arglist arglist) "))"))))
 
@@ -153,24 +168,30 @@
 (defrecord GroundSpec []
   spec
   (spec-type [spec] GROUND)
+  (length [x] 1)
   printable
   (to-string [x] "Ground"))
 
 (defrecord AndSpec [arglist]
   spec
   (spec-type [spec] AND)
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
 (defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
 (defrecord UserDefinedSpec [name]
   spec
   (spec-type [spec] USERDEFINED)
+  (length [x] (if (contains? x :arglist)
+                (apply + 1 (map length (:arglist x)))
+                2))
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
@@ -179,12 +200,14 @@
 (defrecord NonvarSpec []
   spec
   (spec-type [spec] NONVAR)
+  (length [x] 1)
   printable
   (to-string [x] "Nonvar"))
 
 (defrecord PlaceholderSpec [name]
   spec
   (spec-type [spec] PLACEHOLDER)
+  (length [x] 2)
   printable
   (to-string [x] (if (contains? x :alias)
                    (str "Placeholder(" name "):" (to-string (:alias x)))
@@ -194,6 +217,7 @@
 (defrecord SpecvarSpec [name]
   spec
   (spec-type [spec] SPECVAR)
+  (length [x] 2)
   printable
   (to-string [x] (str "Specvar(" name ")")))
 

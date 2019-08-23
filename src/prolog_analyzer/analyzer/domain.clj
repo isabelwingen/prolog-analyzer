@@ -53,6 +53,7 @@
     :else []))
 
 (defmethod next-steps :userdef [term spec]
+  []
   (let [resolved (ru/resolve-definition-with-parameters spec)]
     [[term resolved]]))
 
