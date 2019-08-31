@@ -151,12 +151,10 @@
       (uber/add-nodes :environment)
       (uber/add-attr :environment :title title)))
 
-(defn get-title [env]
+(defn get-title [env msg]
   (if (uber/has-node? env :environment)
     (uber/attr env :environment :title)
-    (do
-      (log/error "No title found")
-      ["no" "no" 0 0])))
+    (throw (Exception. (str msg ": " (env->map env))))))
 
 (defn set-arguments [env arglist]
   (-> env

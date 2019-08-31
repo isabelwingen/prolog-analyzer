@@ -72,6 +72,9 @@
 (defn tuple-spec? [spec]
   (= r/TUPLE (r/safe-spec-type spec "tuple-spec?")))
 
+(defn empty-list-spec? [spec]
+  (= r/EMPTYLIST (r/safe-spec-type spec "empty-list-spec?")))
+
 (declare replace-specvars-with-spec)
 
 (defn replace-specvars-with-spec [type specvar-name replace-spec]
@@ -223,6 +226,25 @@
          r/GROUND (grounded-version userdef-spec initial?)
          (intersect (resolve-definition-with-parameters userdef-spec) other-spec initial?)))
 
+(defmulti intersect-with-incomplete-list (fn [_ other-spec _] (r/spec-type other-spec)))
+
+(defmethod intersect-with-incomplete-list :list [{[a b] :arglist :as incomplete-list-spec} {t :type :as other-spec} initial?]
+  (let [new-head (intersect a t initial?)
+        new-tail (intersect b other-spec initial?)
+        new-spec (simplify (r/->OneOfSpec (hash-set (r/->ListSpec new-head) new-tail)) initial?)]
+    (if (or (error-spec? new-head)
+            (error-spec? new-tail))
+      (r/->ErrorSpec "Error with incomplete list")
+      new-spec)))
+
+(defmethod intersect-with-incomplete-list :tuple [{[a b] :arglist :as incomplete-list-spec} {[f & other] :arglist} initial?]
+  (let [new-head (intersect a f initial?)
+        new-tail (intersect b (r/->TupleSpec (vec other)) initial?)]
+    (if (or (tuple-spec? new-tail)
+            (empty-list-spec? new-tail))
+      (r/->TupleSpec (cons new-head (:arglist new-tail)))
+      (r/->ErrorSpec "Error with incomplete list"))))
+
 (def intersect*
   (memoize (fn [left right initial? swap?]
              (let [swap (fn [] (when swap?
@@ -298,7 +320,7 @@
                                          [r/LIST r/LIST] (update left :type #(intersect % (:type right) initial?))
                                          [r/LIST r/COMPOUND] (cond
                                                                (nil? (:functor right)) left
-                                                               (r/incomplete-list-spec? right) left
+                                                               (r/incomplete-list-spec? right) (intersect-with-incomplete-list right left initial?)
                                                                :else nil)
                                          [r/LIST r/TUPLE] (update right :arglist (partial map #(intersect % (:type left) initial?)))
                                          [r/LIST :idclol] (swap)
@@ -307,7 +329,7 @@
                                                              (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right))))
                                          [r/TUPLE r/COMPOUND] (cond
                                                                 (nil? (:functor right)) left
-                                                                (r/incomplete-list-spec? right) left
+                                                                (r/incomplete-list-spec? right) (intersect-with-incomplete-list right left initial?)
                                                                 :else nil)
                                          [r/TUPLE :idclol] (swap)
                                          [r/USERDEFINED :idclol] (intersect-userdefined left right initial?)
@@ -319,7 +341,7 @@
                                                                    :default nil)
                                          [r/COMPOUND :idclol] (swap)
 
-                                                                                  [r/OR r/OR] (let [new-arglist (set (for [a (:arglist left)
+                                         [r/OR r/OR] (let [new-arglist (set (for [a (:arglist left)
                                                                                   b (:arglist right)]
                                                                               (intersect a b initial?)))]
                                                        (assoc left :arglist new-arglist))
@@ -343,7 +365,9 @@
                (simplify (or intersection (r/DISJOINT left right)) initial?)))))
 
 (defn intersect [spec-a spec-b initial?]
-  (intersect* spec-a spec-b initial? true))
+  (if (= spec-a spec-b)
+    spec-a
+    (intersect* spec-a spec-b initial? true)))
 
 (defn to-tuple-spec
   "Transforms a bunch of `specs` to a tuple spec."

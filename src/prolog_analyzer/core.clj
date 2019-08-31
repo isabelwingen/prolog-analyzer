@@ -16,7 +16,7 @@
 
 
 (defn run
-  ([edn edn?]
+  ([edn]
    (->> edn
         parser/process-edn
         (global/global-analysis write)

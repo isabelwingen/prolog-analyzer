@@ -6,6 +6,7 @@
             [clojure.pprint :refer [pprint]]
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
+            [prolog-analyzer.state :as state]
             [prolog-analyzer.analyzer.post-specs :as post-specs]))
 
 (defn xyzabc [env term spec {initial? :initial overwrite? :overwrite}]
@@ -57,7 +58,7 @@
                       (filter #(= pair-id (uber/attr env % :pair)))
                       first
                       uber/src)]
-    (assert (not (nil? head)) (str (utils/get-title env) " " (r/to-string tail)))
+    (assert (not (nil? head)) (str (utils/get-title env "a") " " (r/to-string tail)))
     head))
 
 (defmethod process-edge :is-tail [parameters env edge]
@@ -147,9 +148,17 @@
         dom/add-structural-edges
         (post-process parameters))))
 
+(defn mark-self-calling [in-env subgoal-id]
+  (let [pred-id (vec (drop-last (utils/get-title in-env "mark-self-calling")))]
+    (when (= pred-id subgoal-id)
+      (swap! state/self-calling update pred-id #(inc (or % 0))))
+    (get @state/self-calling pred-id 0)))
+
 (defn get-env-for-subgoal
-  [in-env arglist pre-spec post-specs]
+  [in-env subgoal-id arglist pre-spec post-specs]
   (log/debug (utils/format-log in-env "Calculate env for subgoal"))
-  (-> in-env
-      (get-env-for-pre-spec-of-subgoal arglist pre-spec)
-      (get-env-for-post-spec-of-subgoal arglist post-specs)))
+  (if (< (mark-self-calling in-env subgoal-id) 3)
+    (-> in-env
+        (get-env-for-pre-spec-of-subgoal arglist pre-spec)
+        (get-env-for-post-spec-of-subgoal arglist post-specs))
+    in-env))

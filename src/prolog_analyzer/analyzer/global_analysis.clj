@@ -12,7 +12,7 @@
     (println (pr-str "No predicates found"))))
 
 (defn- group-envs-by-pred-id [envs]
-  (group-by #(vec (drop-last (utils/get-title %))) envs))
+  (group-by #(vec (drop-last (utils/get-title % "b"))) envs))
 
 (defn- create-single-conclusion [env]
   (->> env
@@ -94,51 +94,8 @@
 (defn- add-dummy-post-specs [data]
   (reduce (fn [d [_ _ arity :as pred-id]] (update-in d [:post-specs pred-id] #(vec (conj % (dummy-post-spec arity))))) data (utils/get-pred-identities data)))
 
-(defn contains-userdef [spec]
-  (case+ (r/spec-type spec)
-         r/USERDEFINED true
-         r/LIST (contains-userdef (:type spec))
-         (r/OR, r/AND, r/TUPLE, r/COMPOUND) (some contains-userdef (:arglist spec))
-         false))
-
-
-(defmulti create-grounded-version (fn [_ i] i))
-(defmethod create-grounded-version true [spec _]
-  (case+ (r/spec-type spec)
-         r/USERDEFINED (ru/grounded-version spec true)
-         r/VAR (r/->GroundSpec)
-         (r/OR, r/AND) (-> spec
-                           (update :arglist (partial map #(create-grounded-version % true)))
-                           (update :arglist set))
-         r/LIST (update spec :type create-grounded-version true)
-         (r/TUPLE, r/COMPOUND) (-> spec
-                                   (update :arglist (partial map #(create-grounded-version % true)))
-                                   (update :arglist vec))
-         spec))
-
-(defmethod create-grounded-version false [spec _]
-  (case+ (r/spec-type spec)
-         r/USERDEFINED (ru/grounded-version spec false)
-         r/VAR (r/->ErrorSpec (str "Could not ground userdefined spec " (r/to-string spec)))
-         (r/OR, r/AND) (-> spec
-                           (update :arglist (partial map #(create-grounded-version % false)))
-                           (update :arglist set))
-         r/LIST (update spec :type create-grounded-version false)
-         (r/TUPLE, r/COMPOUND) (-> spec
-                                   (update :arglist (partial map #(create-grounded-version % false)))
-                                   (update :arglist vec))
-         spec))
-
-(defn add-grounded-userdefs []
-  (reset! state/grounded {})
-  (doseq [p (keys @state/user-typedefs)
-          initial [true false]
-          :let [v (get @state/user-typedefs p)]]
-    (swap! state/user-typedefs assoc (create-grounded-version p initial) (create-grounded-version v initial))))
-
 (defn global-analysis [writer data]
-  (reset! state/user-typedefs (:specs data))
-  (add-grounded-userdefs)
-  (let [cleared-data (-> data (dissoc :specs) add-dummy-post-specs)]
+  (let [cleared-data (add-dummy-post-specs data)]
+    (reset! state/self-calling {})
     (log-if-empty cleared-data)
     (fixpoint writer 0 cleared-data)))

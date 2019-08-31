@@ -32,7 +32,7 @@
     (let [pred-id [module goal arity]
           pre-spec (get-pre-spec data pred-id)
           post-specs (get-post-specs data pred-id)]
-      (calc/get-env-for-subgoal env arglist pre-spec post-specs))))
+      (calc/get-env-for-subgoal env pred-id arglist pre-spec post-specs))))
 
 (defn- analyze-clause [data title {arglist :arglist body :body} pre-spec]
   (log/debug (utils/format-log title "Analyse clause"))
