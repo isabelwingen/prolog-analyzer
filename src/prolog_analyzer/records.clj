@@ -1,7 +1,7 @@
 (ns prolog-analyzer.records
   (:require [clojure.tools.logging :as log]
             [clojure.tools.namespace.repl :refer [refresh]]
-
+            [instaparse.core :as insta]
             [clojure.string]))
 
 
@@ -385,3 +385,91 @@
    (= COMPOUND (spec-type spec))
    (= "." (:functor spec))
    (= 2 (count (:arglist spec)))))
+
+
+(defn to-spec [string]
+  (case string
+    "Any" (->AnySpec)
+    "Ground" (->GroundSpec)
+    "Integer" (->IntegerSpec)
+    "Float" (->FloatSpec)
+    "Number" (->NumberSpec)
+    "Atomic" (->AtomicSpec)
+    "Atom" (->AtomSpec)
+    "Var" (->VarSpec)
+    "Nonvar" (->NonvarSpec)
+    "EmptyList" (->EmptyListSpec)))
+
+(def p
+  (insta/parser
+   "<Spec> = Simple | Complex
+    <Complex> = Or | And | List | Tuple | Exact | Compound | Userdef
+    <Simple> = Any | Integer | Float | Atom | Atomic | Number | EmptyList | Var | Nonvar | Ground
+    <Arglist> = <''> | Spec (<','> <' '>* Spec)*
+    Any = <'Any'>
+    Integer = <'Integer'>
+    Float = <'Float'>
+    Number = <'Number'>
+    Atom = <'Atom'>
+    Atomic = <'Atomic'>
+    Ground = <'Ground'>
+    Var = <'Var'>
+    Nonvar = <'Nonvar'>
+    EmptyList = <'EmptyList'>
+    <Letters> = #'[a-z_\\.]*'
+    Exact = <'Exact('> Letters <')'>
+    List = <'List('> Spec <')'>
+    Tuple = <'Tuple('> Arglist <')'>
+    Functor = Letters
+    Compound = <'Compound('> Functor <'('> Arglist <'))'>
+    Or = <'OneOf('> Arglist <')'>
+    And = <'And('> Arglist <')'>
+    Userdef = Functor | Functor <'('> Arglist <')'>"
+   :output-format :enlive))
+
+(defmulti to-spec (fn [{tag :tag}] tag))
+
+(defmethod to-spec :Integer [_]
+  (->IntegerSpec))
+(defmethod to-spec :Float [_]
+  (->FloatSpec))
+(defmethod to-spec :Number [_]
+  (->NumberSpec))
+(defmethod to-spec :Atom [_]
+  (->AtomSpec))
+(defmethod to-spec :Atomic [_]
+  (->AtomicSpec))
+(defmethod to-spec :Ground [_]
+  (->GroundSpec))
+(defmethod to-spec :Nonvar [_]
+  (->NonvarSpec))
+(defmethod to-spec :Var [_]
+  (->VarSpec))
+(defmethod to-spec :Any [_]
+  (->AnySpec))
+(defmethod to-spec :Exact [{[x] :content}]
+  (->ExactSpec x))
+(defmethod to-spec :List [{[x] :content}]
+(->ListSpec (to-spec x)))
+(defmethod to-spec :Tuple [{content :content}]
+  (->TupleSpec (vec (map to-spec content))))
+(defmethod to-spec :Functor [{[content] :content}]
+  content)
+(defmethod to-spec :Compound [{[functor & args] :content}]
+  (->CompoundSpec (to-spec functor) (vec (map to-spec args))))
+(defmethod to-spec :Or [{content :content}]
+  (->OneOfSpec (set (map to-spec content))))
+(defmethod to-spec :And [{content :content}]
+  (->OneOfSpec (set (map to-spec content))))
+(defmethod to-spec :Userdef [{[functor & args] :content}]
+  (if (empty? args)
+    (->UserDefinedSpec (to-spec functor))
+    (make-spec:user-defined (to-spec functor) (vec (map to-spec args)))))
+(defmethod to-spec :EmptyList [_]
+  (->EmptyListSpec))
+(defmethod to-spec :default [spec]
+  spec)
+
+
+(defn back-to-spec [str]
+  (first (map to-spec (insta/parse p str))))
