@@ -1,6 +1,7 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
             [prolog-analyzer.records :as r]
+            [clojure.tools.logging :as log]
             [prolog-analyzer.record-utils :as ru]
             [ubergraph.core :as uber]))
 
@@ -104,15 +105,19 @@
 (defmulti ^{:private true} process-next-steps (fn [_ _ spec _] (ru/or-spec? spec)))
 
 (defmethod process-next-steps false [env term spec initial?]
+  (log/trace (utils/format-log env "process-next-steps - not or"))
   (cond
     (ru/error-spec? spec) env
     (ru/list-term? term) (add-steps env (next-steps-of-list-term env term spec) initial?)
     :else  (add-steps env (next-steps term spec) initial?)))
 
 (defmethod process-next-steps true [env term spec initial?]
+  (log/trace (utils/format-log env "process-next-steps - or"))
   (let [arglist (:arglist spec)
-        envs (map (partial add-to-dom (uber/digraph) initial? term) arglist)
-        terms-with-doms (merge-envs envs)]
+        envs (map (partial add-to-dom env initial? term) arglist)
+        terms-with-doms (->> envs
+                             merge-envs
+                             (remove (fn [[a b]] (= a term))))]
     (reduce #(apply add-to-dom %1 initial? %2) env terms-with-doms)))
 
 (defn- has-dom? [env term]
@@ -135,7 +140,11 @@
   ([env term spec]
    (add-to-dom env false term spec))
   ([env initial? term spec]
-   (letfn [(intersect-fn [a b] (ru/intersect (or a (r/->AnySpec)) b initial?))]
+   (letfn [(intersect-fn [a b]
+             (log/trace "intersect of\n" (r/to-string (or a (r/->AnySpec))) "\n" (r/to-string b))
+             (let [res (ru/intersect (or a (r/->AnySpec)) b initial?)]
+               (log/trace "result:\n" (r/to-string res))
+               res))]
      (cond
        (not (has-dom? env term))      (first-add env initial? term spec)
        (ru/and-spec? spec)            (reduce #(add-to-dom %1 initial? term %2) env (:arglist spec))
@@ -146,8 +155,8 @@
                                           env
                                           (-> env
                                               (uber/add-attr term DOM new)
-                                              (utils/update-attr term :history conj spec)
-                                              (process-next-steps term new initial?))))))))
+                                              (process-next-steps term new initial?)
+                                              )))))))
 
 (defn add-to-dom-post-spec [env term spec]
   (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))

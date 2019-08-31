@@ -106,6 +106,7 @@
       (process-post-specs parameters)))
 
 (defn- post-process [env parameters]
+  (log/debug "post-process")
   (loop [counter 0
          res env]
     (log/debug (utils/format-log env "Post Process - " counter))

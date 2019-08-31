@@ -172,7 +172,7 @@
 (defmulti format-log (fn [a & args] (type a)))
 
 (defmethod format-log ubergraph.core.Ubergraph [env & msgs]
-  (apply format-log (get-title env) msgs))
+  (apply format-log (get-title env (apply str "c " msgs)) msgs))
 
 (defmethod format-log :default [title & msgs]
   (apply str title " - " msgs))
