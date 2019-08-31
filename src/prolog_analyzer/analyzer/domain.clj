@@ -9,6 +9,7 @@
 (declare merge-envs)
 
 (def DOM :dom)
+(def HIST :history)
 
 (defmulti ^{:private true} next-steps
   (fn [term spec]
@@ -136,10 +137,14 @@
    (not (fully-qualified-spec? spec))
    (ru/list-term? term)))
 
+(defn- old? [new env term]
+  (contains? (uber/attr env term HIST) new))
+
 (defn add-to-dom
   ([env term spec]
    (add-to-dom env false term spec))
   ([env initial? term spec]
+   ;(log/debug "add to dom: " (r/to-string term) ": " (count (r/to-string spec)))
    (letfn [(intersect-fn [a b]
              (log/trace "intersect of\n" (r/to-string (or a (r/->AnySpec))) "\n" (r/to-string b))
              (let [res (ru/intersect (or a (r/->AnySpec)) b initial?)]
@@ -151,10 +156,15 @@
        (incomplete-list? spec term)   (add-to-dom env initial? term (r/create-incomplete-list-spec))
        :default                       (let [before (uber/attr env term DOM)
                                             new (intersect-fn before spec)]
-                                        (if (= before new)
+                                        (if
+                                            (or
+                                             (= before new)
+                                             (old? new env term))
                                           env
                                           (-> env
                                               (uber/add-attr term DOM new)
+                                              (utils/update-attr term HIST conj new)
+                                              (utils/update-attr term HIST set)
                                               (process-next-steps term new initial?)
                                               )))))))
 

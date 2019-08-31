@@ -277,11 +277,26 @@
     (list)
     (conj (get-elements-of-list tail) head)))
 
+(defn- unpack [spec]
+  (loop [arglist (:arglist spec)
+         res #{}]
+    (if-let [f (first arglist)]
+      (if (= OR (spec-type f))
+        (recur (concat (rest arglist) (:arglist f)) res)
+        (recur (rest arglist) (conj res f)))
+      (->OneOfSpec (set res)))))
 
 (defrecord ListTerm [head tail]
   term
   (term-type [term] LIST)
-  (initial-spec [term] (create-incomplete-list-spec (initial-spec head)))
+  (initial-spec [term]
+    (let [head-dom (initial-spec head)
+          tail-dom (initial-spec tail)]
+      (case (spec-type tail-dom)
+        :list (->ListSpec (->OneOfSpec (hash-set head-dom (:type tail-dom))))
+        :tuple (->TupleSpec (vec (cons head-dom (:arglist tail-dom))))
+        :empty-list (->TupleSpec [head-dom])
+        (->CompoundSpec "." [head-dom tail-dom]))))
   printable
   (to-string [x]
     (case (term-type tail)

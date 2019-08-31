@@ -45,14 +45,51 @@
      data
      (utils/get-clause-identities data))))
 
-(defn- create-pre-spec [pred-id data]
+;; CREATE PRE SPEC
+(defn simple-term [term]
+  (not (#{r/COMPOUND, r/EXACT, r/LIST} (r/term-type term))))
+
+(defn vec-remove
+  "remove elem in coll"
+  [coll pos]
+  (->> (vec (concat (subvec coll 0 pos) (subvec coll (inc pos))))
+       (map #(if (simple-term %) (r/term-type %) %))))
+
+(defn find-best-grouping [similar-specs]
+  (let [arity (count (first similar-specs))
+        juxt-fns (map (fn [i] (partial group-by #(vec-remove % i))) (range 0 arity))
+        groups ((apply juxt juxt-fns) similar-specs)
+        best-group (first (sort #(< (count (keys %1)) (count (keys %2))) groups))]
+    best-group))
+
+(defn to-spec [& specs]
+  (ru/simplify (r/->OneOfSpec (set (map r/initial-spec specs)))))
+
+(defn- pack-together [similar-specs]
+  (let [best-grouping (find-best-grouping similar-specs)]
+    (reduce-kv
+     #(conj %1 (apply map hash-set %3))
+     []
+     best-grouping)))
+
+(defn to-maybe-spec [spec]
+  (case+ (r/spec-type spec)
+         (r/VAR, r/ANY) spec
+         r/OR (update spec :arglist conj (r/->VarSpec))
+         (r/->OneOfSpec (hash-set spec (r/->VarSpec)))))
+
+(defn create-pre-spec [pred-id data]
   (->> data
        (utils/get-clauses-of-pred pred-id)
        (map :arglist)
-       (map (partial map (comp ru/maybe-spec r/initial-spec)))
-       (map (partial apply vector))
-       (apply vector)
+       pack-together
+       (map (partial map (partial apply to-spec)))
+       (map (partial map to-maybe-spec))
+       (map vec)
+       vec
        ))
+
+;; CREATE PRE SPEC
 
 
 (defn- add-any-pre-specs

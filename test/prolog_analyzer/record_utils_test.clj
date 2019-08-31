@@ -39,16 +39,3 @@
  (fact
   (sut/non-empty-intersection (r/->VarSpec) (r/->OneOfSpec #{(r/->IntegerSpec) (r/->VarSpec)}) false)
   => true))
-
-;:- define_spec(expr, one_of([atom, compound(expr(atom,expr,expr))])).
-
-(defn f []
-  (reset! state/grounded {})
-  (reset! state/user-typedefs {(r/->UserDefinedSpec "expr")
-                               (r/->OneOfSpec #{(r/->AtomSpec)
-                                                (r/->CompoundSpec "expr" [(r/->AtomSpec) (r/->UserDefinedSpec "expr") (r/->UserDefinedSpec "expr")])
-                                                (r/->CompoundSpec "neg" [(r/->UserDefinedSpec "expr")])})
-
-                               (r/->UserDefinedSpec "bla")
-                               (r/->OneOfSpec #{(r/->AtomSpec) (r/->VarSpec) (r/->CompoundSpec "bla" [(r/->UserDefinedSpec "bla")])})
-                               }))

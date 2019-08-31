@@ -170,7 +170,8 @@
                                             (map first)
                                             set))])
         initial?)
-       (if (every? #(= 2 (count (:arglist %))) arglist)
+       spec
+       #_(if (every? #(= 2 (count (:arglist %))) arglist)
          (simplify-pair-tuples-in-or spec)
          spec))
      spec)))
@@ -519,7 +520,10 @@
   (cond
     (:arglist spec) (r/->OneOfSpec #{(r/->VarSpec) (update spec :arglist (partial map (fn [x] (r/->AnySpec))))})
     (:type spec) (r/->OneOfSpec #{(r/->VarSpec) (assoc spec :type (r/->AnySpec))})
-    :else (if (any-spec? spec) spec (r/->OneOfSpec #{(r/->VarSpec) spec}))))
+    (any-spec? spec) spec
+    (var-spec? spec) (r/->AnySpec)
+    :else (r/->OneOfSpec (hash-set (r/->VarSpec) spec))))
+
 
 (defn list-term? [term]
   (= r/LIST (r/term-type term)))
