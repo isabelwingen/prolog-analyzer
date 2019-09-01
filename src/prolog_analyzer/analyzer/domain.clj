@@ -3,13 +3,24 @@
             [prolog-analyzer.records :as r]
             [clojure.tools.logging :as log]
             [prolog-analyzer.record-utils :as ru]
-            [ubergraph.core :as uber]))
+            [ubergraph.core :as uber]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
+            [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
+            ))
 
 (declare add-to-dom)
 (declare merge-envs)
 
 (def DOM :dom)
 (def HIST :history)
+
+(s/fdef next-steps
+  :args (s/cat
+         :term ::specs/term
+         :spec ::specs/spec)
+  :ret (s/coll-of (s/tuple ::specs/term ::specs/spec)))
 
 (defmulti ^{:private true} next-steps
   (fn [term spec]
@@ -100,6 +111,13 @@
         new-doms (map #(create-one-of-from-envs % envs) terms)]
     (map vector terms new-doms)))
 
+(s/fdef add-steps
+  :args (s/cat
+         :env utils/is-graph?
+         :steps (s/coll-of (s/tuple ::specs/term ::specs/spec))
+         :initial? boolean?)
+  :ret utils/is-graph?)
+
 (defn- add-steps [env steps initial?]
   (reduce #(apply add-to-dom %1 initial? %2) env steps))
 
@@ -140,20 +158,26 @@
 (defn- old? [new env term]
   (contains? (uber/attr env term HIST) new))
 
-(defn add-to-dom
-  ([env term spec]
+(defn create-incomplete-list-spec
+  ([] (create-incomplete-list-spec (r/->AnySpec)))
+  ([head-dom]
+   (r/->CompoundSpec "." [head-dom (r/->AnySpec)])))
+
+
+(defn-spec add-to-dom utils/is-graph?
+  ([env utils/is-graph?, term ::specs/term spec ::specs/spec]
    (add-to-dom env false term spec))
-  ([env initial? term spec]
-   ;(log/debug "add to dom: " (r/to-string term) ": " (count (r/to-string spec)))
+  ([env utils/is-graph?,
+    initial? boolean?,
+    term ::specs/term,
+    spec ::specs/spec]
    (letfn [(intersect-fn [a b]
-             ;(log/debug "intersect of\n" (r/to-string (or a (r/->AnySpec))) "\n - and - \n" (r/to-string b))
              (let [res (ru/intersect (or a (r/->AnySpec)) b initial?)]
-               ;(log/debug "result:\n" (r/to-string res))
                res))]
      (cond
        (not (has-dom? env term))      (first-add env initial? term spec)
        (ru/and-spec? spec)            (reduce #(add-to-dom %1 initial? term %2) env (:arglist spec))
-       (incomplete-list? spec term)   (add-to-dom env initial? term (r/create-incomplete-list-spec))
+       (incomplete-list? spec term)   (add-to-dom env initial? term (create-incomplete-list-spec))
        :default                       (let [before (uber/attr env term DOM)
                                             new (intersect-fn before spec)]
                                         (if
@@ -171,7 +195,13 @@
 (defn add-to-dom-post-spec [env term spec]
   (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))
 
+
+
 ;;; Add structural Edges
+(s/fdef edges
+  :args (s/cat :term ::specs/term)
+  :ret (s/coll-of (s/tuple ::specs/term ::specs/term map?)))
+
 (defmulti ^{:private true} edges (fn [term] (r/term-type term)))
 
 (defmethod edges :list [term]
@@ -195,3 +225,5 @@
             queue (vec (rest terms))]
         (recur (apply uber/add-edges res edges) (apply conj queue new-terms)))
       res)))
+
+(stest/instrument)

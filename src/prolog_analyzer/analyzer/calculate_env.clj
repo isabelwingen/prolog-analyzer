@@ -7,7 +7,12 @@
             [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [prolog-analyzer.state :as state]
-            [prolog-analyzer.analyzer.post-specs :as post-specs]))
+            [prolog-analyzer.analyzer.post-specs :as post-specs]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
+            [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
+            ))
 
 (defn xyzabc [env term spec {initial? :initial overwrite? :overwrite}]
   (if overwrite?

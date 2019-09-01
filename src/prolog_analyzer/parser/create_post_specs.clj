@@ -23,6 +23,7 @@
 (defn add-any-post-specs
   "If there are no post-specs, add one"
   [data]
+  (log/debug "Add Post Specs")
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]

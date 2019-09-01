@@ -84,6 +84,7 @@
 (defn add-any-pre-specs
   "If there are no pre-specs, add one"
   [data]
+  (log/debug "Add Pre Specs")
   (loop [pred-ids (utils/get-pred-identities data)
          result data]
     (if-let [[module pred-name arity :as pred-id] (first pred-ids)]

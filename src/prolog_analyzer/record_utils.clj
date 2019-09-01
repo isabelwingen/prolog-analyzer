@@ -3,6 +3,10 @@
             [prolog-analyzer.state :refer [user-typedefs]]
             [clojure.tools.logging :as log]
             [prolog-analyzer.state :refer [grounded]]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
+            [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
             [prolog-analyzer.utils :as utils :refer [case+ duocase]]))
 
 (declare intersect)
@@ -238,131 +242,144 @@
       new-spec)))
 
 (defmethod intersect-with-incomplete-list :tuple [{[a b] :arglist :as incomplete-list-spec} {[f & other] :arglist} initial?]
-  (let [new-head (intersect a f initial?)
-        new-tail (intersect b (r/->TupleSpec (vec other)) initial?)]
-    (if (or (tuple-spec? new-tail)
-            (empty-list-spec? new-tail))
-      (r/->TupleSpec (cons new-head (:arglist new-tail)))
-      (r/->ErrorSpec "Error with incomplete list"))))
+  (if (nil? f)
+    (r/->EmptyListSpec)
+    (let [new-head (intersect a f initial?)
+          new-tail (intersect b (r/->TupleSpec (vec other)) initial?)]
+      (if (or (tuple-spec? new-tail)
+              (empty-list-spec? new-tail))
+        (r/->TupleSpec (cons new-head (:arglist new-tail)))
+        (r/->ErrorSpec "Error with incomplete list")))))
 
-(def intersect*
-  (memoize (fn [left right initial? swap?]
-             (let [swap (fn [] (when swap?
-                                (intersect* right left initial? false)))
-                   intersection (duocase [(r/safe-spec-type left "left") (r/safe-spec-type right (str "right is nil, left was " (r/to-string left)))]
-                                         [r/ANY :idclol] right
 
-                                         [r/VAR r/VAR] right
-                                         [r/VAR r/ANY] left
-                                         [r/VAR r/USERDEFINED] (swap)
-                                         [r/VAR r/OR] (swap)
-                                         [r/VAR r/AND] (swap)
-                                         [r/VAR r/PLACEHOLDER] (swap)
-                                         [r/VAR :idclol] (when initial? right)
-                                         [r/GROUND r/LIST] (update right :type #(intersect left % initial?))
-                                         [r/GROUND r/COMPOUND] (if (nil? (:arglist right))
-                                                                 right
-                                                                 (update right :arglist (partial map #(intersect left % initial?))))
-                                         [r/GROUND r/TUPLE] (update right :arglist (partial map #(intersect left % initial?)))
-                                         [r/GROUND r/NONVAR] left
-                                         [r/GROUND r/VAR] (when initial? left)
-                                         [r/GROUND r/ANY] left
-                                         [r/GROUND r/OR] (swap)
-                                         [r/GROUND r/AND] (swap)
-                                         [r/GROUND r/USERDEFINED] (swap)
-                                         [r/GROUND r/PLACEHOLDER] (swap)
-                                         [r/GROUND :idclol] right
+(s/fdef intersect*
+  :args (s/cat
+         :left ::specs/spec
+         :right ::specs/spec
+         :initial? boolean?
+         :swap? boolean?)
+  :ret ::specs/spec)
+(defn intersect* [left right initial? swap?]
+  (let [swap (fn [] (when swap?
+                     (intersect* right left initial? false)))
+        intersection (duocase [(r/safe-spec-type left "left") (r/safe-spec-type right (str "right is nil, left was " (r/to-string left)))]
+                              [r/ANY :idclol] right
 
-                                         [r/NONVAR r/VAR] (when initial? left)
-                                         [r/NONVAR r/ANY] left
-                                         [r/NONVAR r/USERDEFINED] (swap)
-                                         [r/NONVAR r/PLACEHOLDER] (swap)
-                                         [r/NONVAR :idclol] right
+                              [r/VAR r/VAR] right
+                              [r/VAR r/ANY] left
+                              [r/VAR r/USERDEFINED] (swap)
+                              [r/VAR r/OR] (swap)
+                              [r/VAR r/AND] (swap)
+                              [r/VAR r/PLACEHOLDER] (swap)
+                              [r/VAR :idclol] (when initial? right)
+                              [r/GROUND r/LIST] (update right :type #(intersect left % initial?))
+                              [r/GROUND r/COMPOUND] (if (nil? (:arglist right))
+                                                      right
+                                                      (update right :arglist (partial map #(intersect left % initial?))))
+                              [r/GROUND r/TUPLE] (update right :arglist (partial map #(intersect left % initial?)))
+                              [r/GROUND r/NONVAR] left
+                              [r/GROUND r/VAR] (when initial? left)
+                              [r/GROUND r/ANY] left
+                              [r/GROUND r/OR] (swap)
+                              [r/GROUND r/AND] (swap)
+                              [r/GROUND r/USERDEFINED] (swap)
+                              [r/GROUND r/PLACEHOLDER] (swap)
+                              [r/GROUND :idclol] right
 
-                                         [r/EMPTYLIST r/EMPTYLIST] right
-                                         [r/EMPTYLIST r/ATOMIC] left
-                                         [r/EMPTYLIST r/LIST] left
-                                         [r/EMPTYLIST r/COMPOUND] (when (nil? (:functor right)) left)
-                                         [r/EMPTYLIST r/TUPLE] (when (zero? (count (:arglist right))) left)
-                                         [r/EMPTYLIST :idclol] (swap)
+                              [r/NONVAR r/VAR] (when initial? left)
+                              [r/NONVAR r/ANY] left
+                              [r/NONVAR r/USERDEFINED] (swap)
+                              [r/NONVAR r/PLACEHOLDER] (swap)
+                              [r/NONVAR :idclol] right
 
-                                         [r/ATOMIC r/ATOMIC] right
-                                         [r/ATOMIC r/ATOM] right
-                                         [r/ATOMIC r/STRING] right
-                                         [r/ATOMIC r/NUMBER] right
-                                         [r/ATOMIC r/FLOAT] right
-                                         [r/ATOMIC r/INTEGER] right
-                                         [r/ATOMIC r/LIST] (r/->EmptyListSpec)
-                                         [r/ATOMIC r/EXACT] right
-                                         [r/ATOMIC :idclol] (swap)
+                              [r/EMPTYLIST r/EMPTYLIST] right
+                              [r/EMPTYLIST r/ATOMIC] left
+                              [r/EMPTYLIST r/LIST] left
+                              [r/EMPTYLIST r/COMPOUND] (when (nil? (:functor right)) left)
+                              [r/EMPTYLIST r/TUPLE] (when (zero? (count (:arglist right))) left)
+                              [r/EMPTYLIST :idclol] (swap)
 
-                                         [r/ATOM r/ATOM] right
-                                         [r/ATOM r/EXACT] right
-                                         [r/ATOM :idclol] (swap)
+                              [r/ATOMIC r/ATOMIC] right
+                              [r/ATOMIC r/ATOM] right
+                              [r/ATOMIC r/STRING] right
+                              [r/ATOMIC r/NUMBER] right
+                              [r/ATOMIC r/FLOAT] right
+                              [r/ATOMIC r/INTEGER] right
+                              [r/ATOMIC r/LIST] (r/->EmptyListSpec)
+                              [r/ATOMIC r/EXACT] right
+                              [r/ATOMIC :idclol] (swap)
 
-                                         [r/EXACT r/EXACT] (when (= (:value left) (:value right)) left)
-                                         [r/EXACT :idclol] (swap)
+                              [r/ATOM r/ATOM] right
+                              [r/ATOM r/EXACT] right
+                              [r/ATOM :idclol] (swap)
 
-                                         [r/NUMBER r/NUMBER] right
-                                         [r/NUMBER r/INTEGER] right
-                                         [r/NUMBER r/FLOAT] right
-                                         [r/NUMBER :idclol] (swap)
+                              [r/EXACT r/EXACT] (when (= (:value left) (:value right)) left)
+                              [r/EXACT :idclol] (swap)
 
-                                         [r/INTEGER r/INTEGER] right
-                                         [r/INTEGER :idclol] (swap)
+                              [r/NUMBER r/NUMBER] right
+                              [r/NUMBER r/INTEGER] right
+                              [r/NUMBER r/FLOAT] right
+                              [r/NUMBER :idclol] (swap)
 
-                                         [r/FLOAT r/FLOAT] right
-                                         [r/FLOAT :idclol] (swap)
+                              [r/INTEGER r/INTEGER] right
+                              [r/INTEGER :idclol] (swap)
 
-                                         [r/STRING r/STRING] right
-                                         [r/STRING :idclol] (swap)
+                              [r/FLOAT r/FLOAT] right
+                              [r/FLOAT :idclol] (swap)
 
-                                         [r/LIST r/LIST] (update left :type #(intersect % (:type right) initial?))
-                                         [r/LIST r/COMPOUND] (cond
-                                                               (nil? (:functor right)) left
-                                                               (r/incomplete-list-spec? right) (intersect-with-incomplete-list right left initial?)
-                                                               :else nil)
-                                         [r/LIST r/TUPLE] (update right :arglist (partial map #(intersect % (:type left) initial?)))
-                                         [r/LIST :idclol] (swap)
+                              [r/STRING r/STRING] right
+                              [r/STRING :idclol] (swap)
 
-                                         [r/TUPLE r/TUPLE] (when (same-arg-number? left right)
-                                                             (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right))))
-                                         [r/TUPLE r/COMPOUND] (cond
-                                                                (nil? (:functor right)) left
-                                                                (r/incomplete-list-spec? right) (intersect-with-incomplete-list right left initial?)
-                                                                :else nil)
-                                         [r/TUPLE :idclol] (swap)
-                                         [r/USERDEFINED :idclol] (intersect-userdefined left right initial?)
-                                         [r/COMPOUND r/COMPOUND] (cond
-                                                                   (nil? (:functor left)) right
-                                                                   (nil? (:functor right)) left
-                                                                   (and (same-functors? left right) (same-arg-number? left right))
-                                                                   (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right)))
-                                                                   :default nil)
-                                         [r/COMPOUND :idclol] (swap)
+                              [r/LIST r/LIST] (update left :type #(intersect % (:type right) initial?))
+                              [r/LIST r/COMPOUND] (cond
+                                                    (nil? (:functor right)) left
+                                                    (r/incomplete-list-spec? right) (intersect-with-incomplete-list right left initial?)
+                                                    :else nil)
+                              [r/LIST r/TUPLE] (update right :arglist (partial map #(intersect % (:type left) initial?)))
+                              [r/LIST :idclol] (swap)
 
-                                         [r/OR r/OR] (let [new-arglist (set (for [a (:arglist left)
-                                                                                  b (:arglist right)]
-                                                                              (intersect a b initial?)))]
-                                                       (assoc left :arglist new-arglist))
-                                         [r/OR r/AND] (swap)
-                                         [r/OR :idclol] (update left :arglist (partial map #(intersect % right initial?)))
+                              [r/TUPLE r/TUPLE] (when (same-arg-number? left right)
+                                                  (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right))))
+                              [r/TUPLE r/COMPOUND] (cond
+                                                     (nil? (:functor right)) left
+                                                     (r/incomplete-list-spec? right) (intersect-with-incomplete-list right left initial?)
+                                                     :else nil)
+                              [r/TUPLE :idclol] (swap)
+                              [r/USERDEFINED :idclol] (intersect-userdefined left right initial?)
+                              [r/COMPOUND r/COMPOUND] (cond
+                                                        (nil? (:functor left)) right
+                                                        (nil? (:functor right)) left
+                                                        (and (same-functors? left right) (same-arg-number? left right))
+                                                        (update left :arglist (partial map #(intersect %1 %2 initial?) (:arglist right)))
+                                                        :default nil)
+                              [r/COMPOUND :idclol] (swap)
 
-                                         [r/AND r/AND] (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (concat (:arglist left) (:arglist right)))
-                                         [r/AND r/OR] (let [new-left (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (:arglist left))
-                                                            new-arglist (set (for [a (:arglist right)]
-                                                                               (intersect new-left a initial?)))]
-                                                        (assoc right :arglist new-arglist))
-                                         [r/AND :idclol] (reduce #(intersect %1 %2 initial?) right (:arglist left))
+                              [r/OR r/OR] (let [new-arglist (set (for [a (:arglist left)
+                                                                       b (:arglist right)]
+                                                                   (intersect a b initial?)))]
+                                            (assoc left :arglist new-arglist))
+                              [r/OR r/AND] (swap)
+                              [r/OR :idclol] (update left :arglist (partial map #(intersect % right initial?)))
 
-                                         [r/PLACEHOLDER r/ANY] left
-                                         [r/PLACEHOLDER :idclol] (-> left
-                                                                     (update :alias #(or % (r/->AnySpec)))
-                                                                     (update :alias intersect right initial?))
-                                         [r/ERROR :idclol] left
+                              [r/AND r/AND] (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (concat (:arglist left) (:arglist right)))
+                              [r/AND r/OR] (let [new-left (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (:arglist left))
+                                                 new-arglist (set (for [a (:arglist right)]
+                                                                    (intersect new-left a initial?)))]
+                                             (assoc right :arglist new-arglist))
+                              [r/AND :idclol] (reduce #(intersect %1 %2 initial?) right (:arglist left))
 
-                                         nil)]
-               (simplify (or intersection (r/DISJOINT left right)) initial?)))))
+                              [r/PLACEHOLDER r/ANY] left
+                              [r/PLACEHOLDER :idclol] (-> left
+                                                          (update :alias #(or % (r/->AnySpec)))
+                                                          (update :alias intersect right initial?))
+                              [r/ERROR :idclol] left
+
+                              nil)]
+    (simplify (or intersection (r/DISJOINT left right)) initial?)))
+
+(s/fdef intersect
+    :args (s/cat :spec-a ::specs/spec :spec-b ::specs/spec :initial? boolean?)
+    :ret ::specs/spec)
 
 (defn intersect [spec-a spec-b initial?]
   (if (= spec-a spec-b)

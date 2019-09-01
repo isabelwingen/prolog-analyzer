@@ -2,7 +2,12 @@
   (:require [ubergraph.core :as uber]
             [prolog-analyzer.utils :as utils]
             [prolog-analyzer.records :as r]
-            [prolog-analyzer.record-utils :as ru]))
+            [prolog-analyzer.record-utils :as ru]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
+            [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
+            ))
 
 (defn- replace-id-with-arg [arglist {id :id :as p}]
   (-> p
@@ -31,6 +36,9 @@
     (uber/attr env :environment :post-specs)
     []))
 
+(s/fdef match-guard-with-type
+  :args (s/cat :guard ::specs/spec :actual-type ::specs/spec)
+  :ret (s/or :map map? :nil nil?))
 
 (defn- match-guard-with-type [guard-type actual-type]
   (let [merge-fn #(ru/simplify (r/->OneOfSpec %) false)
@@ -46,7 +54,14 @@
       nil
       map)))
 
-(defn is-guard-true? [env {arg :arg guard-type :type}]
+(s/def ::arg ::specs/term)
+(s/def ::type ::specs/spec)
+(s/fdef is-guard-true?
+  :args (s/cat
+         :env utils/is-graph?
+         :p (s/keys :req-un [::arg ::type])))
+
+(defn is-guard-true? [env {arg :arg guard-type :type :as p}]
   (let [actual-type (utils/get-dom-of-term env arg)]
     (if (ru/contains-placeholder? guard-type)
       (match-guard-with-type guard-type actual-type)
@@ -97,3 +112,5 @@
   (let [post-specs (get-post-specs env)
         alias-maps (map (partial is-post-spec-applicable? env) post-specs)]
     (create-steps post-specs alias-maps)))
+
+(stest/instrument)

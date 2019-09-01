@@ -397,11 +397,6 @@
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
 
-(defn create-incomplete-list-spec
-  ([] (create-incomplete-list-spec (->AnySpec)))
-  ([head-dom]
-   (->CompoundSpec "." [head-dom (->AnySpec)])))
-
 (defn incomplete-list-spec? [spec]
   (and
    (= COMPOUND (spec-type spec))

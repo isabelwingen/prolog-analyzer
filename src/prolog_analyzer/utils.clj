@@ -180,3 +180,6 @@
   (case+ (r/spec-type spec)
          (r/OR, r/AND, r/TUPLE, r/LIST, r/COMPOUND, r/USERDEFINED, r/PLACEHOLDER) false
          true))
+
+(defn is-graph? [env]
+  (= ubergraph.core.Ubergraph (type env)))
