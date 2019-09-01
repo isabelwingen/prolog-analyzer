@@ -7,6 +7,11 @@
             [clojure.spec.alpha :as s]
             [prolog-analyzer.specs :as specs]
             [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
+            [prolog-analyzer.parser.create-pre-specs :as pre-specs]
+            [prolog-analyzer.parser.create-post-specs :as post-specs]
+            [prolog-analyzer.parser.transform-to-records :as transform]
+            [prolog-analyzer.parser.add-userdefs :as add-userdefs]
             ))
 
 
@@ -47,156 +52,6 @@
      data
      (utils/get-clause-identities data))))
 
-;; CREATE PRE SPEC
-(defn- simple-term [term]
-  {:pre [(s/valid? ::specs/term term)]
-   :post [(s/valid? boolean? %)]}
-  (not (#{r/COMPOUND, r/EXACT, r/LIST} (r/term-type term))))
-
-
-
-(defn- vec-remove
-  "remove elem in coll"
-  [coll pos]
-  {:pre [(s/valid? coll? coll)
-         (s/valid? ::specs/id pos)]
-   :post [(s/valid? vector? %)]}
-  (->> (vec (concat (subvec coll 0 pos) (subvec coll (inc pos))))
-       (map #(if (simple-term %) (r/term-type %) %))
-       vec))
-
-
-(defn- find-best-grouping [similar-specs]
-  {:pre [(s/valid? ::specs/arglists similar-specs)]
-   :post [(s/valid? (s/coll-of ::specs/arglists) %)]}
-  (let [arity (count (first similar-specs))
-        juxt-fns (map (fn [i] (partial group-by #(vec-remove % i))) (range 0 arity))
-        groups ((apply juxt juxt-fns) similar-specs)
-        best-group (first (sort #(< (count (keys %1)) (count (keys %2))) groups))]
-    (vals best-group)))
-
-(s/fdef to-spec
-  :args (s/cat :specs ::specs/not-empty-arglist)
-  :ret ::specs/spec)
-
-(defn- to-spec [specs]
-  (ru/simplify (r/->OneOfSpec (set (map r/initial-spec specs)))))
-
-(s/fdef pack-together
-  :args (s/cat :similar-specs (s/coll-of ::specs/not-empty-arglist :min-count 1))
-  :ret (s/coll-of ::specs/arglists))
-
-(defn- pack-together [similar-specs]
-  {:pre [(s/valid? ::specs/arglists similar-specs)]
-   :post [(s/valid? (s/coll-of ::specs/arglists) %)]}
-  (let [best-grouping (find-best-grouping similar-specs)]
-    (->> best-grouping
-         (map (partial apply map hash-set)))))
-
-(defn- to-maybe-spec [spec]
-  (case+ (r/spec-type spec)
-         (r/VAR, r/ANY) spec
-         r/OR (update spec :arglist conj (r/->VarSpec))
-         (r/->OneOfSpec (hash-set spec (r/->VarSpec)))))
-(defn make-vec [arity coll]
-  (vec coll))
-
-(defn- create-pre-spec [pred-id data]
-  (let [clauses (->> data
-                     (utils/get-clauses-of-pred pred-id))]
-    (->> clauses
-         (map :arglist)
-         pack-together
-         (map (partial map to-spec))
-         (map (partial map to-maybe-spec))
-         (map (partial make-vec (last pred-id)))
-         vec)))
-
-(s/fdef create-pre-spec
-  :args (s/cat :pred-id ::specs/pred-id :data ::specs/data)
-  :ret ::specs/pre-specs)
-(s/fdef to-maybe-spec
-  :args (s/cat :spec ::specs/spec)
-  :ret ::specs/spec)
-
-
-(s/fdef make-vec
-  :args (s/cat :arity int? :coll sequential?)
-  :ret vector?
-  :fn #(= (-> % :args :arity) (-> % :ret count)))
-
-
-
-;; CREATE PRE SPEC
-
-(s/fdef should-pre-spec-be-added?
-  :args (s/cat :pred-id ::specs/pred-id :data map?)
-  :ret boolean?)
-
-(defn- should-pre-spec-be-added? [[_ goal arity :as pred-id] data]
-  (and
-   (nil? (utils/get-pre-specs pred-id data))
-   (> arity 0)
-   (not= goal :if)
-   (not= goal :or)))
-
-
-(defn- add-any-pre-specs
-  "If there are no pre-specs, add one"
-  [data]
-  (loop [pred-ids (utils/get-pred-identities data)
-         result data]
-    (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
-      (if (should-pre-spec-be-added? pred-id data)
-        (recur (rest pred-ids) (assoc-in result [:pre-specs [module pred-name arity]] (create-pre-spec pred-id data)))
-        (recur (rest pred-ids) result))
-      result)))
-
-(defn- create-any-conclusion [n]
-  (vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 n))))
-
-{:goal :if :arity 2 :arglist [[{:goal ""}] [{:goal true}]]}
-
-(defn- add-any-post-specs
-  "If there are no post-specs, add one"
-  [data]
-  (loop [pred-ids (utils/get-pred-identities data)
-         result data]
-    (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
-      result
-      #_(if (nil? (utils/get-post-specs pred-id result))
-        (recur (rest pred-ids) (assoc-in result [:post-specs pred-id] [{:guard [] :conclusion (vector (create-any-conclusion arity))}]))
-        (recur (rest pred-ids) result))
-      result)))
-
-(defn- transform-arglist [singletons args]
-  (->> args
-       (map (partial r/map-to-term singletons))
-       (apply vector)))
-
-(declare transform-body)
-
-(defn- transform-body-elements [singletons {goal-name :goal arglist :arglist :as goal}]
-  (case goal-name
-    (:or, :if) (-> goal
-                   (update :arglist (partial map (partial transform-body singletons)))
-                   (assoc :module :built-in))
-    (update goal :arglist (partial transform-arglist singletons))))
-
-(defn- transform-body [singletons body]
-  (map (partial transform-body-elements singletons) body))
-
-(defn transform-args-to-term-records [data]
-  (reduce (fn [data [pred-id clause-number]]
-            (let [singletons (get-in data [:singletons pred-id clause-number])]
-              (-> data
-                  (update-in [:preds pred-id clause-number :arglist] (partial transform-arglist singletons))
-                  (update-in [:preds pred-id clause-number :body] (partial transform-body singletons))
-                  ))
-            )
-          data
-          (utils/get-clause-identities data)))
-
 (defn transform-singleton-lists [data]
   (reduce (fn [d [pred-id clause-number]] (update-in d [:singletons pred-id clause-number] #(apply vector (map r/map-to-term %)))) data (utils/get-clause-identities data)))
 
@@ -213,45 +68,6 @@
     (if-let [[pred-id clause-number] (first clause-ids)]
       (recur (rest clause-ids) (update-in result [:preds pred-id clause-number] (partial mark-self-calling-clause pred-id)))
       result)))
-
-(defmulti create-grounded-version (fn [_ i] i))
-(defmethod create-grounded-version true [spec _]
-  (case+ (r/spec-type spec)
-         r/USERDEFINED (ru/grounded-version spec true)
-         r/VAR (r/->GroundSpec)
-         (r/OR, r/AND) (-> spec
-                           (update :arglist (partial map #(create-grounded-version % true)))
-                           (update :arglist set))
-         r/LIST (update spec :type create-grounded-version true)
-         (r/TUPLE, r/COMPOUND) (-> spec
-                                   (update :arglist (partial map #(create-grounded-version % true)))
-                                   (update :arglist vec))
-         spec))
-
-(defmethod create-grounded-version false [spec _]
-  (case+ (r/spec-type spec)
-         r/USERDEFINED (ru/grounded-version spec false)
-         r/VAR (r/->ErrorSpec (str "Could not ground userdefined spec " (r/to-string spec)))
-         (r/OR, r/AND) (-> spec
-                           (update :arglist (partial map #(create-grounded-version % false)))
-                           (update :arglist set))
-         r/LIST (update spec :type create-grounded-version false)
-         (r/TUPLE, r/COMPOUND) (-> spec
-                                   (update :arglist (partial map #(create-grounded-version % false)))
-                                   (update :arglist vec))
-         spec))
-
-(defn add-grounded-userdefs [data]
-  (doseq [p (keys @state/user-typedefs)
-          initial [true false]
-          :let [v (get @state/user-typedefs p)]]
-    (swap! state/user-typedefs assoc (create-grounded-version p initial) (create-grounded-version v initial)))
-  data)
-
-
-(defn assert-spec-defs [data]
-  (reset! state/user-typedefs (:specs data))
-  data)
 
 (defn remove-not-needed-stuff [data]
   (-> data
@@ -270,15 +86,15 @@
   (let [p (-> data
               mark-self-calling-clauses
               transform-singleton-lists
-              transform-args-to-term-records
-              add-any-pre-specs
-              add-any-post-specs
+              transform/transform-args-to-term-records
+              pre-specs/add-any-pre-specs
+              post-specs/add-any-post-specs
               set-correct-modules
-              assert-spec-defs
-              add-grounded-userdefs
+              add-userdefs/do-it
               remove-not-needed-stuff
               )]
     (log/debug "Done Pre Process Single")
     p))
+
 
 (stest/instrument)
