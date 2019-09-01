@@ -275,7 +275,7 @@ arg_to_map(error,Term,Map) :-
     (prolog_load_context(dialect,swi) -> term_string(Term, String); Term = String),
     multi_string_concat(["{:type :should-not-happen :term ",String, "}"], Map).
 
-split(Module:Term,unknown,-1,[],unknown) :-
+split(Module:Term,unknown,0,[],unknown) :-
     var(Module),
     var(Term),!.
 

@@ -1,6 +1,6 @@
 (ns prolog-analyzer.core
   (:gen-class)
-  (:require [prolog-analyzer.parser :as parser]
+  (:require [prolog-analyzer.parser.parser :as parser]
             [prolog-analyzer.analyzer.global-analysis :as global]
             [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]

@@ -19,17 +19,16 @@
 (defmethod name-grounded false [spec _]
   (str (:name spec) "_g_ni"))
 
-(defmulti grounded-version (fn [_ i] i))
-(defmethod grounded-version true [spec _]
-  (if (:arglist spec)
-    (r/make-spec:user-defined (name-grounded spec true) (:arglist spec))
-    (r/make-spec:user-defined (name-grounded spec true))))
+(defn already-grounded? [spec]
+  (or (.endsWith (:name spec) "_g_i")
+      (.endsWith (:name spec) "_g_ni")))
 
-(defmethod grounded-version false [spec _]
-  (if (:arglist spec)
-    (r/make-spec:user-defined (name-grounded spec false) (:arglist spec))
-    (r/make-spec:user-defined (name-grounded spec false))))
-
+(defn grounded-version [spec initial?]
+  (if (already-grounded? spec)
+    spec
+    (if (:arglist spec)
+      (r/make-spec:user-defined (name-grounded spec initial?) (:arglist spec))
+      (r/make-spec:user-defined (name-grounded spec initial?)))))
 
 (defn var-spec? [spec]
   (if (nil? spec)
@@ -250,7 +249,7 @@
   (memoize (fn [left right initial? swap?]
              (let [swap (fn [] (when swap?
                                 (intersect* right left initial? false)))
-                   intersection (duocase [(r/safe-spec-type left "left") (r/safe-spec-type right "right")]
+                   intersection (duocase [(r/safe-spec-type left "left") (r/safe-spec-type right (str "right is nil, left was " (r/to-string left)))]
                                          [r/ANY :idclol] right
 
                                          [r/VAR r/VAR] right

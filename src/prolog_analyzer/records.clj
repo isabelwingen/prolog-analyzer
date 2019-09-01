@@ -54,6 +54,13 @@
   (term-type [term])
   (initial-spec [term]))
 
+(defn is-term? [x]
+  (satisfies? term x))
+
+(defn is-spec? [x]
+  (satisfies? spec x))
+
+
 (defrecord AnySpec []
   spec
   (spec-type [spec] ANY)

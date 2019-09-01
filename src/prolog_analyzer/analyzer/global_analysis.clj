@@ -4,7 +4,6 @@
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.records :as r]
             [clojure.tools.logging :as log]
-            [prolog-analyzer.parser :as parser]
             [prolog-analyzer.analyzer.core :as clause-analysis]))
 
 (defn- log-if-empty [data]
@@ -81,7 +80,7 @@
   (log/info "Fixpoint: Step " counter)
   (let [envs (clause-analysis/complete-analysis in-data)
         new-data (create-new-data in-data envs)]
-    (check-post-specs new-data)
+   ; (check-post-specs new-data)
     (if (= in-data new-data)
       (do
         (log/info "Done")

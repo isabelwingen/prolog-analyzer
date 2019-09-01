@@ -146,9 +146,9 @@
   ([env initial? term spec]
    ;(log/debug "add to dom: " (r/to-string term) ": " (count (r/to-string spec)))
    (letfn [(intersect-fn [a b]
-             (log/trace "intersect of\n" (r/to-string (or a (r/->AnySpec))) "\n" (r/to-string b))
+             ;(log/debug "intersect of\n" (r/to-string (or a (r/->AnySpec))) "\n - and - \n" (r/to-string b))
              (let [res (ru/intersect (or a (r/->AnySpec)) b initial?)]
-               (log/trace "result:\n" (r/to-string res))
+               ;(log/debug "result:\n" (r/to-string res))
                res))]
      (cond
        (not (has-dom? env term))      (first-add env initial? term spec)
@@ -186,6 +186,7 @@
   [])
 
 (defn add-structural-edges [env]
+  (log/debug "add structural edges")
   (loop [res env
          terms (vec (utils/get-terms env))]
     (if-let [first-term (first terms)]
