@@ -128,8 +128,14 @@
   (-> env
       (uber/add-nodes term)
       (uber/add-attr term DOM (r/->AnySpec))
-      (add-to-dom initial? term (r/initial-spec term))
+      (add-to-dom initial? term (ru/initial-spec term))
       (add-to-dom initial? term spec)))
+
+(defn- fully-qualified-spec? [spec]
+  (case+ (ru/spec-type spec)
+         (r/TUPLE, r/LIST, r/COMPOUND) true
+         r/OR (every? fully-qualified-spec? (:arglist spec))
+         false))
 
 (defn- incomplete-list? [spec term]
   (and
@@ -183,7 +189,7 @@
   :args (s/cat :term ::specs/term)
   :ret (s/coll-of (s/tuple ::specs/term ::specs/term map?)))
 
-(defmulti ^{:private true} edges (fn [term] (r/term-type term)))
+(defmulti ^{:private true} edges (fn [term] (ru/term-type term)))
 
 (defmethod edges :list [term]
   (let [pair (gensym)]

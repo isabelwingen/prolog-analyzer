@@ -1,6 +1,7 @@
 (ns prolog-analyzer.specs
   (:require [prolog-analyzer.records :as r]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [ubergraph.core]))
 
 (s/def ::spec r/is-spec?)
 (s/def ::term r/is-term?)

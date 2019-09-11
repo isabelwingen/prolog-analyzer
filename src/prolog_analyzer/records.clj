@@ -39,10 +39,6 @@
 (declare var-spec?)
 (declare create-incomplete-list-spec)
 
-(defn safe-spec-type [spec msg]
-  (assert (not (nil? spec)) msg)
-  (spec-type spec))
-
 (defprotocol printable
   (to-string [x]))
 

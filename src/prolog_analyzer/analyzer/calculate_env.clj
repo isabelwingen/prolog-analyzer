@@ -22,7 +22,7 @@
 (defmulti ^{:private true} process-edge (fn [_ env edge] (uber/attr env edge :relation)))
 
 (defn- compatible-with-head [{initial? :initial :as parameters} head-dom term-dom]
-  (case+ (r/safe-spec-type term-dom "compatible-with-head")
+  (case+ (ru/spec-type term-dom)
          r/TUPLE (let [new-dom (update term-dom :arglist #(assoc % 0 head-dom))]
                    (if (ru/non-empty-intersection new-dom term-dom initial?)
                      new-dom
@@ -73,7 +73,7 @@
         term-dom (utils/get-dom-of-term env term)
         head (ru/head term)
         head-dom (utils/get-dom-of-term env head)
-        new-dom (case+ (r/safe-spec-type tail-dom "process-tail")
+        new-dom (case+ (ru/spec-type tail-dom)
                        r/TUPLE (update tail-dom :arglist #(->> %
                                                                (cons head-dom)
                                                                (apply vector)))

@@ -16,6 +16,20 @@
 (declare replace-placeholder-with-alias)
 (declare replace-var-with-ground)
 
+
+
+(defn-spec spec-type keyword? ;;TODO: improve return type
+  [spec ::specs/spec]
+  (r/spec-type spec))
+
+(defn-spec term-type keyword? ;;TODO: improve return type
+  [term ::specs/term]
+  (r/term-type term))
+
+(defn-spec initial-spec ::specs/spec
+  [term ::specs/term]
+  (r/initial-spec term))
+
 (defmulti name-grounded (fn [_ i] i))
 (defmethod name-grounded true [spec _]
   (str (:name spec) "_g_i"))
@@ -37,56 +51,56 @@
 (defn var-spec? [spec]
   (if (nil? spec)
     false
-    (= r/VAR (r/safe-spec-type spec "var-spec"))))
+    (= r/VAR (spec-type spec))))
 
 (defn any-spec? [spec]
   (if (nil? spec)
     true
-    (= r/ANY (r/safe-spec-type spec "any-spec"))))
+    (= r/ANY (spec-type spec))))
 
 (defn or-spec? [spec]
-  (= r/OR (r/spec-type spec)))
+  (= r/OR (spec-type spec)))
 
 (defn and-spec? [spec]
-  (= r/AND (r/safe-spec-type spec "and-spec?")))
+  (= r/AND (spec-type spec)))
 
 (defn user-defined-spec? [spec]
-  (= r/USERDEFINED (r/safe-spec-type spec "user-defined-spec?")))
+  (= r/USERDEFINED (spec-type spec)))
 
 (defn placeholder-spec? [spec]
-  (= r/PLACEHOLDER (r/safe-spec-type spec "placeholder-spec?")))
+  (= r/PLACEHOLDER (spec-type spec)))
 
 (defn error-spec? [spec]
   (or (nil? spec)
-      (= r/ERROR (r/spec-type spec))))
+      (= r/ERROR (spec-type spec))))
 
 
 (defn recursive-error-spec? [spec]
   (or (nil? spec)
-      (= r/ERROR (r/safe-spec-type spec "error"))
+      (= r/ERROR (spec-type spec))
       (if (contains? spec :type) (error-spec? (.type spec)) false)
       (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
       ))
 
 (defn empty-list-term? [term]
-  (= r/EMPTYLIST (r/term-type term)))
+  (= r/EMPTYLIST (term-type term)))
 
 (defn var-term? [term]
-  (= r/VAR (r/term-type term)))
+  (= r/VAR (term-type term)))
 
 (defn nonvar-term? [term]
   ((complement var-term?) term))
 
 (defn tuple-spec? [spec]
-  (= r/TUPLE (r/safe-spec-type spec "tuple-spec?")))
+  (= r/TUPLE (spec-type spec)))
 
 (defn empty-list-spec? [spec]
-  (= r/EMPTYLIST (r/safe-spec-type spec "empty-list-spec?")))
+  (= r/EMPTYLIST (spec-type spec)))
 
 (declare replace-specvars-with-spec)
 
 (defn replace-specvars-with-spec [type specvar-name replace-spec]
-  (case+ (r/spec-type type)
+  (case+ (spec-type type)
          r/SPECVAR (if (= specvar-name (:name type)) replace-spec type)
 
          (r/OR,r/AND) (-> type
@@ -125,13 +139,13 @@
        (r/->AnySpec)))))
 
 (defn- supertype? [parent child]
-  (if (= r/OR (r/safe-spec-type parent "supertype"))
+  (if (= r/OR (spec-type parent))
     (some #(= child (intersect % child false)) (:arglist parent))
     (= child (intersect parent child false))))
 
 
 (defn- remove-subsets-in-or [{arglist :arglist :as spec}]
-  (if (= r/OR (r/safe-spec-type spec "remove subsets"))
+  (if (= r/OR (spec-type spec))
     (r/->OneOfSpec (reduce
                     (fn [new-arglist type]
                       (if (some #(supertype? % type) (remove #(= type %) arglist))
@@ -220,16 +234,17 @@
          :unary (s/cat :spec ::specs/spec)
          :binary (s/cat :spec ::specs/spec :initial? boolean?))
   :fn #(let [s (-> % :args second :spec)]
-         (if (= r/OR (r/spec-type s))
+         (if (= r/OR (spec-type s))
            (> (count (:arglist s)) 0)
            true))
   )
 
 
+
 (defn simplify
   ([spec] (simplify spec false))
   ([spec initial?]
-   (case+ (r/safe-spec-type spec "simplify")
+   (case+ (spec-type spec)
           r/OR (simplify-or spec initial?)
           r/AND (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (:arglist spec))
           r/LIST (if (error-spec? (:type spec))
@@ -244,7 +259,7 @@
 
 
 (defn- intersect-userdefined [userdef-spec other-spec initial?]
-  (case+ (r/spec-type other-spec)
+  (case+ (spec-type other-spec)
          r/USERDEFINED (cond
                          (and
                           (= (:name userdef-spec) (:name other-spec))
@@ -261,7 +276,7 @@
          r/GROUND (grounded-version userdef-spec initial?)
          (intersect (resolve-definition-with-parameters userdef-spec) other-spec initial?)))
 
-(defmulti intersect-with-incomplete-list (fn [_ other-spec _] (r/spec-type other-spec)))
+(defmulti intersect-with-incomplete-list (fn [_ other-spec _] (spec-type other-spec)))
 
 (defmethod intersect-with-incomplete-list :list [{[a b] :arglist :as incomplete-list-spec} {t :type :as other-spec} initial?]
   (let [new-head (intersect a t initial?)
@@ -293,7 +308,7 @@
 (defn intersect* [left right initial? swap?]
   (let [swap (fn [] (when swap?
                      (intersect* right left initial? false)))
-        intersection (duocase [(r/safe-spec-type left "left") (r/safe-spec-type right (str "right is nil, left was " (r/to-string left)))]
+        intersection (duocase [(spec-type left) (spec-type right)]
                               [r/ANY :idclol] right
 
                               [r/VAR r/VAR] right
@@ -430,7 +445,7 @@
     (r/->ListTerm (first terms) (apply to-head-tail-list (rest terms)))))
 
 (defn replace-specvar-name-with-value [spec specvar-name replace-value]
-  (case+ (r/safe-spec-type spec "replace-with-value")
+  (case+ (spec-type spec)
          r/SPECVAR (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
          (r/OR,r/AND) (-> spec
@@ -478,7 +493,7 @@
       placeholders)))
 
 (defn find-placeholders [spec]
-  (let [placeholders (case+ (r/safe-spec-type spec "Find Placeholders")
+  (let [placeholders (case+ (spec-type spec)
                             r/PLACEHOLDER (if (contains-placeholder? (or (:alias spec) (r/->AnySpec))) (conj (find-placeholders (:alias spec)) spec) [spec])
                             (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat find-placeholders (.arglist spec)))
                             r/USERDEFINED (if (contains? spec :arglist) (set (mapcat find-placeholders (:arglist spec))) [])
@@ -491,7 +506,7 @@
          set)))
 
 (defn contains-placeholder? [spec]
-  (case+ (r/safe-spec-type spec "Contains Placeholder")
+  (case+ (spec-type spec)
          r/PLACEHOLDER true
          (r/OR, r/AND, r/COMPOUND, r/TUPLE) (some contains-placeholder? (:arglist spec))
          r/USERDEFINED (if (contains? spec :arglist) (some contains-placeholder? (:arglist spec)) false)
@@ -509,7 +524,7 @@
     (compatible (get alias-map n (r/->AnySpec)) (get alias-map super-of (r/->AnySpec)))))
 
 (defn replace-placeholder-with-alias [alias-map spec]
-  (case+ (r/safe-spec-type spec "Replace Placeholder")
+  (case+ (spec-type spec)
          r/PLACEHOLDER (fill-placeholder spec alias-map)
          (r/OR, r/AND) (-> spec
                            (update :arglist (partial map (partial replace-placeholder-with-alias alias-map)))
@@ -527,7 +542,7 @@
          ))
 
 (defn replace-var [spec replacement]
-  (case+ (r/safe-spec-type spec "Replace Placeholder")
+  (case+ (spec-type spec)
          r/VAR replacement
          r/PLACEHOLDER (if (contains? spec :alias) (update spec :alias replace-var replacement) spec)
          (r/OR, r/AND, r/COMPOUND, r/TUPLE) (-> spec
@@ -552,7 +567,7 @@
   (cond
     (nil? head) 0
     (nil? tail) 1
-    (= r/VAR (r/term-type tail)) :inf
+    (= r/VAR (term-type tail)) :inf
     :default
     (let [tail-length (length-of-list-term tail)]
       (if (= :inf tail-length)
@@ -561,7 +576,7 @@
 
 
 (defn nonvar-term? [term]
-  (not= (r/term-type term) r/VAR))
+  (not= (term-type term) r/VAR))
 
 (defn maybe-spec [spec]
   (cond
@@ -573,10 +588,10 @@
 
 
 (defn list-term? [term]
-  (= r/LIST (r/term-type term)))
+  (= r/LIST (term-type term)))
 
 (defn compound-term? [term]
-  (= r/COMPOUND (r/term-type term)))
+  (= r/COMPOUND (term-type term)))
 
 (defn single-term? [term]
   (and (not (list-term? term))
@@ -604,8 +619,8 @@
   (not (error-spec? (intersect spec1 spec2 initial?))))
 
 (defn same? [spec1 spec2]
-  (if (= (r/spec-type spec1) (r/spec-type spec2))
-    (case+ (r/spec-type spec1)
+  (if (= (spec-type spec1) (spec-type spec2))
+    (case+ (spec-type spec1)
            r/TUPLE (every? #(apply same? %) (map vector (:arglist spec1) (:arglist spec2)))
            r/LIST (same? (:type spec1) (:type spec2))
            r/COMPOUND (and (= (:functor spec1) (:functor spec2)) (every? #(apply same? %) (map vector (:arglist spec1) (:arglist spec2))))
@@ -613,3 +628,5 @@
            r/EXACT (= (:value spec1) (:value spec2))
            true)
     false))
+
+(stest/instrument)

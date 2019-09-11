@@ -6,7 +6,7 @@
 
 (defmulti create-grounded-version (fn [_ i] i))
 (defmethod create-grounded-version true [spec _]
-  (case+ (r/spec-type spec)
+  (case+ (ru/spec-type spec)
          r/USERDEFINED (ru/grounded-version spec true)
          r/VAR (r/->GroundSpec)
          (r/OR, r/AND) (-> spec
@@ -19,7 +19,7 @@
          spec))
 
 (defmethod create-grounded-version false [spec _]
-  (case+ (r/spec-type spec)
+  (case+ (ru/spec-type spec)
          r/USERDEFINED (ru/grounded-version spec false)
          r/VAR (r/->ErrorSpec (str "Could not ground userdefined spec " (r/to-string spec)))
          (r/OR, r/AND) (-> spec

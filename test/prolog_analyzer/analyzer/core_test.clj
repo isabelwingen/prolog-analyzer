@@ -72,6 +72,7 @@
                                   "foo(1).")))))
        => (contains {"1" "Integer"})
        )
+
  (fact "member"
        (utils/env->map
         (second

@@ -15,7 +15,7 @@
 
 (defn-spec simple-term boolean?
   [term ::specs/term]
-  (not (#{r/COMPOUND, r/EXACT, r/LIST} (r/term-type term))))
+  (not (#{r/COMPOUND, r/EXACT, r/LIST} (ru/term-type term))))
 
 (defn-spec vec-remove vector?
   {:fn #(s/and (= (-> % :args :coll count) (-> % :ret count))
@@ -23,7 +23,7 @@
                (>= (-> % :args :pos) 0))}
   [coll ::specs/not-empty-arglist, pos integer?]
   (->> (vec (concat (subvec coll 0 pos) (subvec coll (inc pos))))
-       (map #(if (simple-term %) (r/term-type %) %))
+       (map #(if (simple-term %) (ru/term-type %) %))
        vec))
 
 (defn-spec find-best-grouping (s/coll-of ::specs/arglists)
@@ -36,11 +36,11 @@
 
 (defn-spec to-spec ::specs/spec
   [specs ::specs/not-empty-arglist]
-  (ru/simplify (r/->OneOfSpec (set (map r/initial-spec specs)))))
+  (ru/simplify (r/->OneOfSpec (set (map ru/initial-spec specs)))))
 
 (defn-spec to-maybe-spec ::specs/spec
   [spec ::specs/spec]
-  (case+ (r/spec-type spec)
+  (case+ (ru/spec-type spec)
          (r/VAR, r/ANY) spec
          r/OR (update spec :arglist conj (r/->VarSpec))
          (r/->OneOfSpec (hash-set spec (r/->VarSpec)))))
