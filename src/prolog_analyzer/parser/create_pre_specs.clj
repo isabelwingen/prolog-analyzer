@@ -11,7 +11,8 @@
             )
   )
 
-;; CREATE PRE SPEC
+(def tmp-data (atom {}))
+
 (defn-spec simple-term boolean?
   [term ::specs/term]
   (not (#{r/COMPOUND, r/EXACT, r/LIST} (r/term-type term))))
@@ -24,7 +25,6 @@
   (->> (vec (concat (subvec coll 0 pos) (subvec coll (inc pos))))
        (map #(if (simple-term %) (r/term-type %) %))
        vec))
-
 
 (defn-spec find-best-grouping (s/coll-of ::specs/arglists)
   [arglists ::specs/arglists]
@@ -59,10 +59,45 @@
        (make-vec arity)
        ))
 
-(defn-spec create-pre-spec ::specs/pre-specs
-  [pred-id ::specs/pred-id, data ::specs/data]
-  (let [clauses (->> data
-                     (utils/get-clauses-of-pred pred-id))]
+(def process (atom 0))
+
+(s/fdef create-pre-specs
+  :args (s/cat :pred-id ::specs/pred-id :clauses coll?)
+  :ret ::specs/pre-specs)
+
+(defmulti create-pre-specs (fn [[_ _ arity :as pred-id] clauses]
+                             (cond
+                               (= arity 0) :zero
+                               (= arity 1) :one
+                               (> arity 5) :too-big
+                               :else :ok)))
+
+(defmethod create-pre-specs :zero
+  [pred-id clauses]
+  [])
+
+(defmethod create-pre-specs :one
+  [pred-id clauses]
+  (->> clauses
+       (map :arglist)
+       (map first)
+       to-spec
+       to-maybe-spec
+       vector
+       vector
+       ))
+
+
+(defmethod create-pre-specs :too-big
+  [[_ _ arity] _]
+  [(vec (repeat arity (r/->AnySpec)))]
+  )
+
+
+(defmethod create-pre-specs :ok
+  [[_ goal-name _ :as pred-id] clauses]
+  (if (#{:if :or} goal-name)
+    []
     (->> clauses
          (map :arglist)
          find-best-grouping
@@ -70,28 +105,45 @@
          vec)))
 
 (s/fdef should-pre-spec-be-added?
-  :args (s/cat :pred-id ::specs/pred-id :data map?)
+  :args (s/cat :pred-id ::specs/pred-id :data ::specs/data)
   :ret boolean?)
 
 (defn- should-pre-spec-be-added? [[_ goal arity :as pred-id] data]
-  (and
-   (nil? (utils/get-pre-specs pred-id data))
-   (> arity 0)
-   (not= goal :if)
-   (not= goal :or)))
+  (let [res (and
+             ;(nil? (utils/get-pre-specs pred-id @tmp-data))
+             (> arity 0)
+             (not= goal :if)
+             (not= goal :or))]
+    (log/debug "should be added? " (str pred-id) " " res)
+    res))
+
+(defn- add-any-pre-spec [pred-id clauses]
+  (swap! process inc)
+  (log/debug "Add Pre Spec - " (str pred-id) " - start - " @process)
+  (swap! tmp-data assoc-in [:pre-specs pred-id] (create-pre-specs pred-id clauses))
+  (log/debug "Add Pre Spec - " (str pred-id) " - end"))
+
+(defn finish []
+  (let [res @tmp-data]
+    (log/debug "Add Pre Specs - done")
+    res))
+
+(defn bla [data]
+  (->> data
+       utils/get-pred-identities))
 
 
 (defn add-any-pre-specs
-  "If there are no pre-specs, add one"
   [data]
   (log/debug "Add Pre Specs")
-  (loop [pred-ids (utils/get-pred-identities data)
-         result data]
-    (if-let [[module pred-name arity :as pred-id] (first pred-ids)]
-      (if (should-pre-spec-be-added? pred-id data)
-        (recur (rest pred-ids) (assoc-in result [:pre-specs [module pred-name arity]] (create-pre-spec pred-id data)))
-        (recur (rest pred-ids) result))
-      result)))
-
+  (reset! tmp-data data)
+  (reset! process 0)
+  (let [tasks (for [pred-id (->> data
+                                 utils/get-pred-identities)
+                      :let [clauses (utils/get-clauses-of-pred pred-id data)]]
+                  [pred-id clauses])]
+    (doall (pmap (partial apply add-any-pre-spec) tasks))
+    @tmp-data
+    ))
 
 (stest/instrument)
