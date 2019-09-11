@@ -1,7 +1,7 @@
 (ns prolog-analyzer.result-visualizer-test
   (:require [prolog-analyzer.result-visualizer :as sut]
             [prolog-analyzer.utils :as utils]
-            [prolog-analyzer.parser.paser :as parser]
+            [prolog-analyzer.parser.parser :as parser]
             [clojure.java.io :as io]
             [midje.sweet :refer :all]))
 

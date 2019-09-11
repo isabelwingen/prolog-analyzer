@@ -196,8 +196,7 @@
                                             (map first)
                                             set))])
         initial?)
-       spec
-       #_(if (every? #(= 2 (count (:arglist %))) arglist)
+       (if (every? #(= 2 (count (:arglist %))) arglist)
          (simplify-pair-tuples-in-or spec)
          spec))
      spec)))
@@ -233,13 +232,12 @@
   :args (s/alt
          :unary (s/cat :spec ::specs/spec)
          :binary (s/cat :spec ::specs/spec :initial? boolean?))
-  :fn #(let [s (-> % :args second :spec)]
+  :ret ::specs/spec
+  :fn #(let [s (-> % :ret)]
          (if (= r/OR (spec-type s))
            (> (count (:arglist s)) 0)
            true))
   )
-
-
 
 (defn simplify
   ([spec] (simplify spec false))
