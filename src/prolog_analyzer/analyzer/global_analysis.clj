@@ -84,6 +84,7 @@
     (if (= in-data new-data)
       (do
         (log/info "Done")
+        (writer new-data)
         new-data)
       (recur writer (inc counter) new-data))))
 
