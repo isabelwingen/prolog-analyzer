@@ -5,17 +5,22 @@
             [prolog-analyzer.record-utils :as ru]
             [clojure.tools.logging :as log]
             [prolog-analyzer.analyzer.calculate-env :as calc]
+            [orchestra.spec.test :as stest]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
             [prolog-analyzer.state :as state]))
 
 
-(defn- get-pre-spec [data pred-id]
-  (->> data
-       (utils/get-pre-specs pred-id)
-       (map r/->TupleSpec)
-       set
-       r/->OneOfSpec
-       ru/simplify
-       ))
+(defn- get-pre-spec [data [_ _ arity :as pred-id]]
+  (let [pre-specs (utils/get-pre-specs pred-id data)]
+    (if (empty? pre-specs) ;;TODO: Check, why this is necessary?
+      (r/->TupleSpec (vec (repeat arity (r/->AnySpec))))
+      (->> pre-specs
+           (map r/->TupleSpec)
+           set
+           r/->OneOfSpec
+           (#(ru/simplify % false)) ;;TODO: change back to single
+           ))))
 
 (defn- get-post-specs [data pred-id]
   (if-let [pss (utils/get-post-specs pred-id data)]
