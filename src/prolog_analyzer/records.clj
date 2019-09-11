@@ -77,11 +77,13 @@
   (to-string [x] (str "ERROR: " reason)))
 
 (defn DISJOINT
-  ([] (->ErrorSpec (str "No valid intersection")))
-  ([a] (->ErrorSpec (str "No valid intersection of " (to-string a))))
+  ([msg] (->ErrorSpec msg))
   ([a b]
-   (->ErrorSpec (str "No valid intersection of " (to-string a) " and " (to-string b)))))
-
+   (let [strings (->> [a b]
+                      (map to-string)
+                      sort
+                      (clojure.string/join " and "))]
+     (->ErrorSpec (str "No valid intersection of " strings)))))
 
 (defrecord VarSpec []
   spec

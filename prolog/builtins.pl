@@ -377,7 +377,7 @@
 % no spec post
 
 :- spec_pre(user:member/2, [any, maybe(list(any))]).
-:- spec_post(user:member/2, [1:list(placeholder(a))], [[0:placeholder(a)]]).
+:- spec_post(user:member/2, [1:list(placeholder(x))], [[0:placeholder(x)]]).
 :- spec_post(user:member/2, [0:placeholder(a)], [[1:list(placeholder(b,super(a)))]]).
 
 %    11.3.56 current_prolog_flag/2   ISO

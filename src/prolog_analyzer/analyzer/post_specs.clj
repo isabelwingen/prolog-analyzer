@@ -41,7 +41,9 @@
   :ret (s/or :map map? :nil nil?))
 
 (defn- match-guard-with-type [guard-type actual-type]
-  (let [merge-fn #(ru/simplify (r/->OneOfSpec %) false)
+  (let [merge-fn #(if (empty? %)
+                    (r/->ErrorSpec "Empty alias!")
+                    (ru/simplify (r/->OneOfSpec %) false))
         placeholders (ru/find-placeholders (ru/intersect guard-type actual-type false))
         map (->> placeholders
                  (group-by :name)
@@ -112,5 +114,3 @@
   (let [post-specs (get-post-specs env)
         alias-maps (map (partial is-post-spec-applicable? env) post-specs)]
     (create-steps post-specs alias-maps)))
-
-(stest/instrument)

@@ -11,7 +11,6 @@
             ))
 
 (declare add-to-dom)
-(declare merge-envs)
 
 (def DOM :dom)
 (def HIST :history)
@@ -98,19 +97,6 @@
     (next-steps term spec)
     []))
 
-(defn- create-one-of-from-envs [term envs]
-  (->> envs
-       (map #(utils/get-dom-of-term % term))
-       (remove ru/error-spec?)
-       set
-       r/->OneOfSpec
-       ru/simplify))
-
-(defn- merge-envs [envs]
-  (let [terms (distinct (mapcat utils/get-terms envs))
-        new-doms (map #(create-one-of-from-envs % envs) terms)]
-    (map vector terms new-doms)))
-
 (s/fdef add-steps
   :args (s/cat
          :env utils/is-graph?
@@ -132,12 +118,7 @@
 
 (defmethod process-next-steps true [env term spec initial?]
   (log/trace (utils/format-log env "process-next-steps - or"))
-  (let [arglist (:arglist spec)
-        envs (map (partial add-to-dom env initial? term) arglist)
-        terms-with-doms (->> envs
-                             merge-envs
-                             (remove (fn [[a b]] (= a term))))]
-    (reduce #(apply add-to-dom %1 initial? %2) env terms-with-doms)))
+  env)
 
 (defn- has-dom? [env term]
   (and (uber/has-node? env term) (uber/attr env term :dom)))
@@ -192,9 +173,9 @@
                                               (process-next-steps term new initial?)
                                               )))))))
 
+
 (defn add-to-dom-post-spec [env term spec]
   (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))
-
 
 
 ;;; Add structural Edges
@@ -225,5 +206,3 @@
             queue (vec (rest terms))]
         (recur (apply uber/add-edges res edges) (apply conj queue new-terms)))
       res)))
-
-(stest/instrument)

@@ -146,19 +146,23 @@
 (defn- same-arg-number? [left right]
   (= (count (:arglist left)) (count (:arglist right))))
 
-(defn- error-if-empty-arglist [spec]
-  (if (and (or-spec? spec) (empty? (:arglist spec))) (r/DISJOINT) spec))
+(defn- error-if-empty-arglist [spec original]
+  (if (and (or-spec? spec) (empty? (:arglist spec)))
+    (r/DISJOINT (str "Empty Arglist"))
+    spec))
 
 (defn- extract-single [spec]
   (if (and (or-spec? spec) (= 1 (count (:arglist spec)))) (first (:arglist spec)) spec))
 
 (defn- simplify-pair-tuples-in-or [{arglist :arglist :as spec}]
   (let [tuple-arglists (map :arglist arglist)]
-    (if (apply = (map last tuple-arglists))
-      (r/->TupleSpec [(r/->OneOfSpec (set (map first tuple-arglists))) (last (first tuple-arglists))])
-      (if (apply = (map first tuple-arglists))
-        (r/->TupleSpec [(first (first tuple-arglists)) (r/->OneOfSpec (set (map last tuple-arglists)))])
-        spec))))
+    (if (empty? tuple-arglists)
+      (r/->ErrorSpec "arglist of tuples empty")
+      (if (apply = (map last tuple-arglists))
+        (r/->TupleSpec [(r/->OneOfSpec (set (map first tuple-arglists))) (last (first tuple-arglists))])
+        (if (apply = (map first tuple-arglists))
+          (r/->TupleSpec [(first (first tuple-arglists)) (r/->OneOfSpec (set (map last tuple-arglists)))])
+          spec)))))
 
 (defn extract-singleton-tuples
   ([{arglist :arglist :as spec} initial?]
@@ -186,20 +190,42 @@
         (update :arglist set))
     spec))
 
+(s/def ::arglist
+  (s/coll-of ::specs/spec :min-count 1))
+
+(s/def ::valid-or
+  (s/keys :req-un [::arglist]))
+
+
+(defn simplify-or [spec initial?]
+  (-> spec
+      (update :arglist (partial mapcat #(if (or-spec? %) (:arglist %) [%])))
+      remove-error-specs
+      (update :arglist (partial map #(simplify % initial?)))
+      (update :arglist set)
+      (extract-singleton-tuples initial?)
+      remove-subsets-in-or
+      remove-error-specs
+      extract-single
+      (error-if-empty-arglist spec)))
+
+
+(s/fdef simplify
+  :args (s/alt
+         :unary (s/cat :spec ::specs/spec)
+         :binary (s/cat :spec ::specs/spec :initial? boolean?))
+  :fn #(let [s (-> % :args second :spec)]
+         (if (= r/OR (r/spec-type s))
+           (> (count (:arglist s)) 0)
+           true))
+  )
+
+
 (defn simplify
   ([spec] (simplify spec false))
   ([spec initial?]
    (case+ (r/safe-spec-type spec "simplify")
-          r/OR (-> spec
-                   (update :arglist (partial mapcat #(if (or-spec? %) (:arglist %) [%])))
-                   remove-error-specs
-                   (update :arglist (partial map #(simplify % initial?)))
-                   (update :arglist set)
-                   (extract-singleton-tuples initial?)
-                   remove-subsets-in-or
-                   remove-error-specs
-                   error-if-empty-arglist
-                   extract-single)
+          r/OR (simplify-or spec initial?)
           r/AND (reduce #(intersect %1 %2 initial?) (r/->AnySpec) (:arglist spec))
           r/LIST (if (error-spec? (:type spec))
                    (:type spec)
@@ -295,7 +321,7 @@
                               [r/EMPTYLIST r/EMPTYLIST] right
                               [r/EMPTYLIST r/ATOMIC] left
                               [r/EMPTYLIST r/LIST] left
-                              [r/EMPTYLIST r/COMPOUND] (when (nil? (:functor right)) left)
+                              [r/EMPTYLIST r/COMPOUND] (when (nil? (:functor right)) left) ;;TODO: Fix for dot notation
                               [r/EMPTYLIST r/TUPLE] (when (zero? (count (:arglist right))) left)
                               [r/EMPTYLIST :idclol] (swap)
 

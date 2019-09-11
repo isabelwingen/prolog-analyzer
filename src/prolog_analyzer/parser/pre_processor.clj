@@ -95,6 +95,3 @@
               )]
     (log/debug "Done Pre Process Single")
     p))
-
-
-(stest/instrument)

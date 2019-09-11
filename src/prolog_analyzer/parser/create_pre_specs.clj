@@ -145,5 +145,3 @@
     (doall (pmap (partial apply add-any-pre-spec) tasks))
     @tmp-data
     ))
-
-(stest/instrument)

@@ -53,7 +53,7 @@
         filtered-dom (compatible-with-head parameters head-dom term-dom)]
     (if (singleton-list? term)
       (xyzabc env term (r/->TupleSpec [head-dom]) parameters)
-      (xyzabc env term (or filtered-dom (r/DISJOINT)) parameters))))
+      (xyzabc env term (or filtered-dom (r/DISJOINT "No term dom is compatible with head")) parameters))))
 
 
 (defn get-matching-head [tail pair-id env]
@@ -166,5 +166,3 @@
         (get-env-for-pre-spec-of-subgoal arglist pre-spec)
         (get-env-for-post-spec-of-subgoal arglist post-specs))
     in-env))
-
-(stest/instrument)
