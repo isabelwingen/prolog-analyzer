@@ -205,7 +205,7 @@
 (defn remove-error-specs [spec]
   (if (or-spec? spec)
     (-> spec
-        (update :arglist (partial remove #(error-spec? %)))
+        (update :arglist (partial remove #(recursive-error-spec? %)))
         (update :arglist set))
     spec))
 
