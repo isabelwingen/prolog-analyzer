@@ -46,3 +46,8 @@
 (s/def ::clause (s/keys :req-un [::arglist :key/body]))
 (s/def :key/preds (s/map-of ::pred-id (s/map-of ::id ::clause)))
 (s/def ::data (s/keys :req-un [::singletons :key/pre-specs :key/post-specs :key/preds]))
+
+(s/def ::env #(= ubergraph.core.Ubergraph (type %)))
+
+(s/def ::step (s/tuple ::term ::spec))
+(s/def ::steps (s/coll-of ::step))
