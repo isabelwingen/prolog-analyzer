@@ -58,6 +58,11 @@
 
 (defn error-spec? [spec]
   (or (nil? spec)
+      (= r/ERROR (r/spec-type spec))))
+
+
+(defn recursive-error-spec? [spec]
+  (or (nil? spec)
       (= r/ERROR (r/safe-spec-type spec "error"))
       (if (contains? spec :type) (error-spec? (.type spec)) false)
       (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
