@@ -108,9 +108,9 @@
   :args (s/cat :pred-id ::specs/pred-id :data ::specs/data)
   :ret boolean?)
 
-(defn- should-pre-spec-be-added? [[_ goal arity :as pred-id] data]
+(defn- should-pre-spec-be-added? [[_ goal arity :as pred-id]]
   (let [res (and
-             ;(nil? (utils/get-pre-specs pred-id @tmp-data))
+             (nil? (utils/get-pre-specs pred-id @tmp-data))
              (> arity 0)
              (not= goal :if)
              (not= goal :or))]
@@ -139,7 +139,8 @@
   (reset! tmp-data data)
   (reset! process 0)
   (let [tasks (for [pred-id (->> data
-                                 utils/get-pred-identities)
+                                 utils/get-pred-identities
+                                 (filter should-pre-spec-be-added?))
                       :let [clauses (utils/get-clauses-of-pred pred-id data)]]
                   [pred-id clauses])]
     (doall (pmap (partial apply add-any-pre-spec) tasks))
