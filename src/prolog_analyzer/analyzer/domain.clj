@@ -8,94 +8,13 @@
             [prolog-analyzer.specs :as specs]
             [orchestra.spec.test :as stest]
             [orchestra.core :refer [defn-spec]]
+            [prolog-analyzer.analyzer.next-steps :as next-steps]
             ))
 
 (declare add-to-dom)
 
 (def DOM :dom)
 (def HIST :history)
-
-(s/fdef next-steps
-  :args (s/cat
-         :term ::specs/term
-         :spec ::specs/spec)
-  :ret (s/coll-of (s/tuple ::specs/term ::specs/spec)))
-
-(defmulti ^{:private true} next-steps
-  (fn [term spec]
-    (case+ (r/safe-spec-type spec (str "next-steps"))
-           r/TUPLE :tuple
-           r/COMPOUND :compound
-           r/USERDEFINED :userdef
-           r/LIST :list
-           r/GROUND :ground
-           :other)))
-
-(defn- split-spec-for-list [spec]
-  (case+ (r/safe-spec-type spec "split-spec-for-list")
-         r/LIST [(:type spec) spec]
-         r/TUPLE [(first (:arglist spec)) (-> spec
-                                              (update :arglist rest)
-                                              (update :arglist (partial apply vector)))]
-         [spec spec]))
-
-(defmethod next-steps :tuple [term spec]
-  (if (ru/list-term? term)
-    [[(ru/head term) (first (:arglist spec))]
-     [(ru/tail term) (update spec :arglist rest)]]
-    []))
-
-(defmethod next-steps :list [term spec]
-  (if (ru/list-term? term)
-    [[(ru/head term) (:type spec)]
-     [(ru/tail term) spec]]
-    []))
-
-(defmethod next-steps :compound [term spec]
-  (cond
-    (ru/compound-term? term) (apply vector (map vector (:arglist term) (:arglist spec)))
-    (and (ru/list-term? term) (r/incomplete-list-spec? spec)) [[(ru/head term) (first (:arglist spec))]]
-    :else []))
-
-(defmethod next-steps :ground [term spec]
-  (cond
-    (ru/list-term? term) [[(ru/head term) spec]
-                          [(ru/tail term) spec]]
-    (ru/compound-term? term) (apply vector (map #(vector % spec) (:arglist term)))
-    :else []))
-
-(defmethod next-steps :userdef [term spec]
-  []
-  (let [resolved (ru/resolve-definition-with-parameters spec)]
-    [[term resolved]]))
-
-(defmethod next-steps :default [term spec]
-  [])
-
-(defn- fully-qualified-spec? [spec]
-  (case+ (r/spec-type spec)
-         (r/TUPLE, r/LIST, r/COMPOUND) true
-         r/OR (every? fully-qualified-spec? (:arglist spec))
-         false))
-
-(defn- fully-qualified-term? [env term]
-  (if (ru/empty-list-term? term)
-    true
-    (if (ru/list-term? term)
-      (recur env (ru/tail term))
-      false)))
-
-(defn- fully-qualified? [env term spec]
-  (or
-   (fully-qualified-term? env term)
-   (fully-qualified-spec? spec)))
-
-(defn- next-steps-of-list-term [env term spec]
-  (if (or
-       (fully-qualified-term? env term)
-       (fully-qualified-spec? spec))
-    (next-steps term spec)
-    []))
 
 (s/fdef add-steps
   :args (s/cat
@@ -104,27 +23,31 @@
          :initial? boolean?)
   :ret utils/is-graph?)
 
-(defn- add-steps [env steps initial?]
-  (reduce #(apply add-to-dom %1 initial? %2) env steps))
+(defn-spec execute-step ::specs/env
+  [initial? boolean?,
+   env ::specs/env
+   [term spec] ::specs/step]
+  (add-to-dom env initial? term (ru/simplify spec initial?)))
 
-(defmulti ^{:private true} process-next-steps (fn [_ _ spec _] (ru/or-spec? spec)))
-
-(defmethod process-next-steps false [env term spec initial?]
-  (log/trace (utils/format-log env "process-next-steps - not or"))
-  (cond
-    (ru/error-spec? spec) env
-    (ru/list-term? term) (add-steps env (next-steps-of-list-term env term spec) initial?)
-    :else  (add-steps env (next-steps term spec) initial?)))
-
-(defmethod process-next-steps true [env term spec initial?]
-  (log/trace (utils/format-log env "process-next-steps - or"))
-  env)
+(defn-spec process-next-steps ::specs/env
+  [env ::specs/env
+   term ::specs/term
+   spec ::specs/spec
+   initial? boolean?]
+  (reduce
+   (partial execute-step initial?)
+   env
+   (next-steps/get-steps env term (ru/simplify spec initial?))))
 
 (defn- has-dom? [env term]
   (and (uber/has-node? env term) (uber/attr env term :dom)))
 
 
-(defn- first-add [env initial? term spec]
+(defn-spec first-add ::specs/env
+  [env ::specs/env
+   initial? boolean?
+   term ::specs/term
+   spec ::specs/spec]
   (-> env
       (uber/add-nodes term)
       (uber/add-attr term DOM (r/->AnySpec))
@@ -151,10 +74,12 @@
    (r/->CompoundSpec "." [head-dom (r/->AnySpec)])))
 
 
-(defn-spec add-to-dom utils/is-graph?
-  ([env utils/is-graph?, term ::specs/term spec ::specs/spec]
+(defn-spec add-to-dom ::specs/env
+  ([env ::specs/env,
+    term ::specs/term
+    spec ::specs/spec]
    (add-to-dom env false term spec))
-  ([env utils/is-graph?,
+  ([env ::specs/env,
     initial? boolean?,
     term ::specs/term,
     spec ::specs/spec]
@@ -178,7 +103,6 @@
                                               (utils/update-attr term HIST set)
                                               (process-next-steps term new initial?)
                                               )))))))
-
 
 (defn add-to-dom-post-spec [env term spec]
   (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))

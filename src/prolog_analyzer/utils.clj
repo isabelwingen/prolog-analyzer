@@ -3,6 +3,10 @@
   (:require [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
             [prolog-analyzer.records :as r]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
+            [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
             [ubergraph.protocols]
             [loom.graph]
             [loom.attr]
@@ -49,7 +53,8 @@
   (vals (get-in data [:preds pred-identity])))
 
 
-(defn get-terms [env]
+(defn-spec get-terms ::specs/arglist
+  [env ::specs/env]
   (remove #(= % :environment) (uber/nodes env)))
 
 (defn get-active-post-specs [env]
