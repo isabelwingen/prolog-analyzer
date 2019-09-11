@@ -216,7 +216,7 @@
   [])
 
 (defn add-structural-edges [env]
-  (log/debug "add structural edges")
+  (log/trace "add structural edges")
   (loop [res env
          terms (vec (utils/get-terms env))]
     (if-let [first-term (first terms)]

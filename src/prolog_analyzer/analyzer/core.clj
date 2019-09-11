@@ -23,7 +23,7 @@
     []))
 
 (defn- subgoal-analyzer [data env {:keys [goal module arity arglist]}]
-  (log/debug (utils/format-log env "Analysis of Subgoal " goal))
+  (log/trace (utils/format-log env "Analysis of Subgoal " goal))
   (if (or
        (zero? arity)
        (= :or goal)
@@ -35,7 +35,7 @@
       (calc/get-env-for-subgoal env pred-id arglist pre-spec post-specs))))
 
 (defn- analyze-clause [data title {arglist :arglist body :body} pre-spec]
-  (log/debug (utils/format-log title "Analyse clause"))
+  (log/trace (utils/format-log title "Analyse clause"))
   (reduce
    (partial subgoal-analyzer data)
    (calc/get-env-for-head title arglist pre-spec)

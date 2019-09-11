@@ -114,7 +114,7 @@
 (defn- post-process [env parameters]
   (loop [counter 0
          res env]
-    (log/debug (utils/format-log env "Post Process - " counter))
+    (log/trace (utils/format-log env "Post Process - " counter))
     (let [next (post-process-step res parameters)]
       (if (utils/same? next res)
         res
@@ -123,7 +123,7 @@
 (defn get-env-for-head
   "Calculates an environment from the header terms and the prespec"
   [title arglist pre-spec]
-  (log/debug (utils/format-log title "Calculate env for head"))
+  (log/trace (utils/format-log title "Calculate env for head"))
   (let [parameters {:initial true}]
     (-> (uber/digraph)
         (utils/set-arguments arglist)
@@ -136,7 +136,7 @@
 (defn- get-env-for-pre-spec-of-subgoal
   "Calculates an environment from a subgoal and its pre-specs"
   [in-env arglist pre-spec]
-  (log/debug (utils/format-log in-env "Calculate env for pre spec"))
+  (log/trace (utils/format-log in-env "Calculate env for pre spec"))
   (let [parameters {:initial false}]
     (-> in-env
         (xyzabc (apply ru/to-head-tail-list arglist) pre-spec parameters)
@@ -145,7 +145,7 @@
 
 (defn- get-env-for-post-spec-of-subgoal
   [in-env arglist post-specs]
-  (log/debug (utils/format-log in-env "Calculate env for post spec"))
+  (log/trace (utils/format-log in-env "Calculate env for post spec"))
   (let [parameters {:initial false :overwrite true}]
     (-> in-env
         (post-specs/register-post-specs arglist post-specs)
@@ -160,9 +160,11 @@
 
 (defn get-env-for-subgoal
   [in-env subgoal-id arglist pre-spec post-specs]
-  (log/debug (utils/format-log in-env "Calculate env for subgoal"))
+  (log/trace (utils/format-log in-env "Calculate env for subgoal"))
   (if (< (mark-self-calling in-env subgoal-id) 3)
     (-> in-env
         (get-env-for-pre-spec-of-subgoal arglist pre-spec)
         (get-env-for-post-spec-of-subgoal arglist post-specs))
     in-env))
+
+(stest/instrument)

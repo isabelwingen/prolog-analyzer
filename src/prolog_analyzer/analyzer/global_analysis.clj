@@ -68,10 +68,10 @@
 
 (defn check-post-specs [data]
   (doseq [x (utils/get-pred-identities data)]
-    (log/debug (utils/format-log x "Check - Number of Postspecs: " (count (utils/get-post-specs x data))))
+    (log/trace (utils/format-log x "Check - Number of Postspecs: " (count (utils/get-post-specs x data))))
     (doseq [y (utils/get-post-specs x data)]
-      (log/debug (utils/format-log x "Check - Length: " (length-of-post-spec y)))
-      (log/debug (utils/format-log x "Check - As String: " (post-spec-to-string y)))))
+      (log/trace (utils/format-log x "Check - Length: " (length-of-post-spec y)))
+      (log/trace (utils/format-log x "Check - As String: " (post-spec-to-string y)))))
   data)
 
 
