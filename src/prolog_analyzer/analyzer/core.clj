@@ -41,21 +41,27 @@
    (calc/get-env-for-head title arglist pre-spec)
    body))
 
+(def process (atom {:done 0 :total 0}))
+
+(defn get-process []
+  (str (:done @process) "/" (:total @process)))
+
+(defn- execute-task [data [pred-id clause-number]]
+  (log/debug (utils/format-log (vec (conj pred-id clause-number)) "Execute Analysis: " (get-process)))
+  (swap! process update :done inc)
+  (let [clause-id (conj pred-id clause-number)
+        clause (utils/get-clause pred-id clause-number data)
+        pre-spec (get-pre-spec data pred-id)]
+    (analyze-clause data clause-id clause pre-spec)))
+
 (defn- build-tasks [data]
   (let [res (for [pred-id (utils/get-pred-identities data)
                   clause-number (utils/get-clause-identities-of-pred pred-id data)]
               [pred-id clause-number])]
-    (log/debug "Number of tasks: " (count res))
+    (swap! process assoc :total (count res))
+    (swap! process assoc :done 0)
     res))
-
-(defn- execute-task [data [pred-id clause-number]]
-  (log/debug (utils/format-log (vec (conj pred-id clause-number)) "Execute Analysis"))
-  (analyze-clause
-   data
-   (conj pred-id clause-number)
-   (utils/get-clause pred-id clause-number data)
-   (get-pre-spec data pred-id)))
 
 (defn complete-analysis [data]
   (let [tasks (build-tasks data)]
-    (map (partial execute-task data) tasks)))
+    (pmap (partial execute-task data) tasks)))
