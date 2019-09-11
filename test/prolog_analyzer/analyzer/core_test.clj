@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.core-test
   (:require [prolog-analyzer.analyzer.core :as sut]
-            [prolog-analyzer.parser :as parser]
+            [prolog-analyzer.parser.parser :as parser]
             [prolog-analyzer.utils :as utils]
             [midje.sweet :refer :all]))
 

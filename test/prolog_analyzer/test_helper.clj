@@ -3,7 +3,7 @@
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.analyzer.domain :as dom]
             [prolog-analyzer.utils :as utils]
-            [prolog-analyzer.parser :as parser]
+            [prolog-analyzer.parser.parser :as parser]
             [ubergraph.core :as uber]))
 
 

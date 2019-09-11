@@ -1,6 +1,6 @@
 (ns prolog-analyzer.analyzer.global-analysis-test
   (:require [prolog-analyzer.analyzer.global-analysis :as sut]
-            [prolog-analyzer.parser :as parser]
+            [prolog-analyzer.parser.parser :as parser]
             [prolog-analyzer.state :as state]
             [prolog-analyzer.records :as r]
             [midje.sweet :refer :all]))
