@@ -105,7 +105,7 @@
          vec)))
 
 (s/fdef should-pre-spec-be-added?
-  :args (s/cat :pred-id ::specs/pred-id :data ::specs/data)
+  :args (s/cat :pred-id ::specs/pred-id)
   :ret boolean?)
 
 (defn- should-pre-spec-be-added? [[_ goal arity :as pred-id]]
@@ -114,14 +114,14 @@
              (> arity 0)
              (not= goal :if)
              (not= goal :or))]
-    (log/debug "should be added? " (str pred-id) " " res)
+    (log/trace "should be added? " (str pred-id) " " res)
     res))
 
 (defn- add-any-pre-spec [pred-id clauses]
   (swap! process inc)
-  (log/debug "Add Pre Spec - " (str pred-id) " - start - " @process)
+  (log/trace "Add Pre Spec - " (str pred-id) " - start - " @process)
   (swap! tmp-data assoc-in [:pre-specs pred-id] (create-pre-specs pred-id clauses))
-  (log/debug "Add Pre Spec - " (str pred-id) " - end"))
+  (log/trace "Add Pre Spec - " (str pred-id) " - end"))
 
 (defn finish []
   (let [res @tmp-data]
@@ -135,7 +135,7 @@
 
 (defn add-any-pre-specs
   [data]
-  (log/debug "Add Pre Specs")
+  (log/trace "Add Pre Specs")
   (reset! tmp-data data)
   (reset! process 0)
   (let [tasks (for [pred-id (->> data
