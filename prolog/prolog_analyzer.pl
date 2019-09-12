@@ -275,7 +275,7 @@ arg_to_map(error,Term,Map) :-
     (prolog_load_context(dialect,swi) -> term_string(Term, String); Term = String),
     multi_string_concat(["{:type :should-not-happen :term ",String, "}"], Map).
 
-split(Module:Term,unknown,-1,[],unknown) :-
+split(Module:Term,unknown,0,[],unknown) :-
     var(Module),
     var(Term),!.
 
@@ -342,17 +342,15 @@ spec_to_string(specvar(X),String) :-
     !,
     spec_to_string(X,Inner),
     multi_string_concat(["{:type :specvar :name \"",Inner,"\"}"],String).
-spec_to_string(compatible(X),String) :-
+spec_to_string(placeholder(X),String) :-
     !,
-    spec_to_string(X,Inner),
-    multi_string_concat(["{:type :compatible :name \"",Inner,"\"}"],String).
-
-spec_to_string(union(X),String) :-
+    ednify_atom(X,Inner),
+    multi_string_concat(["{:type :placeholder :name \"",Inner,"\"}"],String).
+spec_to_string(placeholder(X,super(Y)),String) :-
     !,
-    spec_to_string(X,Inner),
-    multi_string_concat(["{:type :union :name \"",Inner,"\"}"],String).
-
-
+    ednify_atom(X,Inner),
+    ednify_atom(Y,Sub),
+    multi_string_concat(["{:type :placeholder :name \"",Inner,"\" :super-of \"",Sub,"\"}"],String).
 
 spec_to_string(Userdefspec,String) :-
     compound(Userdefspec),
@@ -360,6 +358,26 @@ spec_to_string(Userdefspec,String) :-
     ednify_atom(Name,EdnName),
     spec_to_string(Arglist,Inner),
     multi_string_concat(["{:type :userdef :name \"",EdnName,"\" :arglist ",Inner,"}"],String).
+
+guard_format([],"[]") :- !.
+guard_format(L, Res) :-
+    is_list(L), !,
+    maplist(guard_format, L, S),
+    join(", ", S, P),
+    multi_string_concat(["[",P,"]"], Res).
+guard_format(Id:Type, Res) :-
+    !,
+    spec_to_string(Type,S),
+    multi_string_concat(["{:id ", Id, " :type ", S, "}"], Res).
+
+conclusion_or_list([A;B],[A|T]) :-
+    !,
+    conclusion_or_list([B],T).
+conclusion_or_list(X,X).
+
+conclusion_format(Conc, Res) :-
+    conclusion_or_list(Conc, Or),
+    guard_format(Or,Res).
 
 expand(':-'(A,B),Module,Result) :-
     !,
@@ -393,9 +411,9 @@ expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,R
     multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
     multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
     my_string_concat(":arity ",Arity,ArityPart),
-    spec_to_string(Arglist1,Premisse),
-    spec_to_string(Arglist2,Conclusion),
-    my_string_concat(":premisse ",Premisse,PremissePart),
+    guard_format(Arglist1,Premisse),
+    conclusion_format(Arglist2,Conclusion),
+    my_string_concat(":guard ",Premisse,PremissePart),
     my_string_concat(":conclusion ",Conclusion,ConclusionPart),
     End = "}}",
     create_map([Start,ModulePart,FunctorPart,ArityPart,PremissePart,ConclusionPart,End],Result).

@@ -1,0 +1,20 @@
+[{"clause":["simple_example", "mmember", 2, 0],
+  "arguments":["Integer", "List(Any)"],
+  "errors":{}},
+ {"clause":["simple_example", "mmember", 2, 1],
+  "arguments":["Integer", "List(Any)"],
+  "errors":
+  {"[E, T]":
+   "ERROR: No valid intersection (ERROR: No valid intersection,OneOf(Tuple(Integer, List(Integer)), Tuple(Integer, Var), Tuple(Var, List(Integer))),List(Any))"}},
+ {"clause":["simple_example", "foo", 2, 0],
+  "arguments":["Atom", "Integer"],
+  "errors":{}},
+ {"clause":["simple_example", "foo", 2, 1],
+  "arguments":["Integer", "Integer"],
+  "errors":{}},
+ {"clause":["simple_example", "foo", 2, 2],
+  "arguments":["Atom", "Atom"],
+  "errors":{}},
+ {"clause":["simple_example", "bar", 2, 0],
+  "arguments":["Integer", "Atom"],
+  "errors":{}}]

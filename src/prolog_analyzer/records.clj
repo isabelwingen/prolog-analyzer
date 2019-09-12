@@ -1,8 +1,7 @@
 (ns prolog-analyzer.records
-  (:require [prolog-analyzer.utils :refer [case+ get-elements-of-list recursive-check-condition] :as utils]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
             [clojure.tools.namespace.repl :refer [refresh]]
-
+            [instaparse.core :as insta]
             [clojure.string]))
 
 
@@ -23,8 +22,6 @@
 
 (def USERDEFINED :user-defined)
 (def SPECVAR :specvar)
-(def UNION :union)
-(def COMPATIBLE :compatible)
 (def ERROR :error)
 
 (def AND :and)
@@ -35,30 +32,35 @@
 
 (declare to-arglist)
 (declare empty-list?)
-(declare next-steps)
 (declare spec-type)
 (declare term-type)
-(declare supertype?)
 (declare ->AndSpec)
 (declare has-specvars)
 (declare var-spec?)
+(declare create-incomplete-list-spec)
 
 (defprotocol printable
   (to-string [x]))
 
 (defprotocol spec
   (spec-type [spec])
-  (next-steps
-    [spec term defs]
-    [spec term defs overwrite?]))
+  (length [x]))
 
 (defprotocol term
   (term-type [term])
   (initial-spec [term]))
 
+(defn is-term? [x]
+  (satisfies? term x))
+
+(defn is-spec? [x]
+  (satisfies? spec x))
+
+
 (defrecord AnySpec []
   spec
   (spec-type [spec] ANY)
+  (length [x] 1)
   printable
   (to-string [x] "Any"))
 
@@ -66,81 +68,81 @@
 (defrecord ErrorSpec [reason]
   spec
   (spec-type [spec] ERROR)
+  (length [x] (count reason))
   printable
   (to-string [x] (str "ERROR: " reason)))
 
 (defn DISJOINT
-  ([] (->ErrorSpec (str "No valid intersection")))
-  ([a] (->ErrorSpec (str "No valid intersection of " (to-string a))))
+  ([msg] (->ErrorSpec msg))
   ([a b]
-   (->ErrorSpec (str "No valid intersection of " (to-string a) " and " (to-string b)))))
-
-
-(defn error-spec? [spec]
-  (or (nil? spec)
-      (= ERROR (spec-type spec))
-      (if (contains? spec :type) (error-spec? (.type spec)) false)
-      (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
-      ))
+   (let [strings (->> [a b]
+                      (map to-string)
+                      sort
+                      (clojure.string/join " and "))]
+     (->ErrorSpec (str "No valid intersection of " strings)))))
 
 (defrecord VarSpec []
   spec
   (spec-type [spec] VAR)
+  (length [x] 1)
   printable
   (to-string [x] "Var"))
 
 (defrecord EmptyListSpec []
   spec
   (spec-type [spec] EMPTYLIST)
+  (length [x] 1)
   printable
   (to-string [x] "EmptyList"))
 
 (defrecord StringSpec []
   spec
   (spec-type [spec] STRING)
+  (length [x] 1)
   printable
   (to-string [x] "String"))
 
 (defrecord AtomSpec []
   spec
   (spec-type [spec] ATOM)
+  (length [x] 1)
   printable
   (to-string [x] "Atom"))
 
 (defrecord IntegerSpec []
   spec
   (spec-type [spec] INTEGER)
+  (length [x] 1)
   printable
   (to-string [x] "Integer"))
 
 (defrecord FloatSpec []
   spec
   (spec-type [spec] FLOAT)
+  (length [x] 1)
   printable
   (to-string [x] "Float"))
 
 (defrecord NumberSpec []
   spec
   (spec-type [spec] NUMBER)
+  (length [x] 1)
   printable
   (to-string [x] "Number"))
 
 (defrecord AtomicSpec []
   spec
   (spec-type [spec] ATOMIC)
+  (length [x] 1)
   printable
   (to-string [x] "Atomic"))
 
 (defrecord ExactSpec [value]
   spec
   (spec-type [spec] EXACT)
+  (length [x] 1)
   printable
   (to-string [x] (str "Exact(" value ")")))
-
-(defn list-term? [term]
-  (and (= COMPOUND (term-type term))
-       (= "." (.functor term))
-       (= 2 (count (.arglist term)))))
 
 (defn get-head-and-tail [term]
   {:head (first (.arglist term)) :tail (second (.arglist term))})
@@ -148,12 +150,14 @@
 (defrecord ListSpec [type]
   spec
   (spec-type [spec] LIST)
+  (length [x] 2)
   printable
   (to-string [x] (str "List(" (to-string type) ")")))
 
 (defrecord TupleSpec [arglist]
   spec
   (spec-type [spec] TUPLE)
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
 
@@ -161,7 +165,7 @@
 (defrecord CompoundSpec [functor arglist]
   spec
   (spec-type [spec] COMPOUND)
-  (next-steps [spec term defs] (next-steps spec term defs false))
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (if (nil? functor) "Compound" (str "Compound(" functor "(" (to-arglist arglist) "))"))))
 
@@ -169,24 +173,30 @@
 (defrecord GroundSpec []
   spec
   (spec-type [spec] GROUND)
+  (length [x] 1)
   printable
   (to-string [x] "Ground"))
 
 (defrecord AndSpec [arglist]
   spec
   (spec-type [spec] AND)
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (str "And(" (to-arglist arglist) ")")))
 
 (defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
+  (length [x] (apply + 1 (map length arglist)))
   printable
   (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
 
 (defrecord UserDefinedSpec [name]
   spec
   (spec-type [spec] USERDEFINED)
+  (length [x] (if (contains? x :arglist)
+                (apply + 1 (map length (:arglist x)))
+                2))
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
@@ -195,31 +205,24 @@
 (defrecord NonvarSpec []
   spec
   (spec-type [spec] NONVAR)
+  (length [x] 1)
   printable
   (to-string [x] "Nonvar"))
 
-(defrecord UnionSpec [name]
-  spec
-  (spec-type [spec] UNION)
-  printable
-  (to-string [x] (str "Union(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
-
-(defrecord CompatibleSpec [name]
-  spec
-  (spec-type [spec] COMPATIBLE)
-  printable
-  (to-string [x] (str "Compatible(" (if (.startsWith (str name) "G__") (apply str (drop 3 (str name))) (str name)) ")")))
-
-(defrecord PlaceholderSpec [inner-spec]
+(defrecord PlaceholderSpec [name]
   spec
   (spec-type [spec] PLACEHOLDER)
+  (length [x] 2)
   printable
-  (to-string [x] (str "Placeholder(" (to-string inner-spec) ")")))
+  (to-string [x] (if (contains? x :alias)
+                   (str "Placeholder(" name "):" (to-string (:alias x)))
+                   (str "Placeholder(" name ")"))))
 
 
 (defrecord SpecvarSpec [name]
   spec
   (spec-type [spec] SPECVAR)
+  (length [x] 2)
   printable
   (to-string [x] (str "Specvar(" name ")")))
 
@@ -274,21 +277,38 @@
   printable
   (to-string [x] (str value)))
 
+(defn get-elements-of-list [{head :head tail :tail}]
+  (if (nil? tail)
+    (list)
+    (conj (get-elements-of-list tail) head)))
+
+(defn- unpack [spec]
+  (loop [arglist (:arglist spec)
+         res #{}]
+    (if-let [f (first arglist)]
+      (if (= OR (spec-type f))
+        (recur (concat (rest arglist) (:arglist f)) res)
+        (recur (rest arglist) (conj res f)))
+      (->OneOfSpec (set res)))))
+
 (defrecord ListTerm [head tail]
   term
   (term-type [term] LIST)
-  (initial-spec [term] (if (empty-list? tail)
-                         (->ListSpec (initial-spec head))
-                         (if (contains? tail :head)
-                           (->ListSpec (->OneOfSpec [(initial-spec head) (:type (initial-spec tail))]))
-                           (->ListSpec (->AnySpec)))))
+  (initial-spec [term]
+    (let [head-dom (initial-spec head)
+          tail-dom (initial-spec tail)]
+      (case (spec-type tail-dom)
+        :list (->ListSpec (->OneOfSpec (hash-set head-dom (:type tail-dom))))
+        :tuple (->TupleSpec (vec (cons head-dom (:arglist tail-dom))))
+        :empty-list (->TupleSpec [head-dom])
+        (->CompoundSpec "." [head-dom tail-dom]))))
   printable
   (to-string [x]
-    (case+ (term-type tail)
-           ATOMIC (str "[" (to-string head) "]")
-           EMPTYLIST (str "[" (to-string head) "]")
-           VAR (str "[" (to-string head) "|" (to-string tail) "]")
-           LIST (str "[" (to-arglist (get-elements-of-list x)) "]")
+    (case (term-type tail)
+           :atomic (str "[" (to-string head) "]")
+           :empty-list (str "[" (to-string head) "]")
+           :var (str "[" (to-string head) "|" (to-string tail) "]")
+           :list (str "[" (to-arglist (get-elements-of-list x)) "]")
            (str "[" (to-string head) "|" (to-string tail) "]"))))
 
 
@@ -372,138 +392,99 @@
                       (assoc :arglist arglist))))
 
 
-(defn empty-list?
-  "Checks if the input is the empty (prolog) list."
-  [term]
-  (or (and (= ATOMIC (term-type term)) (= "[]" (:term term)))
-      (= EMPTYLIST (term-type term))))
-
-(defn to-head-tail-list
-  "Transforms a bunch of `terms` to a proper prolog list."
-  [& terms]
-  (if (empty? terms)
-    (->EmptyListTerm)
-    (->ListTerm (first terms) (apply to-head-tail-list (rest terms)))))
-
-(defn to-tuple-spec
-  "Transforms a bunch of `specs` to a tuple spec."
-  [& specs]
-  (if (empty? specs)
-    (->TupleSpec [])
-    (->TupleSpec specs)))
-
 (defn to-arglist [list]
   (clojure.string/join ", " (map to-string list)))
 
-(defn replace-specvar-name-with-value [spec specvar-name replace-value]
-  (case+ (spec-type spec)
-         (SPECVAR,UNION,COMPATIBLE)
-         (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
-
-         (OR,AND) (-> spec
-                      (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
-                      (update :arglist set))
-
-         (USERDEFINED, COMPOUND, TUPLE)
-         (-> spec
-             (update :arglist (partial map #(replace-specvar-name-with-value % specvar-name replace-value)))
-             (update :arglist (partial apply vector)))
-         LIST
-         (update spec :type #(replace-specvar-name-with-value % specvar-name replace-value))
-
-         spec
-         ))
+(defn incomplete-list-spec? [spec]
+  (and
+   (= COMPOUND (spec-type spec))
+   (= "." (:functor spec))
+   (= 2 (count (:arglist spec)))))
 
 
-(defn replace-specvars-with-spec [type specvar-name replace-spec]
-  (case+ (spec-type type)
-         (SPECVAR,UNION,COMPATIBLE) (if (= specvar-name (:name type)) replace-spec type)
+(defn to-spec [string]
+  (case string
+    "Any" (->AnySpec)
+    "Ground" (->GroundSpec)
+    "Integer" (->IntegerSpec)
+    "Float" (->FloatSpec)
+    "Number" (->NumberSpec)
+    "Atomic" (->AtomicSpec)
+    "Atom" (->AtomSpec)
+    "Var" (->VarSpec)
+    "Nonvar" (->NonvarSpec)
+    "EmptyList" (->EmptyListSpec)))
 
-         (OR,AND) (-> type
-                      (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
-                      (update :arglist set))
+(def p
+  (insta/parser
+   "<Spec> = Simple | Complex
+    <Complex> = Or | And | List | Tuple | Exact | Compound | Userdef
+    <Simple> = Any | Integer | Float | Atom | Atomic | Number | EmptyList | Var | Nonvar | Ground
+    <Arglist> = <''> | Spec (<','> <' '>* Spec)*
+    Any = <'Any'>
+    Integer = <'Integer'>
+    Float = <'Float'>
+    Number = <'Number'>
+    Atom = <'Atom'>
+    Atomic = <'Atomic'>
+    Ground = <'Ground'>
+    Var = <'Var'>
+    Nonvar = <'Nonvar'>
+    EmptyList = <'EmptyList'>
+    <Letters> = #'[a-z_\\.]*'
+    Exact = <'Exact('> Letters <')'>
+    List = <'List('> Spec <')'>
+    Tuple = <'Tuple('> Arglist <')'>
+    Functor = Letters
+    Compound = <'Compound('> Functor <'('> Arglist <'))'>
+    Or = <'OneOf('> Arglist <')'>
+    And = <'And('> Arglist <')'>
+    Userdef = Functor | Functor <'('> Arglist <')'>"
+   :output-format :enlive))
 
-         (USERDEFINED, COMPOUND, TUPLE) (-> type
-                                            (update :arglist (partial map #(replace-specvars-with-spec % specvar-name replace-spec)))
-                                            (update :arglist (partial apply vector)))
-         LIST (update type :type #(replace-specvars-with-spec % specvar-name replace-spec))
-         type
-         ))
+(defmulti to-spec (fn [{tag :tag}] tag))
 
-(defn replace-union-and-comp-with-placeholder [type]
-  (case+ (spec-type type)
-         (UNION,COMPATIBLE) (->PlaceholderSpec type)
-
-         (OR,AND) (-> type
-                      (update :arglist (partial map replace-union-and-comp-with-placeholder))
-                      (update :arglist set))
-
-         (USERDEFINED, COMPOUND, TUPLE) (-> type
-                                            (update :arglist (partial map replace-union-and-comp-with-placeholder))
-                                            (update :arglist (partial apply vector)))
-
-         LIST (update type :type replace-union-and-comp-with-placeholder)
-
-         type))
-
-
-(defn find-specvars [spec]
-  (case+ (spec-type spec)
-         (SPECVAR,UNION,COMPATIBLE) [spec]
-         (OR, AND, COMPOUND, TUPLE) (set (mapcat find-specvars (.arglist spec)))
-         USERDEFINED (if (contains? spec :arglist) (set (mapcat find-specvars (:arglist spec))) [])
-         LIST (find-specvars (.type spec))
-         #{}))
-
-
-
-(defn has-specvars [spec]
-  (or
-   (= SPECVAR (spec-type spec))
-   (= UNION (spec-type spec))
-   (= COMPATIBLE (spec-type spec))
-   (some has-specvars (:arglist spec))
-   (some->> (:type spec)
-            has-specvars)))
-
-
-(defn replace-specvars-with-any [spec]
-  (let [used-specvars (find-specvars spec)
-        replace-map (reduce #(assoc %1 (:name %2) (->AnySpec)) {} used-specvars)]
-    (reduce-kv replace-specvars-with-spec spec replace-map)))
-
-
-(defn length-of-list-term [{head :head tail :tail :as list}]
-  (cond
-    (nil? head) 0
-    (nil? tail) 1
-    (= VAR (term-type tail)) :inf
-    :default
-    (let [tail-length (length-of-list-term tail)]
-      (if (= :inf tail-length)
-        :inf
-        (inc tail-length)))))
-
-
-(defn var-spec? [spec]
-  (if (nil? spec)
-    false
-    (= VAR (spec-type spec))))
-
-(defn any-spec? [spec]
-  (if (nil? spec)
-    true
-    (= ANY (spec-type spec))))
+(defmethod to-spec :Integer [_]
+  (->IntegerSpec))
+(defmethod to-spec :Float [_]
+  (->FloatSpec))
+(defmethod to-spec :Number [_]
+  (->NumberSpec))
+(defmethod to-spec :Atom [_]
+  (->AtomSpec))
+(defmethod to-spec :Atomic [_]
+  (->AtomicSpec))
+(defmethod to-spec :Ground [_]
+  (->GroundSpec))
+(defmethod to-spec :Nonvar [_]
+  (->NonvarSpec))
+(defmethod to-spec :Var [_]
+  (->VarSpec))
+(defmethod to-spec :Any [_]
+  (->AnySpec))
+(defmethod to-spec :Exact [{[x] :content}]
+  (->ExactSpec x))
+(defmethod to-spec :List [{[x] :content}]
+(->ListSpec (to-spec x)))
+(defmethod to-spec :Tuple [{content :content}]
+  (->TupleSpec (vec (map to-spec content))))
+(defmethod to-spec :Functor [{[content] :content}]
+  content)
+(defmethod to-spec :Compound [{[functor & args] :content}]
+  (->CompoundSpec (to-spec functor) (vec (map to-spec args))))
+(defmethod to-spec :Or [{content :content}]
+  (->OneOfSpec (set (map to-spec content))))
+(defmethod to-spec :And [{content :content}]
+  (->OneOfSpec (set (map to-spec content))))
+(defmethod to-spec :Userdef [{[functor & args] :content}]
+  (if (empty? args)
+    (->UserDefinedSpec (to-spec functor))
+    (make-spec:user-defined (to-spec functor) (vec (map to-spec args)))))
+(defmethod to-spec :EmptyList [_]
+  (->EmptyListSpec))
+(defmethod to-spec :default [spec]
+  spec)
 
 
-(defn record-type [type]
-  (cond
-    (nil? type) nil
-    (satisfies? spec type) (spec-type spec)
-    :else (term-type spec)))
-
-(defn maybe-spec [spec]
-  (cond
-    (:arglist spec) (->OneOfSpec #{(->VarSpec) (update spec :arglist (partial map (fn [x] (->AnySpec))))})
-    (:type spec) (->OneOfSpec #{(->VarSpec) (assoc spec :type (->AnySpec))})
-    :else (if (any-spec? spec) spec (->OneOfSpec #{(->VarSpec) spec}))))
+(defn back-to-spec [str]
+  (first (map to-spec (insta/parse p str))))

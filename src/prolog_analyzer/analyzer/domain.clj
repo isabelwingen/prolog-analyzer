@@ -1,428 +1,138 @@
 (ns prolog-analyzer.analyzer.domain
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
             [prolog-analyzer.records :as r]
-            [prolog-analyzer.intersect :as i]
-            [prolog-analyzer.analyzer.pretty-printer :as pp]
-            [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
-            [loom.graph]
-            [loom.attr]
-            [ubergraph.protocols]
+            [prolog-analyzer.record-utils :as ru]
+            [ubergraph.core :as uber]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
+            [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
+            [prolog-analyzer.analyzer.next-steps :as next-steps]
             ))
 
-(declare fill-env-for-term-with-spec)
-(declare multiple-fills)
+(declare add-to-dom)
 
-(defn- get-defs-from-env [env]
-  (uber/attr env :ENVIRONMENT :user-defined-specs))
+(def DOM :dom)
+(def HIST :history)
 
-(defn- var-domain [env term]
-  (let [dom-type (r/spec-type (utils/get-dom-of-term env term (r/->AnySpec)))]
-    (contains? #{r/VAR r/ANY} dom-type)))
+(s/fdef add-steps
+  :args (s/cat
+         :env utils/is-graph?
+         :steps (s/coll-of (s/tuple ::specs/term ::specs/spec))
+         :initial? boolean?)
+  :ret utils/is-graph?)
 
-(declare fill-env-for-term-with-spec)
-(declare fill-dom)
+(defn-spec execute-step ::specs/env
+  [initial? boolean?,
+   env ::specs/env
+   [term spec] ::specs/step]
+  (add-to-dom env initial? term (ru/simplify spec initial?)))
 
-(defn- replace-var-with-any [spec]
-  (case+ (r/spec-type spec)
-         r/VAR (r/->AnySpec)
-         (r/OR,r/AND) (-> spec
-                          (update :arglist (partial map replace-var-with-any))
-                          (update :arglist set))
-         (r/TUPLE, r/COMPOUND) (update spec :arglist (partial map replace-var-with-any))
-         r/USERDEFINED (if (:arglist spec) (update spec :arglist (partial map replace-var-with-any)) spec)
-         r/LIST (update spec :type replace-var-with-any)
-         spec))
+(defn-spec process-next-steps ::specs/env
+  [env ::specs/env
+   term ::specs/term
+   spec ::specs/spec
+   initial? boolean?]
+  (reduce
+   (partial execute-step initial?)
+   env
+   (next-steps/get-steps env term (ru/simplify spec initial?))))
 
-
-(defn- initial-dom [obj]
-  (if (satisfies? prolog-analyzer.records/spec obj)
-    (r/->AnySpec)
-    (r/initial-spec obj)))
-
-(defn add-type-to-dom
-  ([env term type {overwrite? :overwrite :as options}]
-   (case+ (r/spec-type type)
-          r/AND (reduce #(add-type-to-dom %1 term %2 options) env (:arglist type))
-          (let [new-type (r/replace-specvars-with-any type)
-                dom (utils/get-dom-of-term env term (initial-dom term))
-                old-type (if overwrite? (replace-var-with-any dom) dom)
-                defs (utils/get-user-defined-specs env)]
-            (-> env
-                (uber/add-nodes term)
-                (uber/add-attr term :dom (i/intersect new-type old-type defs))))))
-  ([env term type]
-   (if (r/error-spec? type)
-     (add-type-to-dom env term type {:overwrite true})
-     (add-type-to-dom env term type {:overwrite false}))))
-
-(defn mark-as-was-var [env term]
-  (let [attrs (uber/attrs env term)]
-    (uber/set-attrs env term (assoc attrs :was-var true))))
-(defn WRONG-TYPE
-  ([]
-   (r/->ErrorSpec "Wrong type associated"))
-  ([term spec]
-   (r/->ErrorSpec (str "Term " (r/to-string term) " cannot be of spec " (r/to-string spec)))))
-
-(defn ALREADY-NONVAR []
-  (r/->ErrorSpec (str "Term cannot be var, because its already nonvar")))
-
-(defn CANNOT-GROUND []
-  (r/->ErrorSpec (str "Var term cannot be grounded here")))
+(defn- has-dom? [env term]
+  (and (uber/has-node? env term) (uber/attr env term :dom)))
 
 
-(defmulti check-if-valid (fn [term spec] [(r/term-type term) (r/spec-type spec)]))
-
-(defmethod check-if-valid [r/ATOM r/EXACT] [term spec]
-  (if (nil? (:term term))
-    true
-    (= (:term term) (:value spec))))
-
-
-(defmethod check-if-valid [r/NUMBER r/INTEGER] [term spec]
-  (int? (:value term)))
-
-(defmethod check-if-valid [r/NUMBER r/FLOAT] [term spec]
-  (float? (:value term)))
-
-(defmethod check-if-valid :default [term spec]
-  true)
-
-(defn- var-or-any? [spec]
-  (if (nil? spec)
-    false
-    (contains? #{r/VAR r/ANY} (r/spec-type spec))))
-
-(defn- var-or-any-or-nil? [spec]
-  (if (nil? spec)
-    true
-    (contains? #{r/VAR r/ANY} (r/spec-type spec))))
-
-(defn- var-or-nil? [spec]
-  (if (nil? spec)
-    true
-    (= r/VAR (r/spec-type spec))))
-
-(defn- remove-vars-from-dom [env term]
-  (if (and (uber/has-node? env term) (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec))))
-    (-> env
-        (uber/remove-attr term :dom)
-        (uber/add-attr term :dom (r/->AnySpec)))
-    env))
-
-  (def ART_PREFIX "A~~")
-
-(defn- art-term? [{n :name}]
-  (or
-   (.startsWith (str n) ART_PREFIX)
-   (.startsWith (str n) "T~~")
-   (.startsWith (str n) "ID~~")))
-
-(defn- has-artifical-term? [env term]
-  (if (some->> term
-               (uber/out-edges env)
-               (filter #(= :artificial (uber/attr env % :relation)))
-               first
-               uber/dest)
-    true
-    false))
-
-(defn- get-artificial-term [env term]
-  (let [artificial-term (some->> term
-                                 (uber/out-edges env)
-                                 (filter #(= :artificial (uber/attr env % :relation)))
-                                 first
-                                 uber/dest)]
-    artificial-term))
-
-(defn- create-artifical-term [env term {type :type arglist :arglist functor :functor :as spec} {initial? :initial overwrite? :overwrite :as options}]
-  (if (or (has-artifical-term? env term) (art-term? term))
-    env
-    (let [artificial-term (case+ (r/spec-type spec)
-                                 r/LIST (r/->ListTerm (r/->VarTerm (str (gensym ART_PREFIX))) (r/->VarTerm (str (gensym ART_PREFIX))))
-                                 r/COMPOUND (r/->CompoundTerm functor (repeatedly (count arglist) (fn [] (r/->VarTerm (str (gensym ART_PREFIX))))))
-                                 r/TUPLE (apply r/to-head-tail-list (repeatedly (count arglist) (fn [] (r/->VarTerm (str (gensym ART_PREFIX))))))
-                                 )]
-      (-> env
-          (fill-dom artificial-term (utils/get-dom-of-term env term (r/->AnySpec)) {:initial true :overwrite true})
-          (uber/add-edges [term artificial-term {:relation :artificial}])))))
-
-(defn- add-to-artifical-term [env term spec options]
-  (if (and (not (art-term? term)) (has-artifical-term? env term))
-    (fill-dom env (get-artificial-term env term) spec options)
-    env))
-
-(defn- fill-dom-of-next-steps [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [next (partition 2 (i/next-steps spec term (utils/get-user-defined-specs env)))]
-    (reduce
-     (fn [e [t s]]
-       (assert s (str "Fill-dom-of-next-steps: " (utils/get-pred-id env) " " (r/to-string term) " " (r/to-string spec)))
-       (fill-dom e t s options))
-     env
-     next)))
-
-(defmulti fill-dom (fn [env term spec options] [(if (= r/VAR (r/term-type term)) :var :nonvar) (case+ (r/spec-type spec)
-                                                                                                     r/ANY :any
-                                                                                                     r/USERDEFINED :userdefined
-                                                                                                     r/UNION :union
-                                                                                                     r/COMPATIBLE :compatible
-                                                                                                     r/VAR :var
-                                                                                                     r/LIST :list
-                                                                                                     r/COMPOUND :compound
-                                                                                                     r/TUPLE :tuple
-                                                                                                     r/ERROR :error
-                                                                                                     :default)]))
-
-(defmethod fill-dom [:var :any] [env term spec options]
-  (add-type-to-dom env term spec options))
-
-(defmethod fill-dom [:var :userdefined] [env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [transformed-definition (i/resolve-definition-with-parameters spec (get-defs-from-env env))]
-    (if (r/has-specvars spec)
-      (-> env
-          (uber/add-edges [term spec {:relation :complex-userdef}])
-          (fill-dom term (r/replace-specvars-with-any transformed-definition) options))
-      (fill-dom env term transformed-definition options))
-    ))
-
-(defmethod fill-dom [:var :union] [env term spec options]
+(defn-spec first-add ::specs/env
+  [env ::specs/env
+   initial? boolean?
+   term ::specs/term
+   spec ::specs/spec]
   (-> env
-         (fill-dom term (r/initial-spec term) options)
-         (uber/add-attr term :was-var true)
-         (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :union}])
-         (add-to-artifical-term term spec options)))
+      (uber/add-nodes term)
+      (uber/add-attr term DOM (r/->AnySpec))
+      (add-to-dom initial? term (ru/initial-spec term))
+      (add-to-dom initial? term spec)))
 
-(defmethod fill-dom [:var :compatible] [env term spec options]
-  (-> env
-      (fill-dom term (r/initial-spec term) options)
-      (uber/add-attr term :was-var true)
-      (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :compatible}])
-      (add-to-artifical-term term spec options)))
+(defn- fully-qualified-spec? [spec]
+  (case+ (ru/spec-type spec)
+         (r/TUPLE, r/LIST, r/COMPOUND) true
+         r/OR (every? fully-qualified-spec? (:arglist spec))
+         false))
 
+(defn- incomplete-list? [spec term]
+  (and
+   (not (fully-qualified-spec? spec))
+   (ru/list-term? term)))
 
-(defmethod fill-dom [:var :var] [env term spec {initial? :initial :as options}]
-  (cond
-    (nil? (utils/get-dom-of-term env term nil)) (add-type-to-dom env term spec options)
-    (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec))) env
-    (r/any-spec? (utils/get-dom-of-term env term (r/->AnySpec))) (-> env
-                                                                     (uber/add-nodes term)
-                                                                     (uber/add-attr term :assumed-type spec)
-                                                                     (add-type-to-dom term spec options))
-    :else (if initial?
-            (-> env
-                (uber/add-attr term :was-var true))
-            (add-type-to-dom env term (ALREADY-NONVAR)))))
+(defn- old? [new env term]
+  (contains? (uber/attr env term HIST) new))
 
-(defn- process-filling-for-var-term [env term spec options]
-  (let [res
-        (-> env
-            (add-type-to-dom term spec options)
-            (fill-dom-of-next-steps term spec options)
-            (add-to-artifical-term term spec options)
-
-            )]
-    res))
-
-(defn fill-dom-compound-or-list [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
-    (if initial?
-      (-> env
-          (remove-vars-from-dom term)
-          (process-filling-for-var-term term spec options))
-      (if overwrite?
-        (process-filling-for-var-term env term spec options)
-        (if (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
-          (add-type-to-dom env term (CANNOT-GROUND))
-          (if (r/any-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
-            (-> env
-                (uber/add-nodes term)
-                (uber/add-attr term :assumed-type spec)
-                (process-filling-for-var-term term spec options))
-            (process-filling-for-var-term env term spec options)))))))
-
-(defmethod fill-dom [:var :compound] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
-    (if (nil? (.functor spec))
-      (-> env
-          (fill-dom-compound-or-list term spec options)
-          (uber/add-attr term :is-compound true))
-      (-> env
-          (create-artifical-term term spec options)
-          (uber/add-attr term :functor (.functor spec))
-          (uber/add-attr term :is-compound true)
-          (fill-dom-compound-or-list term spec options)))))
-
-(defmethod fill-dom [:var :tuple] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
-    (-> env
-        (create-artifical-term term spec options)
-        (uber/add-attr term :is-tuple true)
-        (fill-dom-compound-or-list term spec options))))
-
-(defn- get-artificial-type [env term]
-  (some->> term
-           (uber/out-edges env)
-           (filter #(= :has-type (uber/attr env % :relation)))
-           first
-           uber/dest))
-
-(defmethod fill-dom [:var :list] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))
-        generated-var (r/->VarTerm (gensym "T~~"))]
-
-    (if-let [artificial-type (get-artificial-type env term)]
-      (-> env
-          (fill-dom-compound-or-list term spec options)
-          (fill-dom artificial-type (.type spec) options))
-      (-> env
-          (uber/add-attr term :is-list true)
-          (uber/add-edges [term generated-var {:relation :has-type}])
-          (fill-dom-compound-or-list term spec options)
-          (fill-dom generated-var (.type spec) {:initial true})))))
+(defn create-incomplete-list-spec
+  ([] (create-incomplete-list-spec (r/->AnySpec)))
+  ([head-dom]
+   (r/->CompoundSpec "." [head-dom (r/->AnySpec)])))
 
 
-(defmethod fill-dom [:var :default] [in-env term spec {overwrite? :overwrite initial? :initial :as options}]
-  (let [env (-> in-env (uber/add-nodes term) (uber/add-attr term :was-var true))]
-    (if initial? ;; mode initial -> grounding ok
-      (-> env
-          (remove-vars-from-dom term)
-          (process-filling-for-var-term term spec options))
-      (if overwrite? ;; mode overwrite -> grounding ok
-        (process-filling-for-var-term env term spec options)
-        (if (r/var-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
-          (process-filling-for-var-term env term spec options)
-          (if (r/any-spec? (utils/get-dom-of-term env term (r/->AnySpec)))
-            (-> env
-                (uber/add-nodes term)
-                (uber/add-attr term :assumed-type spec)
-                (process-filling-for-var-term term spec options))
-            (process-filling-for-var-term env term spec options)))))))
+(defn-spec add-to-dom ::specs/env
+  ([env ::specs/env,
+    term ::specs/term
+    spec ::specs/spec]
+   (add-to-dom env false term spec))
+  ([env ::specs/env,
+    initial? boolean?,
+    term ::specs/term,
+    spec ::specs/spec]
+   (letfn [(intersect-fn [a b]
+             (let [res (ru/intersect (or a (r/->AnySpec)) b initial?)]
+               res))]
+     (cond
+       (not (has-dom? env term))      (first-add env initial? term spec)
+       (ru/and-spec? spec)            (reduce #(add-to-dom %1 initial? term %2) env (:arglist spec))
+       (incomplete-list? spec term)   (add-to-dom env initial? term (create-incomplete-list-spec))
+       :default                       (let [before (uber/attr env term DOM)
+                                            new (intersect-fn before spec)]
+                                        (if
+                                            (or
+                                             (= before new)
+                                             (old? new env term))
+                                          env
+                                          (-> env
+                                              (uber/add-attr term DOM new)
+                                              (utils/update-attr term HIST conj new)
+                                              (utils/update-attr term HIST set)
+                                              (process-next-steps term new initial?)
+                                              )))))))
+
+(defn add-to-dom-post-spec [env term spec]
+  (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))
 
 
-(defmethod fill-dom [:var :error] [env term spec options]
-  (add-type-to-dom env term spec))
+;;; Add structural Edges
+(s/fdef edges
+  :args (s/cat :term ::specs/term)
+  :ret (s/coll-of (s/tuple ::specs/term ::specs/term map?)))
 
-(defmulti add-children (fn [env compound] (cond
-                                           (:head compound) :list
-                                           (:arglist compound) :compound
-                                           :else :single)))
+(defmulti ^{:private true} edges (fn [term] (ru/term-type term)))
 
-(defmethod add-children :list [env {head :head tail :tail}]
-  (let [head-env (fn [e] (if (utils/get-dom-of-term e head nil) e (fill-env-for-term-with-spec e head (r/->AnySpec) {:initial true})))
-        tail-env (fn [e] (if (utils/get-dom-of-term e tail nil) e (fill-env-for-term-with-spec e tail (r/->AnySpec) {:initial true})))]
-    (-> env
-        head-env
-        tail-env)))
+(defmethod edges :list [term]
+  (let [pair (gensym)]
+    [[(ru/head term) term {:relation :is-head :pair pair}]
+     [(ru/tail term) term {:relation :is-tail :pair pair}]]))
 
-(defmethod add-children :compound [env {arglist :arglist}]
-  (reduce #(if (utils/get-dom-of-term %1 %2 nil) %1 (fill-env-for-term-with-spec %1 %2 (r/->AnySpec) {:initial true})) env arglist))
+(defmethod edges :compound [term]
+  (map-indexed #(vector %2 term {:relation :arg-at-pos :pos %1}) (:arglist term)))
 
-(defmethod add-children :default [env _] env)
+(defmethod edges :default [term]
+  [])
 
-(defmethod fill-dom [:nonvar :any] [env term spec options]
-  (add-children
-   (if (utils/get-dom-of-term env term nil)
-     env
-     (add-type-to-dom env term (r/->AnySpec) options))
-   term))
-
-(defmethod fill-dom [:nonvar :userdefined] [env term spec options]
-  (let [transformed-definition (i/resolve-definition-with-parameters spec (get-defs-from-env env))]
-    (if (r/has-specvars spec)
-      (-> env
-          (uber/add-edges [term spec {:relation :complex-userdef}])
-          (fill-dom term (r/replace-specvars-with-any transformed-definition) options))
-      (fill-dom env term transformed-definition options))))
-
-(defmethod fill-dom [:nonvar :union] [env term spec options]
-  (-> env
-      (fill-dom term (r/initial-spec term) options)
-      (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :union}])))
-
-(defmethod fill-dom [:nonvar :compatible] [env term spec options]
-  (-> env
-      (fill-dom term (r/initial-spec term) options)
-      (uber/add-edges [term (r/->SpecvarSpec (.name spec)) {:relation :compatible}])))
-
-
-
-(defmethod fill-dom [:nonvar :var] [env term spec {initial? :initial overwrite? :overwrite :as options}]
-  (if initial?
-    (-> env
-        (uber/add-nodes term)
-        (uber/add-attr term :was-var true)
-        (fill-dom term (r/initial-spec term) options)
-        (add-children term))
-    (add-type-to-dom env term (ALREADY-NONVAR))))
-
-(defn fill-dom-nonvar-compound-or-list [env term spec options]
-  (-> env
-      (add-type-to-dom term spec options)
-      (fill-dom-of-next-steps term spec options)))
-
-(defmethod fill-dom [:nonvar :compound] [env term spec options] (fill-dom-nonvar-compound-or-list env term spec options))
-(defmethod fill-dom [:nonvar :list] [env term spec options] (fill-dom-nonvar-compound-or-list env term spec options))
-(defmethod fill-dom [:nonvar :tuple] [env term spec options] (fill-dom-nonvar-compound-or-list env term spec options))
-
-(defmethod fill-dom [:nonvar :default] [env term spec {overwrite? :overwrite :as options}]
-  (if (check-if-valid term spec)
-    (-> env
-        (add-type-to-dom term spec options)
-        (fill-dom-of-next-steps term spec options))
-    (add-type-to-dom env term (WRONG-TYPE term spec))
-    ))
-
-
-
-(defmethod fill-dom [:nonvar :error] [env term spec options]
-  (add-type-to-dom env term spec true))
-
-
-(defn fill-env-for-term-with-spec
-  ([env term spec options]
-   (fill-dom env term spec options))
-  ([env term spec]
-   (fill-env-for-term-with-spec env term spec {:initial false})))
-
-(defn multiple-fills
-  ([env terms specs options]
-   (reduce (fn [e [term spec]] (fill-env-for-term-with-spec e term spec options)) env (map vector terms specs)))
-  ([env terms specs]
-   (multiple-fills env terms specs {:initial false})))
-
-
-(defmulti spec-valid? (fn [env term spec] (case+ (r/term-type term)
-                                                (r/LIST r/EMPTYLIST) :list
-                                                r/COMPOUND :compound
-                                                :other)))
-
-(defmethod spec-valid? :compound [env {functor-term :functor :as term} {functor-spec :functor :as spec}]
-  (if-let [dom (utils/get-dom-of-term env term nil)]
-    (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
-      false
-      (and
-       (= functor-term functor-spec)
-       (not (r/error-spec? (i/intersect dom spec (get-defs-from-env env))))
-       (every? (partial apply spec-valid? env) (partition 2 (i/next-steps spec term (get-defs-from-env env))))))
-    (and
-     (= functor-term functor-spec)
-     (not (r/error-spec? (i/intersect spec (r/initial-spec term) (get-defs-from-env env))))))) ;;TODO: if dom is nil, is the result false?
-
-
-
-(defmethod spec-valid? :list [env term spec]
-  (if-let [dom (utils/get-dom-of-term env term nil)]
-    (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
-      false
-      (and
-       (not (r/error-spec? (i/intersect dom spec (get-defs-from-env env))))
-       (every? (partial apply spec-valid? env) (partition 2 (i/next-steps spec term (get-defs-from-env env))))))
-    (not (r/error-spec? (i/intersect spec (r/initial-spec term) (get-defs-from-env env)))))) ;;TODO: if dom is nil, is the result false?
-
-(defmethod spec-valid? :other [env term spec]
-  (if-let [dom (utils/get-dom-of-term env term nil)]
-    (if (contains? #{r/OR r/ERROR} (r/spec-type dom))
-      false
-      (not (r/error-spec? (i/intersect dom spec (get-defs-from-env env)))))
-    (not (r/error-spec? (i/intersect spec (r/initial-spec term) (get-defs-from-env env))))))
+(defn add-structural-edges [env]
+  (log/trace "add structural edges")
+  (loop [res env
+         terms (vec (utils/get-terms env))]
+    (if-let [first-term (first terms)]
+      (let [edges (edges first-term)
+            new-terms (map first edges)
+            queue (vec (rest terms))]
+        (recur (apply uber/add-edges res edges) (apply conj queue new-terms)))
+      res)))

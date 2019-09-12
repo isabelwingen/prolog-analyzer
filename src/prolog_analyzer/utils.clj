@@ -2,6 +2,11 @@
   "Contains usefull utility functions used across different namespaces."
   (:require [ubergraph.core :as uber]
             [clojure.tools.logging :as log]
+            [prolog-analyzer.records :as r]
+            [clojure.spec.alpha :as s]
+            [prolog-analyzer.specs :as specs]
+            [orchestra.spec.test :as stest]
+            [orchestra.core :refer [defn-spec]]
             [ubergraph.protocols]
             [loom.graph]
             [loom.attr]
@@ -12,15 +17,14 @@
 (defn self-calling? [[pred-id clause-number] data]
   (get-in data [:preds pred-id clause-number :self-calling?]))
 
-(defn get-specs-of-pred
-  "Returns the pre, post and invariant specs of a given `pred-identity` loaded in `data`."
-  [[module pred-name arity :as pred-identity] data]
-  (-> data
-      (select-keys [:pre-specs :post-specs :inv-specs])
-      (update :pre-specs #(get % pred-identity))
-      (update :post-specs #(get % pred-identity))
-      (update :inv-specs #(get % pred-identity))
-      ))
+(defn- default-spec [n]
+  (repeat n (r/->AnySpec)))
+
+(defn get-pre-specs [pred-identity data]
+  (get (:pre-specs data) pred-identity))
+
+(defn get-post-specs [pred-identity data]
+  (get (:post-specs data) pred-identity))
 
 (defn get-pred-identities
   [data]
@@ -30,7 +34,6 @@
   "Returns the clause ids of the predicate with id `pred-id` loaded in `data`."
   [pred-id data]
   (keys (get-in data [:preds pred-id])))
-
 
 (defn get-clause-identities
   "Returns the clause ids of all clauses loaded in `data`."
@@ -50,22 +53,21 @@
   (vals (get-in data [:preds pred-identity])))
 
 
-(defn get-terms [env]
-  (remove #{:ENVIRONMENT} (uber/nodes env)))
+(defn-spec get-terms ::specs/arglist
+  [env ::specs/env]
+  (remove #(= % :environment) (uber/nodes env)))
 
-(defn get-user-defined-specs [env]
-  (uber/attr env :ENVIRONMENT :user-defined-specs))
+(defn get-active-post-specs [env]
+  (uber/attr env :environment :post-specs))
 
-(defn get-dom-of-term [env term default]
-  (if (uber/has-node? env term)
-    (or (uber/attr env term :dom) default)
-    default))
-
-(defn get-clause-number [env]
-  (uber/attr env :ENVIRONMENT :clause-number))
-
-(defn get-pred-id [env]
-  (uber/attr env :ENVIRONMENT :pred-id))
+(defn get-dom-of-term
+  ([env term default] (get-dom-of-term env term))
+  ([env term]
+   (if-let [result (if (uber/has-node? env term)
+                     (uber/attr env term :dom)
+                     nil)]
+     result
+     (r/->AnySpec))))
 
 (defmacro case+
   "Same as case, but evaluates dispatch values, needed for referring to
@@ -85,11 +87,6 @@
                       (map #(-> % first eval-dispatch (list (second %))))
                       (mapcat identity))
                  default))))
-
-(defn get-elements-of-list [{head :head tail :tail}]
-  (if (nil? tail)
-    (list)
-    (conj (get-elements-of-list tail) head)))
 
 
 (defn recursive-check-condition [l msg]
@@ -123,18 +120,68 @@
    (let [v1 (gensym)
          v2 (gensym)]
      `(let [[~v1 ~v2] ~expr]
-        ~(remodel-cases cases v1 v2)
-        ))))
+        ~(remodel-cases cases v1 v2)))))
 
-
-
-(defn env->map [env]
+(defn env->map
+  "Mostly for test purpose"
+  [env]
   (let [nodes (for [term (get-terms env)
                     :let [dom (get-dom-of-term env term nil)]]
-                [term dom])
+                [(r/to-string term) (r/to-string dom)])
         edges (for [edge (uber/edges env)
-                    :let [s (uber/src edge)
-                          d (uber/dest edge)
+                    :let [s (r/to-string (uber/src edge))
+                          d (r/to-string (uber/dest edge))
                           rel (uber/attr env edge :relation)]]
                 [[s d] rel])]
     (apply merge {} (concat nodes edges))))
+
+
+(defn update-attr
+  "Updates an attribue similar to 'update'"
+  [graph node key f & args]
+  (let [attrs (uber/attrs graph node)]
+    (uber/set-attrs graph node (apply update attrs key f args))))
+
+(defn- same-dom? [env1 env2 term]
+  (= (get-dom-of-term env1 term nil) (get-dom-of-term env2 term nil)))
+
+(defn same? [env1 env2]
+  (and
+   (= (get-terms env1) (get-terms env2))
+   (every? (partial same-dom? env1 env2) (get-terms env1))))
+
+
+(defn set-title [env title]
+  (-> env
+      (uber/add-nodes :environment)
+      (uber/add-attr :environment :title title)))
+
+(defn get-title [env msg]
+  (if (uber/has-node? env :environment)
+    (uber/attr env :environment :title)
+    (throw (Exception. (str msg ": " (env->map env))))))
+
+(defn set-arguments [env arglist]
+  (-> env
+      (uber/add-nodes :environment)
+      (uber/add-attr :environment :arglist arglist)))
+
+(defn get-arguments [env]
+  (if (uber/has-node? env :environment)
+    (uber/attr env :environment :arglist)
+    []))
+
+
+(defmulti format-log (fn [a & args] (type a)))
+
+(defmethod format-log ubergraph.core.Ubergraph [env & msgs]
+  (apply format-log (get-title env (apply str "c " msgs)) msgs))
+
+(defmethod format-log :default [title & msgs]
+  (apply str title " - " msgs))
+
+
+(defn is-graph? [env]
+  (= ubergraph.core.Ubergraph (type env)))
+
+(stest/instrument)
