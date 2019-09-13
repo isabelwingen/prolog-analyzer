@@ -11,7 +11,7 @@
     (println (pr-str "No predicates found"))))
 
 (defn- group-envs-by-pred-id [envs]
-  (group-by #(vec (drop-last (utils/get-title % "b"))) envs))
+  (group-by #(vec (drop-last (utils/get-title %))) envs))
 
 (defn- create-single-conclusion [env]
   (->> env
@@ -66,25 +66,16 @@
                (clojure.string/join "\n\t"))]
     (str "\nguard:\n\t" a "\n\n" "concl:\n\t" b "\n")))
 
-(defn check-post-specs [data]
-  (doseq [x (utils/get-pred-identities data)]
-    (log/trace (utils/format-log x "Check - Number of Postspecs: " (count (utils/get-post-specs x data))))
-    (doseq [y (utils/get-post-specs x data)]
-      (log/trace (utils/format-log x "Check - Length: " (length-of-post-spec y)))
-      (log/trace (utils/format-log x "Check - As String: " (post-spec-to-string y)))))
-  data)
-
-
 
 (defn fixpoint [writer counter in-data]
   (log/info "Fixpoint: Step " counter)
+  (writer in-data)
   (let [envs (clause-analysis/complete-analysis in-data)
         new-data (create-new-data in-data envs)]
    ; (check-post-specs new-data)
     (if (= in-data new-data)
       (do
         (log/info "Done")
-        (writer new-data)
         new-data)
       (recur writer (inc counter) new-data))))
 
