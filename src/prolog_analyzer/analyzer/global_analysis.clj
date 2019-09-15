@@ -4,7 +4,9 @@
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.records :as r]
             [clojure.tools.logging :as log]
+            [flatland.ordered.set :refer [ordered-set]]
             [prolog-analyzer.analyzer.core :as clause-analysis]))
+
 
 (defn- log-if-empty [data]
   (when (empty? (utils/get-pred-identities data))
@@ -26,7 +28,8 @@
        (hash-map :guard [] :conclusion)))
 
 (defn contains-postspec? [data pred-id post-spec]
-  (contains? (set (utils/get-post-specs pred-id data)) post-spec))
+  (contains? (apply hash-set (utils/get-post-specs pred-id data)) post-spec))
+
 
 (defn length-of-post-spec [{guard :guard concl :conclusion}]
   (let [a (->> guard
@@ -41,14 +44,15 @@
     (+ a b)))
 
 
+
 (defn add-if-new [data [_ _ arity :as pred-id] post-spec]
-  (if (> (length-of-post-spec post-spec) 200)
+  (if (> (length-of-post-spec post-spec) 1000)
     data
-    (update-in data [:post-specs pred-id] #(-> %
-                                               drop-last
-                                               vec
-                                               (conj post-spec)
-                                               vec))))
+    (-> data
+        (update-in [:post-specs pred-id] #(if (nil? %)
+                                            (ordered-set)
+                                            (apply ordered-set %)))
+        (update-in [:post-specs pred-id] #(conj % post-spec)))))
 
 (defn- create-new-data [in-data envs]
   (->> envs

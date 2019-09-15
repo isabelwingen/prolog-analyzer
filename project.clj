@@ -12,6 +12,7 @@
                  [midje "1.9.9"]
                  [instaparse "1.4.10"]
                  [orchestra "2018.12.06-2"]
+                 [org.flatland/ordered "1.5.7"]
                  [org.clojure/data.json "0.2.6"]
                  [org.slf4j/slf4j-log4j12 "1.7.1"]
                  [log4j/log4j "1.2.17" :exclusions [javax.mail/mail
