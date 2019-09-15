@@ -386,7 +386,7 @@ expand(':-'(A,B),Module,Result) :-
     rule_to_map(A,Body,Module,Map),
     my_string_concat(Start,Map,Tmp1),
     my_string_concat(Tmp1,"}",Result).
-
+expand('-->'(A,B),_,"") :- !.
 
 %special cases
 expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
