@@ -4,6 +4,7 @@
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.records :as r]
             [clojure.tools.logging :as log]
+            [prolog-analyzer.result-visualizer :refer [print-intermediate-result]]
             [flatland.ordered.set :refer [ordered-set]]
             [prolog-analyzer.analyzer.core :as clause-analysis]))
 
@@ -79,6 +80,7 @@
 (defn fixpoint [writer counter in-data]
   (log/info "Fixpoint: Step " counter)
   (writer in-data)
+  (print-intermediate-result counter in-data)
   (let [envs (clause-analysis/complete-analysis in-data)
         new-data (create-new-data in-data envs)]
     (if (same in-data new-data)

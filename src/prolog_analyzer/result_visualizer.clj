@@ -5,7 +5,8 @@
             [prolog-analyzer.utils :as utils]
             [clojure.java.io :refer [writer make-parents]]
             [hiccup.core :as hiccup]
-            [ubergraph.core :as uber]))
+            [ubergraph.core :as uber]
+            [clojure.java.io :as io]))
 
 (defn- get-error-terms [env]
   (->> env
@@ -97,8 +98,25 @@
        (map first)
        distinct))
 
+(defn delete-directory-recursive
+  "Recursively delete a directory.
+  https://gist.github.com/olieidel/c551a911a4798312e4ef42a584677397
+  "
+  [^java.io.File file]
+  ;; when `file` is a directory, list its entries and call this
+  ;; function with each entry. can't `recur` here as it's not a tail
+  ;; position, sadly. could cause a stack overflow for many entries?
+  (when (.exists file)
+    (when (.isDirectory file)
+      (doseq [file-in-dir (.listFiles file)]
+        (delete-directory-recursive file-in-dir)))
+    ;; delete the file or directory. if it it's a file, it's easily
+    ;; deletable. if it's a directory, we already have deleted all its
+    ;; contents with the code above (remember?)
+    (io/delete-file file)))
+
 (defn- index-page [data]
-  (let [index "doc/index.html"
+  (let [index "doc/html/index.html"
         built-ins (->> data
                        get-all-modules
                        (map #(vector :a {:href (filename %)} %))
@@ -111,11 +129,12 @@
                      (apply vector :body)
                      (vector :html)
                      hiccup/html)]
+    (delete-directory-recursive (io/file "doc/html"))
     (make-parents index)
     (spit index content)))
 
 (defn- subpage [module data]
-  (let [file (str "doc/" (filename module))
+  (let [file (str "doc/html/" (filename module))
         content (htmlify-module module data)]
     (spit file content)))
 
@@ -123,3 +142,64 @@
   (index-page data)
   (doseq [m (concat (get-all-modules data) (get-program-modules data))]
     (subpage m data)))
+
+(defn pr-str-pre-spec [v]
+  (str "[" (->> v
+                seq
+                (map pr-str)
+                (clojure.string/join ", ")) "]"))
+
+(defn pr-str-guard [{id :id type :type}]
+  (str "$" id ": " (pr-str type)))
+
+(defn pr-str-guards [guards]
+  (->> guards
+       (map pr-str-guard)
+       (clojure.string/join ", ")))
+
+(defn pr-str-conclusion [v]
+  (->> v
+       (map pr-str-guard)
+       (clojure.string/join "; ")))
+
+(defn pr-str-conclusions [v]
+  (->> v
+       (map pr-str-conclusion)
+       (clojure.string/join "\n")))
+
+(defn pr-str-post-spec [{guard :guard conc :conclusion}]
+  (if (empty? guard)
+    (str "true --> [" (pr-str-conclusions conc) "]")
+    (str "[" (pr-str-guards guard) "] --> [" (pr-str-conclusions conc) "]")))
+
+(defn print-pre-specs [counter data]
+  (let [file (io/file (str "doc/pre-specs/step-" counter ".txt"))
+        append #(spit file % :append true)]
+    (make-parents file)
+    (spit file "Pre Specs")
+    (doseq [[k v] (:pre-specs data)]
+      (append "\n")
+      (append k)
+      (doseq [x v]
+        (append "\n\t")
+        (append (pr-str-pre-spec x))))))
+
+(defn print-post-specs [counter data]
+  (let [file (io/file (str "doc/post-specs/step-" counter ".txt"))
+        append #(spit file % :append true)]
+    (make-parents file)
+    (spit file "Post Specs")
+    (doseq [[k v] (:post-specs data)]
+      (append "\n")
+      (append k)
+      (doseq [x v]
+        (append "\n\t")
+        (append (pr-str-post-spec x))))))
+
+
+(defn print-intermediate-result [counter data]
+  (when (zero? counter)
+    (delete-directory-recursive (io/file "doc/post-specs"))
+    (delete-directory-recursive (io/file "doc/pre-specs")))
+  (print-pre-specs counter data)
+  (print-post-specs counter data))
