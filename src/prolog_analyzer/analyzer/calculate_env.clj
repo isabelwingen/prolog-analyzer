@@ -82,6 +82,21 @@
     (xyzabc env term new-dom parameters)))
 
 
+(defn deepness [spec]
+  (case+ (ru/spec-type spec)
+         (r/USERDEFINED, r/COMPOUND, r/TUPLE) (->> spec
+                                                   :arglist
+                                                   (map deepness)
+                                                   (apply max 0)
+                                                   inc)
+         r/OR (->> spec
+                   :arglist
+                   (map deepness)
+                   (apply max 0))
+         r/LIST (-> spec :type deepness inc)
+         1))
+
+
 (defmethod process-edge :arg-at-pos [parameters env edge]
   (let [child (uber/src edge)
         child-dom (utils/get-dom-of-term env child)
@@ -95,7 +110,9 @@
                      (#(assoc % pos child-dom))
                      (apply vector)
                      (r/->CompoundSpec functor))]
-    (xyzabc env parent new-dom parameters)))
+    (if (> (deepness new-dom) 3)
+      env
+      (xyzabc env parent new-dom parameters))))
 
 (defmethod process-edge :default [defs env edge]
   env)

@@ -71,13 +71,17 @@
     (str "\nguard:\n\t" a "\n\n" "concl:\n\t" b "\n")))
 
 
+(defn same [data-a data-b]
+  (and
+   (= (:post-specs data-a) (:post-specs data-b))
+   (= (:pre-specs data-a) (:pre-specs data-b))))
+
 (defn fixpoint [writer counter in-data]
   (log/info "Fixpoint: Step " counter)
   (writer in-data)
   (let [envs (clause-analysis/complete-analysis in-data)
         new-data (create-new-data in-data envs)]
-   ; (check-post-specs new-data)
-    (if (= in-data new-data)
+    (if (same in-data new-data)
       (do
         (log/info "Done")
         new-data)
