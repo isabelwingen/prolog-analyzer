@@ -9,10 +9,8 @@
 (def data (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" "resources/simple-example.pl"))
 
 (defn check-creation [d]
-  (doseq [x (rest (file-seq (io/file "doc")))]
-    (io/delete-file (io/file x)))
   (sut/htmlify-data d)
-  (file-seq (io/file "doc")))
+  (file-seq (io/file "doc/html")))
 
 (fact
  (check-creation data)
