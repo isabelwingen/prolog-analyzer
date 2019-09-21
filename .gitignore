@@ -18,3 +18,4 @@ data.tmp
 plstatic.tmp
 *.html
 log/
+*.zip
