@@ -5,7 +5,13 @@
             [prolog-analyzer.utils :as utils]
             [clojure.java.io :refer [writer make-parents]]
             [hiccup.core :as hiccup]
-            [ubergraph.core :as uber]))
+            [ubergraph.core :as uber]
+            [clojure.java.io :as io]))
+
+(def POST_SPECS "doc/post-specs")
+(def PRE_SPECS "doc/pre-specs")
+(def HTML "doc/html")
+(def ERRORS "doc/errors")
 
 (defn- get-error-terms [env]
   (->> env
@@ -97,8 +103,25 @@
        (map first)
        distinct))
 
+(defn delete-directory-recursive
+  "Recursively delete a directory.
+  https://gist.github.com/olieidel/c551a911a4798312e4ef42a584677397
+  "
+  [^java.io.File file]
+  ;; when `file` is a directory, list its entries and call this
+  ;; function with each entry. can't `recur` here as it's not a tail
+  ;; position, sadly. could cause a stack overflow for many entries?
+  (when (.exists file)
+    (when (.isDirectory file)
+      (doseq [file-in-dir (.listFiles file)]
+        (delete-directory-recursive file-in-dir)))
+    ;; delete the file or directory. if it it's a file, it's easily
+    ;; deletable. if it's a directory, we already have deleted all its
+    ;; contents with the code above (remember?)
+    (io/delete-file file)))
+
 (defn- index-page [data]
-  (let [index "doc/index.html"
+  (let [index (str HTML "/index.html")
         built-ins (->> data
                        get-all-modules
                        (map #(vector :a {:href (filename %)} %))
@@ -111,11 +134,12 @@
                      (apply vector :body)
                      (vector :html)
                      hiccup/html)]
+    (delete-directory-recursive (io/file HTML))
     (make-parents index)
     (spit index content)))
 
 (defn- subpage [module data]
-  (let [file (str "doc/" (filename module))
+  (let [file (str HTML "/" (filename module))
         content (htmlify-module module data)]
     (spit file content)))
 
@@ -123,3 +147,76 @@
   (index-page data)
   (doseq [m (concat (get-all-modules data) (get-program-modules data))]
     (subpage m data)))
+
+(defn pr-str-pre-spec [v]
+  (str "[" (->> v
+                seq
+                (map pr-str)
+                (clojure.string/join ", ")) "]"))
+
+(defn pr-str-guard [{id :id type :type}]
+  (str "$" id ": " (pr-str type)))
+
+(defn pr-str-guards [guards]
+  (->> guards
+       (map pr-str-guard)
+       (clojure.string/join ", ")))
+
+(defn pr-str-conclusion [v]
+  (->> v
+       (map pr-str-guard)
+       (clojure.string/join "; ")))
+
+(defn pr-str-conclusions [v]
+  (->> v
+       (map pr-str-conclusion)
+       (clojure.string/join "\n")))
+
+(defn pr-str-post-spec [{guard :guard conc :conclusion}]
+  (if (empty? guard)
+    (str "true --> [" (pr-str-conclusions conc) "]")
+    (str "[" (pr-str-guards guard) "] --> [" (pr-str-conclusions conc) "]")))
+
+(defn print-pre-specs [counter data]
+  (let [file (io/file (str PRE_SPECS "/step-" counter ".txt"))
+        append #(spit file % :append true)]
+    (make-parents file)
+    (spit file "Pre Specs")
+    (doseq [[k v] (:pre-specs data)]
+      (append "\n")
+      (append k)
+      (doseq [x v]
+        (append "\n\t")
+        (append (pr-str-pre-spec x))))))
+
+(defn print-post-specs [counter data]
+  (let [file (io/file (str POST_SPECS "/step-" counter ".txt"))
+        append #(spit file % :append true)]
+    (make-parents file)
+    (spit file "Post Specs")
+    (doseq [[k v] (:post-specs data)]
+      (append "\n")
+      (append k)
+      (doseq [x v]
+        (append "\n\t")
+        (append (pr-str-post-spec x))))))
+
+
+(defn print-intermediate-result [counter data]
+  (when (zero? counter)
+    (delete-directory-recursive (io/file POST_SPECS))
+    (delete-directory-recursive (io/file PRE_SPECS)))
+  (print-pre-specs counter data)
+  (print-post-specs counter data))
+
+(defn pr-str-errors [data file]
+  (let [inner-map (partial reduce-kv #(assoc %1 (r/to-string %2) (r/to-string %3)) {})
+        result-map (reduce-kv #(assoc %1 %2 (inner-map %3)) {} (:errors data))]
+    (clojure.pprint/pprint result-map (clojure.java.io/writer file))))
+
+(defn print-errors [counter data]
+  (when (zero? counter)
+    (delete-directory-recursive (io/file ERRORS)))
+  (let [file (io/file (str ERRORS "/errors_" counter ".txt"))]
+    (make-parents file)
+    (pr-str-errors data file)))

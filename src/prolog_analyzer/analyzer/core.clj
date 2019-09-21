@@ -49,16 +49,21 @@
 (def total (atom 0))
 (def process (agent 1))
 
-(defn print-process [counter pred-id clause-number]
-  (log/debug (utils/format-log (vec (conj pred-id clause-number)) "Execute Analysis: " counter "/" @total))
+(defn log-start [counter pred-id clause-number]
+  (log/debug (utils/format-log (vec (conj pred-id clause-number)) "Start - " counter "/" @total))
   (inc counter))
 
+(defn log-end [pred-id clause-number]
+  (log/debug (utils/format-log (vec (conj pred-id clause-number)) "End")))
+
 (defn- execute-task [data [pred-id clause-number]]
-  (send process print-process pred-id clause-number)
+  (send process log-start pred-id clause-number)
   (let [clause-id (conj pred-id clause-number)
         clause (utils/get-clause pred-id clause-number data)
-        pre-spec (get-pre-spec data pred-id)]
-    (analyze-clause data clause-id clause pre-spec)))
+        pre-spec (get-pre-spec data pred-id)
+        res (analyze-clause data clause-id clause pre-spec)]
+    (log-end pred-id clause-number)
+    res))
 
 (defn- build-tasks [data]
   (let [res (for [pred-id (utils/get-pred-identities data)

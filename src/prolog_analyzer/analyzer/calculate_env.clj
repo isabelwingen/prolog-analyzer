@@ -63,7 +63,7 @@
                       (filter #(= pair-id (uber/attr env % :pair)))
                       first
                       uber/src)]
-    (assert (not (nil? head)) (str (utils/get-title env "a") " " (r/to-string tail)))
+    (assert (not (nil? head)) (str (utils/get-title env) " " (r/to-string tail)))
     head))
 
 (defmethod process-edge :is-tail [parameters env edge]
@@ -82,6 +82,21 @@
     (xyzabc env term new-dom parameters)))
 
 
+(defn deepness [spec]
+  (case+ (ru/spec-type spec)
+         (r/USERDEFINED, r/COMPOUND, r/TUPLE) (->> spec
+                                                   :arglist
+                                                   (map deepness)
+                                                   (apply max 0)
+                                                   inc)
+         r/OR (->> spec
+                   :arglist
+                   (map deepness)
+                   (apply max 0))
+         r/LIST (-> spec :type deepness inc)
+         1))
+
+
 (defmethod process-edge :arg-at-pos [parameters env edge]
   (let [child (uber/src edge)
         child-dom (utils/get-dom-of-term env child)
@@ -95,7 +110,9 @@
                      (#(assoc % pos child-dom))
                      (apply vector)
                      (r/->CompoundSpec functor))]
-    (xyzabc env parent new-dom parameters)))
+    (if (> (deepness new-dom) 3)
+      env
+      (xyzabc env parent new-dom parameters))))
 
 (defmethod process-edge :default [defs env edge]
   env)
@@ -153,7 +170,7 @@
         (post-process parameters))))
 
 (defn mark-self-calling [in-env subgoal-id]
-  (let [pred-id (vec (drop-last (utils/get-title in-env "mark-self-calling")))]
+  (let [pred-id (vec (drop-last (utils/get-title in-env)))]
     (when (= pred-id subgoal-id)
       (swap! state/self-calling update pred-id #(inc (or % 0))))
     (get @state/self-calling pred-id 0)))

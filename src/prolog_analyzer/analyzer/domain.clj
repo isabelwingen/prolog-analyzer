@@ -8,6 +8,7 @@
             [prolog-analyzer.specs :as specs]
             [orchestra.spec.test :as stest]
             [orchestra.core :refer [defn-spec]]
+            [flatland.ordered.set :refer [ordered-set]]
             [prolog-analyzer.analyzer.next-steps :as next-steps]
             ))
 
@@ -51,6 +52,7 @@
   (-> env
       (uber/add-nodes term)
       (uber/add-attr term DOM (r/->AnySpec))
+      (uber/add-attr term HIST (ordered-set))
       (add-to-dom initial? term (ru/initial-spec term))
       (add-to-dom initial? term spec)))
 
@@ -66,7 +68,7 @@
    (ru/list-term? term)))
 
 (defn- old? [new env term]
-  (contains? (uber/attr env term HIST) new))
+  (contains? (apply hash-set (uber/attr env term HIST)) new))
 
 (defn create-incomplete-list-spec
   ([] (create-incomplete-list-spec (r/->AnySpec)))
@@ -100,7 +102,6 @@
                                           (-> env
                                               (uber/add-attr term DOM new)
                                               (utils/update-attr term HIST conj new)
-                                              (utils/update-attr term HIST set)
                                               (process-next-steps term new initial?)
                                               )))))))
 

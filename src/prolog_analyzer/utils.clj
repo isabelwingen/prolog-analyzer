@@ -156,10 +156,10 @@
       (uber/add-nodes :environment)
       (uber/add-attr :environment :title title)))
 
-(defn get-title [env msg]
+(defn get-title [env]
   (if (uber/has-node? env :environment)
     (uber/attr env :environment :title)
-    (throw (Exception. (str msg ": " (env->map env))))))
+    (throw (Exception. "No title found"))))
 
 (defn set-arguments [env arglist]
   (-> env
@@ -175,7 +175,7 @@
 (defmulti format-log (fn [a & args] (type a)))
 
 (defmethod format-log ubergraph.core.Ubergraph [env & msgs]
-  (apply format-log (get-title env (apply str "c " msgs)) msgs))
+  (apply format-log (get-title env) msgs))
 
 (defmethod format-log :default [title & msgs]
   (apply str title " - " msgs))
@@ -183,5 +183,20 @@
 
 (defn is-graph? [env]
   (= ubergraph.core.Ubergraph (type env)))
+
+
+(defn error-dom? [env term]
+  (= r/ERROR (r/spec-type (get-dom-of-term env term (r/->AnySpec)))))
+
+
+(defn errors [env]
+  (let [error-map (->> env
+                       get-terms
+                       (filter (partial error-dom? env))
+                       (map #(hash-map % (get-dom-of-term env %)))
+                       (apply merge))]
+    (if (nil? error-map)
+      {}
+      {:errors {(get-title env) error-map}})))
 
 (stest/instrument)
