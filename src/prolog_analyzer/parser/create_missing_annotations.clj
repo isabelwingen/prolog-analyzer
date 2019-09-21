@@ -1,4 +1,4 @@
-(ns prolog-analyzer.parser.create-pre-specs
+(ns prolog-analyzer.parser.create-missing-annotations
   (:require [prolog-analyzer.utils :as utils :refer [case+]]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.record-utils :as ru]
@@ -7,9 +7,9 @@
             [clojure.spec.alpha :as s]
             [prolog-analyzer.specs :as specs]
             [orchestra.spec.test :as stest]
+            [flatland.ordered.set :refer [ordered-set]]
             [orchestra.core :refer [defn-spec]]
-            )
-  )
+            ))
 
 (def tmp-data (atom {}))
 
@@ -51,57 +51,54 @@
   (vec coll))
 
 (defn-spec pack-together (s/coll-of ::specs/spec :min-count 1)
-  [arity pos-int?, group-of-specs (s/coll-of ::specs/not-empty-arglist :min-count 1)]
-  (->> group-of-specs
-       (apply map hash-set)
-       (map to-spec)
-       (map to-maybe-spec)
-       (make-vec arity)
-       ))
+  [arity pos-int?,
+   to-maybe? boolean?,
+   group-of-specs (s/coll-of ::specs/not-empty-arglist :min-count 1)]
+  (let [modifier (if to-maybe? to-maybe-spec identity)]
+    (->> group-of-specs
+         (apply map hash-set)
+         (map to-spec)
+         (map modifier)
+         (make-vec arity)
+         )))
 
 (def process (atom 0))
 
-(s/fdef create-pre-specs
-  :args (s/cat :pred-id ::specs/pred-id :clauses coll?)
+(s/fdef create-tuples
+  :args (s/cat :pred-id ::specs/pred-id :clauses coll? :to-maybe? boolean?)
   :ret ::specs/pre-specs)
 
-(defmulti create-pre-specs (fn [[_ _ arity :as pred-id] clauses]
+(defmulti create-tuples (fn [[_ _ arity :as pred-id] clauses to-maybe?]
                              (cond
-                               (= arity 0) :zero
                                (= arity 1) :one
                                (> arity 5) :too-big
                                :else :ok)))
 
-(defmethod create-pre-specs :zero
-  [pred-id clauses]
-  [])
+(defmethod create-tuples :one
+  [pred-id clauses to-maybe?]
+  (let [modifier (if to-maybe? to-maybe-spec identity)]
+    (->> clauses
+         (map :arglist)
+         (map first)
+         to-spec
+         modifier
+         vector
+         vector
+         )))
 
-(defmethod create-pre-specs :one
-  [pred-id clauses]
-  (->> clauses
-       (map :arglist)
-       (map first)
-       to-spec
-       to-maybe-spec
-       vector
-       vector
-       ))
-
-
-(defmethod create-pre-specs :too-big
-  [[_ _ arity] _]
+(defmethod create-tuples :too-big
+  [[_ _ arity] _ _]
   [(vec (repeat arity (r/->AnySpec)))]
   )
 
-
-(defmethod create-pre-specs :ok
-  [[_ goal-name _ :as pred-id] clauses]
+(defmethod create-tuples :ok
+  [[_ goal-name _ :as pred-id] clauses to-maybe?]
   (if (#{:if :or} goal-name)
     []
     (->> clauses
          (map :arglist)
          find-best-grouping
-         (map (partial pack-together (last pred-id)))
+         (map (partial pack-together (last pred-id) to-maybe?))
          vec)))
 
 (s/fdef should-pre-spec-be-added?
@@ -117,32 +114,48 @@
     (log/trace "should be added? " (str pred-id) " " res)
     res))
 
-(defn- add-any-pre-spec [pred-id clauses]
-  (swap! process inc)
-  (log/trace "Add Pre Spec - " (str pred-id) " - start - " @process)
-  (swap! tmp-data assoc-in [:pre-specs pred-id] (create-pre-specs pred-id clauses))
-  (log/trace "Add Pre Spec - " (str pred-id) " - end"))
-
-(defn finish []
-  (let [res @tmp-data]
-    (log/debug "Add Pre Specs - done")
+(defn- should-post-spec-be-added [[_ goal arity :as pred-id]]
+  (let [res (and
+             (nil? (utils/get-post-specs pred-id @tmp-data))
+             (> arity 0)
+             (not= goal :if)
+             (not= goal :or))]
+    (log/trace "should be added? " (str pred-id) " " res)
     res))
 
-(defn bla [data]
-  (->> data
-       utils/get-pred-identities))
 
+(defn- add-pre-spec [pred-id clauses]
+  (when (should-pre-spec-be-added? pred-id)
+    (swap! process inc)
+    (log/trace "Add Pre Spec - " (str pred-id) " - start - " @process)
+    (swap! tmp-data assoc-in [:pre-specs pred-id] (create-tuples pred-id clauses true))
+    (log/trace "Add Pre Spec - " (str pred-id) " - end")))
 
-(defn add-any-pre-specs
-  [data]
+(defn- tuples-to-post-specs [tuples]
+  {:guard [] :conclusion (vec (map (comp vec (partial map-indexed #(hash-map :id %1 :type %2))) tuples))})
+
+(defn- add-post-spec [pred-id clauses]
+  (when (should-post-spec-be-added pred-id)
+    (swap! tmp-data assoc-in [:post-specs pred-id] (ordered-set (tuples-to-post-specs (create-tuples pred-id clauses false))))))
+
+(defn- add-missing-annotations [pred-id clauses]
+  (add-pre-spec pred-id clauses)
+  (add-post-spec pred-id clauses))
+
+(defn- finish []
+  (let [res @tmp-data]
+    (log/debug "Add Pre Specs - done")
+    (reset! tmp-data {})
+    res))
+
+(defn start [data]
   (log/trace "Add Pre Specs")
   (reset! tmp-data data)
   (reset! process 0)
   (let [tasks (for [pred-id (->> data
-                                 utils/get-pred-identities
-                                 (filter should-pre-spec-be-added?))
+                                 utils/get-pred-identities)
                       :let [clauses (utils/get-clauses-of-pred pred-id data)]]
                   [pred-id clauses])]
-    (doall (pmap (partial apply add-any-pre-spec) tasks))
-    @tmp-data
+    (doall (pmap (partial apply add-missing-annotations) tasks))
+    (finish)
     ))

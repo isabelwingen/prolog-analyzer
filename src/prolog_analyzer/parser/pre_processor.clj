@@ -8,10 +8,9 @@
             [prolog-analyzer.specs :as specs]
             [orchestra.spec.test :as stest]
             [orchestra.core :refer [defn-spec]]
-            [prolog-analyzer.parser.create-pre-specs :as pre-specs]
-            [prolog-analyzer.parser.create-post-specs :as post-specs]
             [prolog-analyzer.parser.transform-to-records :as transform]
             [prolog-analyzer.parser.add-userdefs :as add-userdefs]
+            [prolog-analyzer.parser.create-missing-annotations :as anno]
             ))
 
 
@@ -87,8 +86,7 @@
               mark-self-calling-clauses
               transform-singleton-lists
               transform/transform-args-to-term-records
-              pre-specs/add-any-pre-specs
-              post-specs/add-any-post-specs
+              anno/start
               set-correct-modules
               add-userdefs/do-it
               remove-not-needed-stuff

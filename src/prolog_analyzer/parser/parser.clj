@@ -297,9 +297,7 @@
                             (remove #(.isDirectory %))
                             (map #(.getPath %))
                             (map str)
-                            (filter #(.endsWith % ".pl"))
-
-                            )]
+                            (filter #(.endsWith % ".pl")))]
       (doseq [pl prolog-files]
         (call-prolog dialect term-expander prolog-exe pl edn-file))
       (process-edn dialect edn-file))))
