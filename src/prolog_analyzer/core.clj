@@ -11,8 +11,10 @@
 
 (declare analyze-swi-packs)
 
-(defn write [data]
-  (visualizer/htmlify-data data))
+(defn write [data counter]
+  (visualizer/htmlify-data data)
+  (visualizer/print-intermediate-result counter data)
+  (visualizer/print-errors counter data))
 
 
 (defn run
@@ -34,6 +36,7 @@
           (global/global-analysis write)
           ))))
 
+
 (defn -main [& args]
-  (write (apply run args))
+  (apply run args)
   (<╯°□°>╯︵┻━┻))

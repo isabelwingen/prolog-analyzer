@@ -184,4 +184,19 @@
 (defn is-graph? [env]
   (= ubergraph.core.Ubergraph (type env)))
 
+
+(defn error-dom? [env term]
+  (= r/ERROR (r/spec-type (get-dom-of-term env term (r/->AnySpec)))))
+
+
+(defn errors [env]
+  (let [error-map (->> env
+                       get-terms
+                       (filter (partial error-dom? env))
+                       (map #(hash-map % (get-dom-of-term env %)))
+                       (apply merge))]
+    (if (nil? error-map)
+      {}
+      {:errors {(get-title env) error-map}})))
+
 (stest/instrument)

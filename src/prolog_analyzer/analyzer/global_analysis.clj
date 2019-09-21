@@ -55,39 +55,37 @@
                                             (apply ordered-set %)))
         (update-in [:post-specs pred-id] #(conj % post-spec)))))
 
-(defn- create-new-data [in-data envs]
+(defn- create-new-post-specs [in-data envs]
   (->> envs
        group-envs-by-pred-id
        (reduce-kv #(assoc %1 %2 (create-post-spec %3)) {})
        (reduce-kv add-if-new in-data)))
 
-(defn post-spec-to-string [{guard :guard concl :conclusion}]
-  (let [a (->> guard
-               (map #(str "$" (:id %) ":" (r/to-string (:type %))))
-               (clojure.string/join ", "))
-        b (->> concl
-               (map (partial map #(str "$" (:id %) ":" (r/to-string (:type %)))))
-               (map (partial clojure.string/join ", "))
-               (clojure.string/join "\n\t"))]
-    (str "\nguard:\n\t" a "\n\n" "concl:\n\t" b "\n")))
+(defn- add-errors [in-data envs]
+  (->> envs
+       (map utils/errors)
+       (apply merge-with merge in-data)))
 
+(defn- create-new-data [in-data envs]
+  (-> in-data
+      (create-new-post-specs envs)
+      (add-errors envs)))
 
 (defn same [data-a data-b]
   (and
    (= (:post-specs data-a) (:post-specs data-b))
    (= (:pre-specs data-a) (:pre-specs data-b))))
 
-(defn fixpoint [writer counter in-data]
+(defn fixpoint [write counter in-data]
   (log/info "Fixpoint: Step " counter)
-  (writer in-data)
-  (print-intermediate-result counter in-data)
+  (write in-data counter)
   (let [envs (clause-analysis/complete-analysis in-data)
         new-data (create-new-data in-data envs)]
     (if (same in-data new-data)
       (do
         (log/info "Done")
         new-data)
-      (recur writer (inc counter) new-data))))
+      (recur write (inc counter) new-data))))
 
 (defn- dummy-post-spec [arity]
   (hash-map :guard [] :conclusion [(vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 arity)))]))
@@ -95,8 +93,8 @@
 (defn- add-dummy-post-specs [data]
   (reduce (fn [d [_ _ arity :as pred-id]] (update-in d [:post-specs pred-id] #(vec (conj % (dummy-post-spec arity))))) data (utils/get-pred-identities data)))
 
-(defn global-analysis [writer data]
+(defn global-analysis [write data]
   (let [cleared-data (add-dummy-post-specs data)]
     (reset! state/self-calling {})
     (log-if-empty cleared-data)
-    (fixpoint writer 0 cleared-data)))
+    (fixpoint write 0 cleared-data)))
