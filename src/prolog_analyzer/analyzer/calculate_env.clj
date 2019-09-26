@@ -14,6 +14,8 @@
             [orchestra.core :refer [defn-spec]]
             ))
 
+(def DEEPNESS 5)
+
 (defn xyzabc [env term spec {initial? :initial overwrite? :overwrite}]
   (if overwrite?
     (dom/add-to-dom-post-spec env term spec)
@@ -110,7 +112,7 @@
                      (#(assoc % pos child-dom))
                      (apply vector)
                      (r/->CompoundSpec functor))]
-    (if (> (deepness new-dom) 3)
+    (if (> (deepness new-dom) DEEPNESS)
       env
       (xyzabc env parent new-dom parameters))))
 
@@ -178,8 +180,6 @@
 (defn get-env-for-subgoal
   [in-env subgoal-id arglist pre-spec post-specs]
   (log/trace (utils/format-log in-env "Calculate env for subgoal"))
-  (if (< (mark-self-calling in-env subgoal-id) 3)
-    (-> in-env
-        (get-env-for-pre-spec-of-subgoal arglist pre-spec)
-        (get-env-for-post-spec-of-subgoal arglist post-specs))
-    in-env))
+  (-> in-env
+      (get-env-for-pre-spec-of-subgoal arglist pre-spec)
+      (get-env-for-post-spec-of-subgoal arglist post-specs)))

@@ -71,7 +71,7 @@
 (defmulti create-tuples (fn [[_ _ arity :as pred-id] clauses to-maybe?]
                              (cond
                                (= arity 1) :one
-                               (> arity 5) :too-big
+                               (> arity 7) :too-big
                                :else :ok)))
 
 (defmethod create-tuples :one

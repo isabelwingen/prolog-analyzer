@@ -74,7 +74,8 @@
 (defn same [data-a data-b]
   (and
    (= (:post-specs data-a) (:post-specs data-b))
-   (= (:pre-specs data-a) (:pre-specs data-b))))
+   (= (:pre-specs data-a) (:pre-specs data-b))
+   (= (:errors data-a) (:errors data-b))))
 
 (defn fixpoint [write counter in-data]
   (log/info "Fixpoint: Step " counter)

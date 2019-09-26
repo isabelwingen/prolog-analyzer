@@ -6,6 +6,7 @@
             [clojure.pprint :refer [pprint]]
             [tableflisp.core :refer :all]
             [clojure.java.io :refer [writer]]
+            [prolog-analyzer.records :as r]
             [prolog-analyzer.result-visualizer :as visualizer]
             ))
 
