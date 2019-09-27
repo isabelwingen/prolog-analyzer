@@ -14,7 +14,7 @@
             [orchestra.core :refer [defn-spec]]
             ))
 
-(def DEEPNESS 5)
+(def DEEPNESS 3)
 
 (defn xyzabc [env term spec {initial? :initial overwrite? :overwrite}]
   (if overwrite?

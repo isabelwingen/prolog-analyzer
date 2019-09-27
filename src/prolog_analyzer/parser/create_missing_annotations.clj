@@ -11,6 +11,8 @@
             [orchestra.core :refer [defn-spec]]
             ))
 
+(def TRESHOLD 5)
+
 (def tmp-data (atom {}))
 
 (defn-spec simple-term boolean?
@@ -71,7 +73,7 @@
 (defmulti create-tuples (fn [[_ _ arity :as pred-id] clauses to-maybe?]
                              (cond
                                (= arity 1) :one
-                               (> arity 7) :too-big
+                               (> arity TRESHOLD) :too-big
                                :else :ok)))
 
 (defmethod create-tuples :one
