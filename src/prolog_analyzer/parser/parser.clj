@@ -30,9 +30,19 @@
        (map (partial apply str))
        (apply vector)))
 
-(defn transform-to-edn [clojure-file]
+(defn read-in-edn-file [path]
+  (let [in (read-string (str \[ (slurp path) \]))
+        file (io/file path)]
+    (future
+      (io/delete-file file)
+      (doseq [x (map #(with-out-str (clojure.pprint/pprint %)) in)]
+        (spit file x :append true)
+        (spit file "\n" :append true)))
+    in))
+
+(defn read-in-data [clojure-file]
   (if (.exists (io/file clojure-file))
-    (read-string (str \[ (slurp clojure-file) \]))
+    (read-in-edn-file clojure-file)
     (do
       (log/error "No .edn file was created")
       [])))
@@ -265,19 +275,20 @@
       (log/info "Create built-ins")
       (call-prolog "swipl" "prolog/prolog_analyzer.pl" "swipl" "prolog/builtins.pl" built-in-edn))
     (let [built-in (-> built-in-edn
-                       transform-to-edn
+                       read-in-data
                        format-and-clean-up
                        (dissoc :error-msg))]
-      (pre-processor/pre-process-single (merge-with into data built-in))
+      (merge-with into data built-in)
       )))
 
 (defn process-edn
   ([edn] (process-edn "swipl" edn))
   ([dialect edn]
    (->> edn
-        transform-to-edn
+        read-in-data
         format-and-clean-up
         add-built-ins
+        pre-processor/pre-process-single
         )))
 
 (defn process-prolog-file [dialect term-expander prolog-exe file-name]
