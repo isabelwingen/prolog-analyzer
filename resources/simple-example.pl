@@ -20,7 +20,8 @@ bar(a, 3),
 
 
 :- spec_pre(foo/2, [any, any]).
-:- spec_post(foo/2, [], [[0:int, 1:int]; [0:atom,1:atom]]).
+:- spec_post(foo/2, [], [[0:int, 1:int], [0:atom,1:atom]]).
+:- spec_post(foo/2, [0:int], [[0:float, 1:float], [0:atom,1:atom]]).
 foo(1,1).
 foo(a,a).
 
