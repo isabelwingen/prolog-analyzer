@@ -118,6 +118,16 @@ goal_to_map(or(Arglist),Map) :-
     List = [Goal_Elem,Arity_Elem,Arglist_Elem,"}\n"],
     create_map(List,Map).
 
+goal_to_map(Goal,Map) :-
+    split(Goal,Name,_,[Arg],_),
+    ednify_atom(Name,not),!,
+    goal_to_map(Arg,Subgoal),
+    multi_string_concat(["[[", Subgoal, "]]"], SubgoalString),
+    to_map(
+        [goal:keyword, not,
+         arity:number, 1,
+         arglist:list, SubgoalString],
+        Map).
 
 goal_to_map(Goal,Map) :-
     split(Goal,Name,Arity,Arglist,Module),
@@ -282,12 +292,12 @@ split(Module:Term,unknown,0,[],unknown) :-
 split(Module:Term,Name,Arity,Arglist,Module) :-
     !,
     functor(Term,Name1,Arity),
-    (Name1 = (\+) -> Name = ":not" ; Name = Name1),
+    (Name1 = '\\+' -> Name = not ; Name = Name1),
     Term =.. [_|Arglist].
 
 split(Term,Name,Arity,Arglist,self) :-
     functor(Term,Name1,Arity),
-    (Name1 = (\+) -> Name = ":not" ; Name = Name1),
+    (Name1 = '\\+' -> Name = not ; Name = Name1),
     Term =.. [_|Arglist].
 
 spec_to_string(Term,Name) :-
@@ -370,14 +380,23 @@ guard_format(Id:Type, Res) :-
     spec_to_string(Type,S),
     multi_string_concat(["{:id ", Id, " :type ", S, "}"], Res).
 
-conclusion_or_list([A;B],[A|T]) :-
-    !,
-    conclusion_or_list([B],T).
-conclusion_or_list(X,X).
-
 conclusion_format(Conc, Res) :-
-    conclusion_or_list(Conc, Or),
-    guard_format(Or,Res).
+    guard_format(Conc,Res).
+
+to_map(List,Result) :-
+    to_map(List,"{",Result).
+to_map([],C,R) :- my_string_concat(C,"}",R).
+
+to_map([K:string, V|T],C,Result) :-
+    multi_string_concat([C," :",K," \"", V, "\""],CC),!,
+    to_map(T,CC,Result).
+to_map([K:keyword, V|T],C,Result) :-
+    multi_string_concat([C," :",K," :", V],CC),!,
+    to_map(T,CC,Result).
+to_map([K:_, V|T],C,Result) :-
+    multi_string_concat([C," :",K," ", V],CC),!,
+    to_map(T,CC,Result).
+
 
 expand(':-'(A,B),Module,Result) :-
     !,

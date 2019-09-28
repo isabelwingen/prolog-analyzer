@@ -95,7 +95,7 @@
 
 (defmethod create-tuples :ok
   [[_ goal-name _ :as pred-id] clauses to-maybe?]
-  (if (#{:if :or} goal-name)
+  (if (#{:if :or :not} goal-name)
     []
     (->> clauses
          (map :arglist)
@@ -112,6 +112,7 @@
              (nil? (utils/get-pre-specs pred-id @tmp-data))
              (> arity 0)
              (not= goal :if)
+             (not= goal :not)
              (not= goal :or))]
     (log/trace "should be added? " (str pred-id) " " res)
     res))
@@ -121,6 +122,7 @@
              (nil? (utils/get-post-specs pred-id @tmp-data))
              (> arity 0)
              (not= goal :if)
+             (not= goal :not)
              (not= goal :or))]
     (log/trace "should be added? " (str pred-id) " " res)
     res))

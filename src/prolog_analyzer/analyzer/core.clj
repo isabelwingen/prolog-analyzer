@@ -32,7 +32,8 @@
   (if (or
        (zero? arity)
        (= :or goal)
-       (= :if goal))
+       (= :if goal)
+       (= :not goal))
     env
     (let [pred-id [module goal arity]
           pre-spec (get-pre-spec data pred-id)

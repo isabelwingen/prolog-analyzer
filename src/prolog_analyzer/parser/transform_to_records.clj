@@ -11,9 +11,9 @@
 
 (defn- transform-body-elements [singletons {goal-name :goal arglist :arglist :as goal}]
   (case goal-name
-    (:or, :if) (-> goal
-                   (update :arglist (partial map (partial transform-body singletons)))
-                   (assoc :module :built-in))
+    (:or, :if, :not) (-> goal
+                         (update :arglist (partial map (partial transform-body singletons)))
+                         (assoc :module :built-in))
     (update goal :arglist (partial transform-arglist singletons))))
 
 (defn- transform-body [singletons body]
