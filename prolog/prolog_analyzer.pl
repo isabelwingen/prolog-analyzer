@@ -73,50 +73,39 @@ join(Sep,[X,Y|T],Res) :-
     my_string_concat(XKomma,Y,XKommaY),
     join(Sep,[XKommaY|T],Res).
 
-mapcat(_Goal,[],_,"[]",_) :- !.
-mapcat(Goal,List,Sep,Res,Break) :-
-    maplist(Goal,List,List2),
-    join(Sep,List2,Join),
-    (Break == true ->
-         multi_string_concat(["[\n",Join,"]"],Res)
-     ;
-         multi_string_concat(["[",Join,"]"],Res)
-    ).
-
 rule_to_map(Head,Body,Module,Map) :-
     split(Head,Name,Arity,Arglist,_),
     ednify_atom(Name,EdnName),
     create_arglist(Arglist,ResArglist),
     create_body(Body,BodyRes),
-    multi_string_concat(["{:name     \"",EdnName,"\""],Goal_Elem),
-    multi_string_concat([":module   \"",Module,"\""],Module_Elem),
-    my_string_concat(":arglist ",ResArglist,Arglist_Elem),
-    my_string_concat(":arity    ",Arity,Arity_Elem),
-    List2 = [Goal_Elem,Module_Elem,Arity_Elem,Arglist_Elem,BodyRes],
-    create_map(List2,Map2),
-    my_string_concat(Map2,"}\n",Map).
+
+    multi_string_concat(
+        ["{:name \"",EdnName,"\"",
+         " :module \"",Module,"\"",
+         " :arity ", Arity,
+         " :arglist ",ResArglist,
+         " ", BodyRes, "}"],
+        Map).
 
 goal_to_map(if(Cond,Then),Map) :-
     !,
     create_body_list(Cond,CondBody),
     create_body_list(Then,ThenBody),
     create_map([CondBody,ThenBody],Body),
-    my_string_concat("{:goal ",":if",Goal_Elem),
-    my_string_concat(":arity ","2",Arity_Elem),
-    multi_string_concat([":arglist [",Body,"]"],Arglist_Elem),
-    List = [Goal_Elem,Arity_Elem,Arglist_Elem,"}\n"],
-    create_map(List,Map).
+    multi_string_concat(
+        ["{:goal :if :arity 2",
+         " :arglist [", Body, "]}"],
+        Map).
 
 goal_to_map(or(Arglist),Map) :-
     !,
     length(Arglist,Arity),
     maplist(create_body_list,Arglist,Tmp),
     create_map(Tmp,Body),
-    my_string_concat("{:goal     ",":or",Goal_Elem),
-    my_string_concat(":arity    ",Arity,Arity_Elem),
-    multi_string_concat([":arglist [",Body,"]"],Arglist_Elem),
-    List = [Goal_Elem,Arity_Elem,Arglist_Elem,"}\n"],
-    create_map(List,Map).
+    multi_string_concat(
+        ["{:goal :or :arity ", Arity,
+         " :arglist [", Body, "]}"],
+        Map).
 
 goal_to_map(Goal,Map) :-
     split(Goal,Name,_,[Arg],_),
@@ -132,17 +121,17 @@ goal_to_map(Goal,Map) :-
 goal_to_map(Goal,Map) :-
     split(Goal,Name,Arity,Arglist,Module),
     ednify_atom(Name,EdnName),
-    multi_string_concat(["{:goal     \"",EdnName,"\""],Goal_Elem),
-    multi_string_concat([":module   \"",Module,"\""],Module_Elem),
-    my_string_concat(":arity    ",Arity,Arity_Elem),
     create_arglist(Arglist,ResArglist),
-    my_string_concat(":arglist ",ResArglist,Arglist_Elem),
-    create_map([Goal_Elem,Module_Elem,Arity_Elem, Arglist_Elem],Map1),
-    my_string_concat(Map1,"}\n",Map).
+    to_map(
+        [goal:string, EdnName,
+         module:string, Module,
+         arity:number, Arity,
+         arglist:list, ResArglist],
+        Map).
 
 create_body(Body,BodyString) :-
     create_body_list(Body,BodyList),
-    my_string_concat(":body     ",BodyList,BodyString).
+    my_string_concat(":body ",BodyList,BodyString).
 
 
 create_body_list([],"[]") :- !.
@@ -175,7 +164,7 @@ create_map(List,Res) :-
     create_map(List,'',Res).
 create_map([],Res,Res) :- !.
 create_map([H|T],Acc,Res) :-
-    multi_string_concat([Acc,H,'\n'],NewAcc),
+    multi_string_concat([Acc,H,', '],NewAcc),
     create_map(T,NewAcc,Res).
 
 arg_to_map(Arg,Map) :-
@@ -212,23 +201,22 @@ arg_to_map(compound,Term,Map) :-
     (Term =.. ['[|]'|[Head,Tail]]; Term =.. ['.'|[Head,Tail]]),!,
     arg_to_map(Head,HeadString),
     arg_to_map(Tail,TailString),
-
-    multi_string_concat(["{:type :list"],TypePart),
-    multi_string_concat([":head ",HeadString],HeadPart),
-    multi_string_concat([":tail ",TailString,"}"],TailPart),
-
-    create_map([TypePart,HeadPart,TailPart],Map).
+    to_map(
+        [type:keyword, list,
+         head:map, HeadString,
+         tail:map, TailString],
+        Map).
 
 arg_to_map(compound,Term,Map) :-
     !,
     Term =.. [Functor|Args],
     create_arglist(Args,Arglist),
     ednify_atom(Functor,FunctorString),
-    multi_string_concat(["{:type :compound"],TypePart),
-    multi_string_concat([":functor \"",FunctorString,"\""],FunctorPart),
-    my_string_concat(":arglist ",Arglist,Arglist_Elem),
-    create_map([TypePart,FunctorPart, Arglist_Elem],Map1),
-    my_string_concat(Map1,"}\n",Map).
+    to_map(
+        [type:keyword, compound,
+         functor:string, FunctorString,
+         arglist:list, Arglist],
+        Map).
 
 arg_to_map(var,Term,Map) :-
     prolog_load_context(dialect,swi),!,
@@ -355,19 +343,30 @@ spec_to_string(specvar(X),String) :-
 spec_to_string(placeholder(X),String) :-
     !,
     ednify_atom(X,Inner),
-    multi_string_concat(["{:type :placeholder :name \"",Inner,"\"}"],String).
+    to_map(
+        [type:keyword, "placeholder",
+         name:string, Inner],
+        String).
 spec_to_string(placeholder(X,super(Y)),String) :-
     !,
     ednify_atom(X,Inner),
     ednify_atom(Y,Sub),
-    multi_string_concat(["{:type :placeholder :name \"",Inner,"\" :super-of \"",Sub,"\"}"],String).
+    to_map(
+        [type:keyword, "placeholder",
+         name:string, Inner,
+         "super-of":string, Sub],
+        String).
 
 spec_to_string(Userdefspec,String) :-
     compound(Userdefspec),
     Userdefspec =.. [Name|Arglist],
     ednify_atom(Name,EdnName),
     spec_to_string(Arglist,Inner),
-    multi_string_concat(["{:type :userdef :name \"",EdnName,"\" :arglist ",Inner,"}"],String).
+    to_map(
+        [type:keyword, "userdef",
+         name:string, EdnName,
+         arglist:list, Inner],
+    String).
 
 guard_format([],"[]") :- !.
 guard_format(L, Res) :-
@@ -401,62 +400,57 @@ to_map([K:_, V|T],C,Result) :-
 expand(':-'(A,B),Module,Result) :-
     !,
     body_list(B,Body),
-    Start = "{:type      :pred\n :content   ",
     rule_to_map(A,Body,Module,Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}",Result).
-expand('-->'(A,B),_,"") :- !.
+    to_map(
+        [type:keyword, "pred",
+         content:map, Map],
+        Result).
+expand('-->'(_,_),_,"") :- !.
 
 %special cases
 expand(':-'(spec_pre(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
     !,
-    Start = "{:type :pre-spec :content {:goal :spec-pre",
     ednify_atom(Functor,EdnFunctor),
-    multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
-    multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
-    my_string_concat(":arity ",Arity,ArityPart),
     spec_to_string(Arglist,Spec),
-    my_string_concat(":arglist ",Spec,ArglistPart),
-    End = "}}",
-    create_map([Start,ModulePart,FunctorPart,ArityPart,ArglistPart,End],Result).
+    to_map(
+        [goal:keyword, "spec-pre",
+         module:string, InternalModule,
+         functor:string, EdnFunctor,
+         arity:number, Arity,
+         arglist:list, Spec],
+        InnerMap),
+    to_map(
+        [type:keyword, "pre-spec",
+         content:map, InnerMap],
+        Result).
 expand(':-'(spec_pre(Functor/Arity,Arglist)),Module,Result) :-
     !,
     expand(':-'(spec_pre(Module:Functor/Arity,Arglist)),Module,Result).
 
 expand(':-'(spec_post(InternalModule:Functor/Arity,Arglist1,Arglist2)),_Module,Result) :-
     !,
-    Start = "{:type :post-spec :content {:goal :spec-post",
     ednify_atom(Functor,EdnFunctor),
-    multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
-    multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
-    my_string_concat(":arity ",Arity,ArityPart),
     guard_format(Arglist1,Premisse),
     conclusion_format(Arglist2,Conclusion),
-    my_string_concat(":guard ",Premisse,PremissePart),
-    my_string_concat(":conclusion ",Conclusion,ConclusionPart),
-    End = "}}",
-    create_map([Start,ModulePart,FunctorPart,ArityPart,PremissePart,ConclusionPart,End],Result).
+    to_map(
+        [goal:keyword, "spec-post",
+         module:string, InternalModule,
+         functor:string, EdnFunctor,
+         arity:number, Arity,
+         guard:list, Premisse,
+         conclusion:list, Conclusion
+        ],
+        InnerMap),
+    to_map(
+        [type:keyword, "post-spec",
+         content:map, InnerMap],
+        Result).
 
 
 expand(':-'(spec_post(Functor/Arity,Arglist1,Arglist2)),Module,Result) :-
     !,
     expand(':-'(spec_post(Module:Functor/Arity,Arglist1,Arglist2)),Module,Result).
 
-expand(':-'(spec_invariant(InternalModule:Functor/Arity,Arglist)),_Module,Result) :-
-    !,
-    Start = "{:type :inv-spec :content {:goal :spec-inv",
-    ednify_atom(Functor,EdnFunctor),
-    multi_string_concat([":module \"",InternalModule,"\""],ModulePart),
-    multi_string_concat([":functor \"",EdnFunctor,"\""],FunctorPart),
-    my_string_concat(":arity ",Arity,ArityPart),
-    spec_to_string(Arglist,Spec),
-    my_string_concat(":arglist ",Spec,ArglistPart),
-    End = "}}",
-    create_map([Start,ModulePart,FunctorPart,ArityPart,ArglistPart,End],Result).
-
-expand(':-'(spec_invariant(Functor/Arity,Arglist)),Module,Result) :-
-    !,
-    expand(':-'(spec_invariant(Module:Functor/Arity,Arglist)),Module,Result).
 
 expand(':-'(declare_spec(Spec)),_Module,Result) :-
     !,
@@ -469,13 +463,16 @@ expand(':-'(define_spec(Alias,Definition)),_Module,Result) :-
     spec_to_string(Definition,DefPart),
     create_map(["{:type :define-spec :content {:alias ",AliasPart," :definition ", DefPart, "}}"],Result).
 
+
+
 % normal direct call
 expand(':-'(A),_Module,Result) :-
     !,
-    Start = "{:type      :direct\n :content   ",
     goal_to_map(A,Map),
-    my_string_concat(Start,Map,Tmp1),
-    my_string_concat(Tmp1,"}\n",Result).
+    to_map(
+        [type:keyword, "direct",
+         content:map, Map],
+        Result).
 
 % fact
 expand((C),Module,Result) :-
