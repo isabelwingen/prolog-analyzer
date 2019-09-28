@@ -2,19 +2,19 @@
 :- use_module('../prolog/annotations',[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).
 :- use_module(library(dcg/basics)).
 
-%% foo(a).
-%% foo(c(X)) :-
-%%     foo(X).
+foo(a).
+foo(c(X)) :-
+    foo(X).
 
-%% is_empty_set(b(ES,_,_)) :- is_empty_set_aux(ES).
-%% is_empty_set_aux(empty_set).
-%% is_empty_set_aux(empty_sequence).
-%% is_empty_set_aux(domain(D)) :- is_empty_set(D).
-%% is_empty_set_aux(range(D)) :- is_empty_set(D).
+is_empty_set(b(ES,_,_)) :- is_empty_set_aux(ES).
+is_empty_set_aux(empty_set).
+is_empty_set_aux(empty_sequence).
+is_empty_set_aux(domain(D)) :- is_empty_set(D).
+is_empty_set_aux(range(D)) :- is_empty_set(D).
 
 
-%% bla(X) :-
-%%     is_empty_set(X).
+bla(X) :-
+    is_empty_set(X).
 
 
 foo(X, Y) :-

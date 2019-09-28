@@ -1,10 +1,10 @@
 (ns prolog-analyzer.analyzer.recursive-types
-  (:require [prolog-analyzer.parser.parser :refer [process-edn]]
+  (:require [prolog-analyzer.parser.parser :refer [process-edn process-prolog-file]]
             [ubergraph.alg :as uberalg]
             [clojure.math.combinatorics :as combo]
             [ubergraph.core :as uber]))
 
-(def d (process-edn "edns/test.edn"))
+(def d ())
 ;(def prob (process-edn "edns/prob_cli.edn"))
 
 (defn to-pred-id [{module :module goal :goal arity :arity}]
@@ -32,7 +32,4 @@
                  (apply uber/remove-nodes graph x))]
     sccs))
 
-(reduce #() data (scc d))
-
-(:preds d)
-:-
+(scc d)
