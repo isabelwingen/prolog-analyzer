@@ -149,57 +149,82 @@
     (subpage m data)))
 
 (defn pr-str-pre-spec [v]
-  (str "[" (->> v
-                seq
-                (map pr-str)
-                (clojure.string/join ", ")) "]"))
+  (vec (map r/to-string (seq v))))
 
 (defn pr-str-guard [{id :id type :type}]
-  (str "$" id ": " (pr-str type)))
+  (str "$" id ":" (r/to-string type)))
 
 (defn pr-str-guards [guards]
-  (->> guards
-       (map pr-str-guard)
-       (clojure.string/join ", ")))
+  (clojure.string/join ", " (map pr-str-guard guards)))
 
 (defn pr-str-conclusion [v]
-  (->> v
-       (map pr-str-guard)
-       (clojure.string/join "; ")))
+  (vec (map pr-str-guard v)))
+
+(defn fill [length string]
+  (format (str "%1$" length "s") string))
+
 
 (defn pr-str-conclusions [v]
-  (->> v
-       (map pr-str-conclusion)
-       (clojure.string/join "\n")))
+  (let [strs (map pr-str-conclusion v)
+        lengths (->> strs
+                     (apply map vector)
+                     (map (partial map count))
+                     (map (partial apply max))
+                     (map-indexed (fn [i v] #(update % i (partial fill v)))))
+        p (reduce (fn [x f] (map f x)) strs lengths)]
+    (vec (map (partial clojure.string/join ", ") p))))
+
+
 
 (defn pr-str-post-spec [{guard :guard conc :conclusion}]
   (if (empty? guard)
-    (str "true --> [" (pr-str-conclusions conc) "]")
-    (str "[" (pr-str-guards guard) "] --> [" (pr-str-conclusions conc) "]")))
+    {:guard "true" :conclusion (pr-str-conclusions conc)}
+    {:guard (pr-str-guards guard) :conclusion (pr-str-conclusions conc)}))
+
+(defn valid-module [module]
+  (and (not= module "user")
+       (not= module "lists")))
 
 (defn print-pre-specs [counter data]
   (let [file (io/file (str PRE_SPECS "/step-" counter ".txt"))
         append #(spit file % :append true)]
     (make-parents file)
     (spit file "Pre Specs")
-    (doseq [[k v] (:pre-specs data)]
-      (append "\n")
-      (append k)
-      (doseq [x v]
-        (append "\n\t")
-        (append (pr-str-pre-spec x))))))
+    (doseq [[[module & _ :as k] v] (:pre-specs data)]
+      (when (valid-module module)
+        (append "\n\n")
+        (append k)
+        (doseq [x v]
+          (append "\n\t")
+          (append (with-out-str (clojure.pprint/pprint (pr-str-pre-spec x)))))))))
+
+
+(defn as-table [postspecs]
+  (let [length (apply max (map (comp count :guard) postspecs))
+        fill-str (fill (+ length 5) "")
+        new-maps (map #(update % :guard (partial fill length)) postspecs)]
+    (clojure.string/join
+     "\n"
+     (for [x new-maps
+           :let [{guard :guard [c & cs] :conclusion} x]]
+       (clojure.string/join
+        "\n"
+        (cons (str guard " --> " c) (map (partial str fill-str) cs)))))))
 
 (defn print-post-specs [counter data]
   (let [file (io/file (str POST_SPECS "/step-" counter ".txt"))
         append #(spit file % :append true)]
     (make-parents file)
     (spit file "Post Specs")
-    (doseq [[k v] (:post-specs data)]
-      (append "\n")
-      (append k)
-      (doseq [x v]
-        (append "\n\t")
-        (append (pr-str-post-spec x))))))
+    (doseq [[[module & _ :as k] v] (:post-specs data)]
+      (when (valid-module module)
+        (append "\n\n")
+        (append k)
+        (append "\n")
+        (append (as-table (map pr-str-post-spec v)))
+        #_(doseq [x v]
+          (append "\n\t")
+          (append (with-out-str (clojure.pprint/pprint (pr-str-post-spec x)))))))))
 
 
 (defn print-intermediate-result [counter data]
