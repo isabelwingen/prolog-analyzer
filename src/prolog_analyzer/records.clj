@@ -327,6 +327,9 @@
   (to-string [x] (str "ERROR: " term)))
 
 
+(defrecord Postspec [guard conclusion]
+  )
+
 
 (defn- singleton? [singletons term]
   (contains? (set singletons) term))

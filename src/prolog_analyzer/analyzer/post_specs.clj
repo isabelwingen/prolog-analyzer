@@ -20,7 +20,7 @@
       (update :conclusion (partial map (partial map (partial replace-id-with-arg arglist))))
       ))
 
-(defn- register-post-spec [env arglist {guard :guard conclusion :conclusion :as post-spec}]
+(defn- register-post-spec [env arglist post-spec]
   (if (uber/has-node? env :environment)
     (utils/update-attr env :environment :post-specs conj (replace-ids-with-args post-spec arglist))
     (-> env

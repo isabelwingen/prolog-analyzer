@@ -136,7 +136,7 @@
     (log/trace "Add Pre Spec - " (str pred-id) " - end")))
 
 (defn- tuples-to-post-specs [tuples]
-  {:guard [] :conclusion (vec (map (comp vec (partial map-indexed #(hash-map :id %1 :type %2))) tuples))})
+  (r/->Postspec [] (vec (map (comp vec (partial map-indexed #(hash-map :id %1 :type %2))) tuples))))
 
 (defn- add-post-spec [pred-id clauses]
   (when (should-post-spec-be-added pred-id)

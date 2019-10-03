@@ -26,11 +26,7 @@
   (->> envs
        (map create-single-conclusion)
        vec
-       (hash-map :guard [] :conclusion)))
-
-(defn contains-postspec? [data pred-id post-spec]
-  (contains? (apply hash-set (utils/get-post-specs pred-id data)) post-spec))
-
+       (r/->Postspec [])))
 
 (defn length-of-post-spec [{guard :guard concl :conclusion}]
   (let [a (->> guard
@@ -44,6 +40,51 @@
                (apply +))]
     (+ a b)))
 
+(defn is-weaker-spec? [a b]
+  (= b (ru/intersect a b false)))
+
+(defn add-missing-ids [max-id c]
+  (let [ids (->> max-id
+                 inc
+                 (range 0)
+                 (remove (set (map :id c)))
+                 (map #(hash-map :id % :type (r/->AnySpec))))]
+    (concat c ids)))
+
+(defn transform-to-spec [{concs :conclusion}]
+  (let [max-id (->> concs
+                 flatten
+                 (map :id)
+                 (apply max))]
+    (->> concs
+         (map (partial add-missing-ids max-id))
+         (map (partial sort-by :id))
+         (map (partial map :type))
+         (map (partial r/->TupleSpec))
+         (map ru/simplify )
+         set
+         r/->OneOfSpec
+         ru/simplify)))
+
+(defn is-weaker? [post-spec-a post-spec-b]
+  (let [a (transform-to-spec post-spec-a)
+        b (transform-to-spec post-spec-b)]
+    (is-weaker-spec? a b)))
+
+
+(defn simplify-post-specs [l]
+  (loop [[x & y :as res] l
+         counter 0]
+    (if (= counter (count l))
+      res
+      (recur (conj (vec (remove #(is-weaker? % x) y)) x) (inc counter)))))
+
+(defn add-to-existing-post-spec [all-post-specs {guard :guard :as post-spec}]
+  (mapcat identity (->  (group-by :guard (map r/map->Postspec all-post-specs))
+                        (update guard conj post-spec)
+                        (update guard set)
+                        (update guard simplify-post-specs)
+                        vals)))
 
 
 (defn add-if-new [data [_ _ arity :as pred-id] post-spec]
@@ -53,7 +94,7 @@
         (update-in [:post-specs pred-id] #(if (nil? %)
                                             (ordered-set)
                                             (apply ordered-set %)))
-        (update-in [:post-specs pred-id] #(conj % post-spec)))))
+        (update-in [:post-specs pred-id] add-to-existing-post-spec post-spec))))
 
 (defn- create-new-post-specs [in-data envs]
   (->> envs
@@ -89,7 +130,7 @@
       (recur write (inc counter) new-data))))
 
 (defn- dummy-post-spec [arity]
-  (hash-map :guard [] :conclusion [(vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 arity)))]))
+  (r/->Postspec [] [(vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 arity)))]))
 
 (defn- add-dummy-post-specs [data]
   (reduce (fn [d [_ _ arity :as pred-id]] (update-in d [:post-specs pred-id] #(vec (conj % (dummy-post-spec arity))))) data (utils/get-pred-identities data)))

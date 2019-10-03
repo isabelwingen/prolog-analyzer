@@ -13,7 +13,7 @@ tree(node(L,empty,R)) :-
     tree(R).
 
 :- spec_pre(tree/1, [any]).
-:- spec_post(tree/1, [0:any], [[0:any]]).
+%:- spec_post(tree/1, [0:any], [[0:any]]).
 
 :- declare_spec(a).
 :- define_spec(a, atom).
