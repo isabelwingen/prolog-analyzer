@@ -326,6 +326,8 @@
   printable
   (to-string [x] (str "ERROR: " term)))
 
+
+
 (defn- singleton? [singletons term]
   (contains? (set singletons) term))
 
@@ -337,10 +339,7 @@
      (log/error (str input-m) " is " (type input-m))
      (let [m (dissoc input-m :type)]
        (case (:type input-m)
-         :var (let [var (map->VarTerm m)]
-                (if (= singletons :nothing)
-                  var
-                  (assoc var :singleton? (singleton? singletons var))))
+         :var (map->VarTerm m)
          :atom (map->AtomTerm m)
          :number (map->NumberTerm m)
          :integer (map->IntegerTerm m)
