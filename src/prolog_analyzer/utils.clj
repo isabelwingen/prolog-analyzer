@@ -63,10 +63,8 @@
 (defn get-dom-of-term
   ([env term default] (get-dom-of-term env term))
   ([env term]
-   (if-let [result (if (uber/has-node? env term)
-                     (uber/attr env term :dom)
-                     nil)]
-     result
+   (if (uber/has-node? env term)
+     (or (uber/attr env term :dom) (r/->AnySpec))
      (r/->AnySpec))))
 
 (defmacro case+
