@@ -49,12 +49,19 @@
    initial? boolean?
    term ::specs/term
    spec ::specs/spec]
-  (-> env
-      (uber/add-nodes term)
-      (uber/add-attr term DOM (r/->AnySpec))
-      (uber/add-attr term HIST (ordered-set))
-      (add-to-dom initial? term (ru/initial-spec term))
-      (add-to-dom initial? term spec)))
+  (let [initial-spec (ru/initial-spec term)]
+    (if (= initial-spec spec)
+      (-> env
+          (uber/add-nodes term)
+          (uber/add-attr term DOM (r/->AnySpec))
+          (uber/add-attr term HIST (ordered-set))
+          (add-to-dom initial? term spec))
+      (-> env
+          (uber/add-nodes term)
+          (uber/add-attr term DOM (r/->AnySpec))
+          (uber/add-attr term HIST (ordered-set))
+          (add-to-dom initial? term (ru/initial-spec term))
+          (add-to-dom initial? term spec)))))
 
 (defn- fully-qualified-spec? [spec]
   (case+ (ru/spec-type spec)
@@ -83,7 +90,7 @@
    (add-to-dom env false term spec))
   ([env ::specs/env,
     initial? boolean?,
-    term ::specs/term,
+    term ::specs/term
     spec ::specs/spec]
    (letfn [(intersect-fn [a b]
              (let [res (ru/intersect (or a (r/->AnySpec)) b initial?)]
