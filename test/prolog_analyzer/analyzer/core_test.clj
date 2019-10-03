@@ -7,6 +7,7 @@
 
 (def executor (atom {}))
 
+(def BUILT-IN "edns/builtins.edn")
 
 (defn number []
   (->> (gensym)
@@ -25,8 +26,20 @@
   (let [path (PATH)
         res (do (spit path (str PREAMBLE s))
                 (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))]
-    (io/delete-file (io/file path))
+    (when (.exists (io/file path))
+      (io/delete-file (io/file path)))
     res))
+
+(io/make-parents "resources/test/.ignore")
+
+(when (.exists (io/file BUILT-IN))
+  (io/delete-file (io/file BUILT-IN)))
+
+(when (not (.exists (io/file BUILT-IN)))
+  (println "Create edn")
+  (parse-tmp "foo.")
+  (Thread/sleep 5000))
+
 
 (facts
  "Build-ins"

@@ -34,7 +34,8 @@
   (let [in (read-string (str \[ (slurp path) \]))
         file (io/file path)]
     (future
-      (io/delete-file file)
+      (when (.exists file)
+        (io/delete-file file))
       (doseq [x (map #(with-out-str (clojure.pprint/pprint %)) in)]
         (spit file x :append true)
         (spit file "\n" :append true)))
@@ -285,7 +286,6 @@
   (let [file-name "prolog/builtins.pl"
         edn-file (get-edn-file-name file-name)]
     (when (not (.exists (io/file edn-file)))
-      (io/delete-file edn-file)
       (call-prolog dialect term-expander prolog-exe file-name edn-file))
     (->> edn-file
          read-in-data
