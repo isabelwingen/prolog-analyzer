@@ -281,25 +281,37 @@
       (merge-with into data built-in)
       )))
 
-(defn process-edn
-  ([edn] (process-edn "swipl" edn))
-  ([dialect edn]
-   (->> edn
-        read-in-data
-        format-and-clean-up
-        add-built-ins
-        pre-processor/pre-process-single
-        )))
-
-(defn process-prolog-file [dialect term-expander prolog-exe file-name]
-  (let [edn-file (get-edn-file-name file-name)]
+(defn process-built-ins [dialect term-expander prolog-exe]
+  (let [file-name "prolog/builtins.pl"
+        edn-file (get-edn-file-name file-name)]
     (when (.exists (io/file edn-file))
       (io/delete-file edn-file))
     (call-prolog dialect term-expander prolog-exe file-name edn-file)
-    (process-edn dialect edn-file)))
+    (->> edn-file
+         read-in-data
+         format-and-clean-up)))
+
+(defn process-edn
+  ([edn]
+   (let [built-ins (process-built-ins "swipl" "prolog/prolog-analyzer.pl" "swipl")]
+     (process-edn edn built-ins)))
+  ([edn built-ins]
+   (let [data (->> edn
+                   read-in-data
+                   format-and-clean-up)]
+     (pre-processor/pre-process-single (merge-with into data built-ins)))))
+
+(defn process-prolog-file [dialect term-expander prolog-exe file-name]
+  (let [built-ins (process-built-ins dialect term-expander prolog-exe)
+        edn-file (get-edn-file-name file-name)]
+    (when (.exists (io/file edn-file))
+      (io/delete-file edn-file))
+    (call-prolog dialect term-expander prolog-exe file-name edn-file)
+    (process-edn edn-file built-ins)))
 
 (defn process-prolog-directory [dialect term-expander prolog-exe dir-name]
-  (let [edn-file (get-edn-file-name dir-name)]
+  (let [built-ins (process-built-ins dialect term-expander prolog-exe)
+        edn-file (get-edn-file-name dir-name)]
     (when (.exists (io/file edn-file))
       (io/delete-file edn-file))
     (let [prolog-files (->> dir-name
@@ -311,4 +323,4 @@
                             (filter #(.endsWith % ".pl")))]
       (doseq [pl prolog-files]
         (call-prolog dialect term-expander prolog-exe pl edn-file))
-      (process-edn dialect edn-file))))
+      (process-edn edn-file built-ins))))
