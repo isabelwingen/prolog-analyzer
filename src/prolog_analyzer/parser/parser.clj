@@ -284,9 +284,9 @@
 (defn process-built-ins [dialect term-expander prolog-exe]
   (let [file-name "prolog/builtins.pl"
         edn-file (get-edn-file-name file-name)]
-    (when (.exists (io/file edn-file))
-      (io/delete-file edn-file))
-    (call-prolog dialect term-expander prolog-exe file-name edn-file)
+    (when (not (.exists (io/file edn-file)))
+      (io/delete-file edn-file)
+      (call-prolog dialect term-expander prolog-exe file-name edn-file))
     (->> edn-file
          read-in-data
          format-and-clean-up)))
