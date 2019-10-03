@@ -20,7 +20,7 @@
 
 (defmulti process-or (fn [term spec] (ru/term-type term)))
 
-(defmethod process-or :list [term spec]
+(defmethod process-or r/LIST [term spec]
   (let [{head :head tail :tail} term
         {grounds :ground lists :list tuples :tuple compounds :compound} (group-by ru/spec-type (:arglist spec))
         terms [head tail]
