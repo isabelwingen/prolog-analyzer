@@ -137,3 +137,5 @@
  (fact "Placeholder in member 2"
        (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- member(X,[p,b,2])."))))
        => (contains {"X" "OneOf(Integer, Atom)"})))
+
+(clojure.java.shell/sh "rm" "-rf" "resources/test")
