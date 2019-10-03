@@ -18,6 +18,3 @@
        =>
        (contains {["simple_example" "foo" 2]  [{:guard []
                                                 :conclusion [[{:id 0 :type (r/->IntegerSpec)} {:id 1 :type (r/->IntegerSpec)}] [{:id 0 :type (r/->AtomSpec)} {:id 1 :type (r/->AtomSpec)}]]}]})))
-
-
-(def d (f "resources/playground.pl"))

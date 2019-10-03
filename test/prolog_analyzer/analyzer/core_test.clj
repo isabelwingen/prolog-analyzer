@@ -2,23 +2,41 @@
   (:require [prolog-analyzer.analyzer.core :as sut]
             [prolog-analyzer.parser.parser :as parser]
             [prolog-analyzer.utils :as utils]
+            [clojure.java.io :as io]
             [midje.sweet :refer :all]))
 
+(def executor (atom {}))
 
-(def PATH "resources/test.tmp")
+
+(defn number []
+  (->> (gensym)
+       str
+       (drop 3)
+       (apply str)))
+
+
+(defn PATH []
+  (str "resources/test/tmptest" (number) ".pl"))
 
 (def PREAMBLE ":- module(tmp,[]).\n:- use_module('../prolog/annotations',[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).\n\n\n" )
 
-
-(defn parse [path]
-  (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))
-
 (defn parse-tmp [s]
-  (spit PATH (str PREAMBLE s))
-  (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" PATH)
-  )
+  (Thread/sleep 500)
+  (let [path (PATH)
+        res (do (spit path (str PREAMBLE s))
+                (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))]
+    (io/delete-file (io/file path))
+    res))
 
-
+(facts
+ "Build-ins"
+ (fact "atom"
+       (-> "foo(X) :- atom(X)."
+           parse-tmp
+           sut/complete-analysis
+           first
+           utils/env->map)
+       => (contains {"X" "Atom"})))
 
 (facts
  "Simple Example"
@@ -34,7 +52,6 @@
                                   "bar(a, 3).\n")))))
        => (contains {"X" "Atom"
                      "Y" "Integer"})))
-
 
 (facts
  "Vars"
@@ -103,8 +120,7 @@
        => (contains {"X" "List(OneOf(Integer, Atom))"}))
  (fact "Placeholder in member"
        (utils/env->map (first (sut/complete-analysis (parse-tmp "foo :- member(1,[a,b,c])."))))
-       => (contains {"1" "ERROR: No valid intersection of Atom and Integer"})
-
+       => (contains {"1" "ERROR: No valid intersection of Atom and Integer"}))
+ (fact "Placeholder in member 2"
        (utils/env->map (first (sut/complete-analysis (parse-tmp "foo(X) :- member(X,[p,b,2])."))))
-       => (contains {"X" "OneOf(Integer, Atom)"})
-       ))
+       => (contains {"X" "OneOf(Integer, Atom)"})))

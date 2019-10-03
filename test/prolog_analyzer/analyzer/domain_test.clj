@@ -55,6 +55,16 @@
 
  )
 
+(fact
+ (-> (uber/digraph)
+     (sut/add-to-dom
+      true
+      (r/->ListTerm (r/->VarTerm "X") (r/->EmptyListTerm))
+      (r/->TupleSpec [(r/->AtomSpec)]))
+     utils/env->map)
+ => (contains {"X" "Atom"}))
+
+
 (def tree
   (r/make-spec:user-defined "tree" [(r/->SpecvarSpec "X")]))
 
