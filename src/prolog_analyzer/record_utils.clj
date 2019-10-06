@@ -1,5 +1,5 @@
 (ns prolog-analyzer.record-utils
-  (:require [prolog-analyzer.records :as r]
+  (:require [prolog-analyzer.records :as r :refer [spec]]
             [prolog-analyzer.state :refer [user-typedefs]]
             [clojure.tools.logging :as log]
             [prolog-analyzer.state :refer [grounded]]
@@ -15,8 +15,6 @@
 (declare contains-placeholder?)
 (declare replace-placeholder-with-alias)
 (declare replace-var-with-ground)
-
-
 
 (defn-spec spec-type keyword? ;;TODO: improve return type
   [spec ::specs/spec]
@@ -503,13 +501,22 @@
          simplify-placeholders
          set)))
 
-(defn contains-placeholder? [spec]
+
+(defmulti contains-placeholder? (fn [t] (if (satisfies? spec t) :spec :postspec)))
+(defmethod contains-placeholder? :postspec [{guard :guard conclusion :conclusion}]
+  (or
+   (some (comp contains-placeholder? :type) guard)
+   (some (partial some (comp contains-placeholder? :type)) conclusion)
+   false))
+(defmethod contains-placeholder? :spec [spec]
   (case+ (spec-type spec)
          r/PLACEHOLDER true
          (r/OR, r/AND, r/COMPOUND, r/TUPLE) (some contains-placeholder? (:arglist spec))
          r/USERDEFINED (if (contains? spec :arglist) (some contains-placeholder? (:arglist spec)) false)
          r/LIST (contains-placeholder? (:type spec))
          false))
+(defmethod contains-placeholder? :default [x]
+  (satisfies? spec x))
 
 (defn- compatible [super sub]
   (if (error-spec? (intersect super sub false))
