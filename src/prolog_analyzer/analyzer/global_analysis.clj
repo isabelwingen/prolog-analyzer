@@ -26,11 +26,7 @@
   (->> envs
        (map create-single-conclusion)
        vec
-       (hash-map :guard [] :conclusion)))
-
-(defn contains-postspec? [data pred-id post-spec]
-  (contains? (apply hash-set (utils/get-post-specs pred-id data)) post-spec))
-
+       (r/->Postspec [])))
 
 (defn length-of-post-spec [{guard :guard concl :conclusion}]
   (let [a (->> guard
@@ -89,7 +85,7 @@
       (recur write (inc counter) new-data))))
 
 (defn- dummy-post-spec [arity]
-  (hash-map :guard [] :conclusion [(vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 arity)))]))
+  (r/->Postspec [] [(vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 arity)))]))
 
 (defn- add-dummy-post-specs [data]
   (reduce (fn [d [_ _ arity :as pred-id]] (update-in d [:post-specs pred-id] #(vec (conj % (dummy-post-spec arity))))) data (utils/get-pred-identities data)))

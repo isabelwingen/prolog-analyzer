@@ -137,7 +137,7 @@
 
 (defmulti ^{:private true} specs-to-map :goal)
 
-(defmethod specs-to-map :default [{module :module functor :functor arity :arity arglist :arglist}]
+(defmethod specs-to-map :default [{:keys [module functor arity arglist]}]
   {[module functor arity] (vector (map transform-spec arglist))})
 
 
@@ -151,10 +151,9 @@
        (map create-guard)
        (apply vector)))
 
-(defmethod specs-to-map :spec-post [{module :module functor :functor arity :arity guard :guard conc :conclusion}]
+(defmethod specs-to-map :spec-post [{:keys [module functor arity guard conclusion]}]
   {[module functor arity]
-   [{:guard (create-guard guard)
-     :conclusion (create-conclusion conc)}]})
+   [(r/->Postspec (create-guard guard) (create-conclusion conclusion))]})
 
 
 (defn- order-specs [specs]
