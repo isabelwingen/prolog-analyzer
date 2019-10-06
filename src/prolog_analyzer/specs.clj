@@ -20,7 +20,8 @@
 (s/def ::type ::spec)
 (s/def ::inner-guard (s/keys :req-un [::id ::type]))
 (s/def ::guard (s/coll-of ::inner-guard))
-(s/def ::conclusion (s/coll-of ::guard))
+(s/def ::inner-conclusion (s/coll-of ::inner-guard :min-count 1))
+(s/def ::conclusion (s/coll-of ::inner-conclusion :min-count 1))
 (s/def ::post-spec (s/keys :req-un [::guard ::conclusion]))
 (s/def ::post-specs (s/coll-of ::post-spec))
 
@@ -48,6 +49,7 @@
 (s/def ::data (s/keys :req-un [::singletons :key/pre-specs :key/post-specs :key/preds]))
 
 (s/def ::env #(= ubergraph.core.Ubergraph (type %)))
+(s/def ::envs (s/coll-of ::env))
 
 (s/def ::step (s/tuple ::term ::spec))
 (s/def ::steps (s/coll-of ::step))
