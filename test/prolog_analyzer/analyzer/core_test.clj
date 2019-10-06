@@ -15,8 +15,10 @@
 (defn parse-tmp [h s]
   (Thread/sleep 500)
   (let [path "resources/test/core_tmp.pl"
-        res (do (spit path (str PREAMBLE s))
-                (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))]
+        res (do
+              (io/make-parents path)
+              (spit path (str PREAMBLE s))
+              (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))]
     (when (.exists (io/file path))
       (io/delete-file (io/file path)))
     (when (.exists (io/file "edns/core_tmp.edn"))
