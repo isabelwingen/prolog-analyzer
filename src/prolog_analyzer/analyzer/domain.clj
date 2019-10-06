@@ -1,16 +1,14 @@
 (ns prolog-analyzer.analyzer.domain
-  (:require [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r]
+  (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [prolog-analyzer.record-utils :as ru]
-            [ubergraph.core :as uber]
-            [clojure.spec.alpha :as s]
-            [prolog-analyzer.specs :as specs]
-            [orchestra.spec.test :as stest]
-            [orchestra.core :refer [defn-spec]]
             [flatland.ordered.set :refer [ordered-set]]
+            [orchestra.core :refer [defn-spec]]
             [prolog-analyzer.analyzer.next-steps :as next-steps]
-            ))
+            [prolog-analyzer.record-utils :as ru]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.specs :as specs]
+            [prolog-analyzer.utils :as utils :refer [case+]]
+            [ubergraph.core :as uber]))
 
 (declare add-to-dom)
 

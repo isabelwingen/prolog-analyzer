@@ -1,16 +1,11 @@
 (ns prolog-analyzer.analyzer.next-steps
-  (:require
-   [prolog-analyzer.utils :as utils :refer [case+]]
-   [prolog-analyzer.records :as r]
-   [clojure.tools.logging :as log]
-   [prolog-analyzer.record-utils :as ru]
-   [ubergraph.core :as uber]
-   [clojure.spec.alpha :as s]
-   [prolog-analyzer.specs :as specs]
-   [orchestra.spec.test :as stest]
-   [orchestra.core :refer [defn-spec]]
-   ))
-
+  (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
+            [orchestra.spec.test :as stest]
+            [prolog-analyzer.record-utils :as ru]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.specs :as specs]
+            [prolog-analyzer.utils :as utils :refer [case+]]))
 
 (declare next-steps)
 

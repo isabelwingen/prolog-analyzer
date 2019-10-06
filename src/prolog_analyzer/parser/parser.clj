@@ -1,19 +1,15 @@
 (ns prolog-analyzer.parser.parser
-  (:require [prolog-analyzer.parser.pre-processor :as pre-processor]
-            [prolog-analyzer.utils :as utils]
-            [prolog-analyzer.records :as r]
-            [prolog-analyzer.record-utils :as ru]
-            [clojure.pprint :refer [pprint]]
-            [clojure.tools.logging :as log]
-            [clojure.java.io :as io]
-            [clojure.edn :as edn]
+  (:require [clojure.java.io :as io]
             [clojure.java.shell :as sh]
+            [clojure.pprint :refer [pprint]]
             [clojure.set :refer [rename-keys]]
+            [clojure.string :as string]
             [clojure.tools.logging :as log]
-            [clojure.string]))
+            [prolog-analyzer.parser.pre-processor :as pre-processor]
+            [prolog-analyzer.records :as r]))
 
 (defn- get-name-without-ending [file-name]
-  (first (clojure.string/split (.getName (io/file file-name)) #"\.")))
+  (first (string/split (.getName (io/file file-name)) #"\.")))
 
 (defn- get-edn-file-name [file-name]
   (let [dir "edns/"
@@ -25,7 +21,7 @@
 
 (defn- split-up-error-message [msg]
   (->> msg
-       clojure.string/split-lines
+       string/split-lines
        (partition 2)
        (map (partial apply str))
        (apply vector)))
@@ -36,7 +32,7 @@
     (future
       (when (.exists file)
         (io/delete-file file))
-      (doseq [x (map #(with-out-str (clojure.pprint/pprint %)) in)]
+      (doseq [x (map #(with-out-str (pprint %)) in)]
         (spit file x :append true)
         (spit file "\n" :append true)))
     in))

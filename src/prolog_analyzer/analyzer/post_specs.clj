@@ -72,25 +72,28 @@
         nil))))
 
 (defn- merge-single-guard-values [guard-maps]
-  (let [to-seq (fn [x] (if (seq? x) x [x]))
-        res (->> guard-maps
-                 (apply merge-with (comp flatten vector))
-                 (reduce-kv #(assoc %1 %2 (ru/simplify (r/->AndSpec (to-seq %3)) false)) {}))]
-    (if (some ru/error-spec? (vals res))
-      nil
-      res)))
+  (if (some nil? guard-maps)
+    false
+    (let [to-seq (fn [x] (if (seq? x) x [x]))
+          res (->> guard-maps
+                   (apply merge-with (comp flatten vector))
+                   (reduce-kv #(assoc %1 %2 (ru/simplify (r/->AndSpec (to-seq %3)) false)) {}))]
+      (if (some ru/error-spec? (vals res))
+        nil
+        res))))
 
-(defn- is-post-spec-applicable? [env {guards :guard}]
+(defn- post-spec-applicable? [env {guards :guard}]
   (->> guards
        (map (partial is-guard-true? env))
        merge-single-guard-values))
 
-(defn complete-conclusion [part arglist]
+(defn- complete-conclusion [part arglist]
   (let [specifics-as-map (reduce #(assoc %1 (:arg %2) (:type %2)) {} part)
         all-as-map (reduce #(assoc %1 %2 (r/->AnySpec)) {} arglist)]
     (merge all-as-map specifics-as-map)))
 
-(defn- create-step-from-post-spec [{conclusions :conclusion} alias-map]
+(defn- create-step-from-post-spec
+  [{conclusions :conclusion} alias-map]
   (let [args (set (mapcat #(map :arg %) conclusions))
         new-conc (map #(complete-conclusion % args) conclusions)
         spec (->> new-conc
@@ -103,14 +106,15 @@
         tuple (apply ru/to-head-tail-list args)]
     [tuple spec]))
 
-(defn create-steps [postspecs alias-maps]
-  (->> alias-maps
-       (map vector postspecs)
-       (remove #(nil? (second %)))
-       (map (fn [[a b]] (create-step-from-post-spec a b)))
-       (apply vector)))
+
+(defn- create-step [env post-spec]
+  (if-let [alias-map (post-spec-applicable? env post-spec)]
+    (create-step-from-post-spec post-spec alias-map)
+    nil))
 
 (defn get-next-steps-from-post-specs [env]
-  (let [post-specs (get-post-specs env)
-        alias-maps (map (partial is-post-spec-applicable? env) post-specs)]
-    (create-steps post-specs alias-maps)))
+  (let [post-specs (get-post-specs env)]
+    (->> post-specs
+         (map (partial create-step env))
+         (remove nil?)
+         set)))

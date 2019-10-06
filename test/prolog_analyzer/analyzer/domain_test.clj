@@ -83,7 +83,7 @@
       set-userdefs
       (sut/add-to-dom (r/->VarTerm "X") (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]))
       utils/env->map)
-  => {"X" "OneOf(Exact(empty), Compound(node(tree(Integer), Integer, tree(Integer))))"})
+  => {"X" "OneOf(Compound(node(tree(Integer), Integer, tree(Integer))), Exact(empty))"})
  (fact
   "Unknown userdef"
 (-> (uber/digraph)

@@ -1,9 +1,7 @@
 (ns prolog-analyzer.records
-  (:require [clojure.tools.logging :as log]
-            [clojure.tools.namespace.repl :refer [refresh]]
-            [instaparse.core :as insta]
-            [clojure.string]))
-
+  (:require clojure.string
+            [clojure.tools.logging :as log]
+            [instaparse.core :as insta]))
 
 (def INTEGER :integer)
 (def FLOAT :float)
@@ -177,19 +175,23 @@
   printable
   (to-string [x] "Ground"))
 
+(defn- sort-specs [specs]
+  (sort #(compare (to-string %1) (to-string %2)) specs))
+
+
 (defrecord AndSpec [arglist]
   spec
   (spec-type [spec] AND)
   (length [x] (apply + 1 (map length arglist)))
   printable
-  (to-string [x] (str "And(" (to-arglist arglist) ")")))
+  (to-string [x] (str "And(" (to-arglist (sort-specs arglist)) ")")))
 
 (defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
   (length [x] (apply + 1 (map length arglist)))
   printable
-  (to-string [x] (str "OneOf(" (to-arglist arglist) ")")))
+  (to-string [x] (str "OneOf(" (to-arglist (sort-specs arglist)) ")")))
 
 (defrecord UserDefinedSpec [name]
   spec
@@ -327,8 +329,7 @@
   (to-string [x] (str "ERROR: " term)))
 
 
-(defrecord Postspec [guard conclusion]
-  )
+(defrecord Postspec [guard conclusion])
 
 
 (defn- singleton? [singletons term]

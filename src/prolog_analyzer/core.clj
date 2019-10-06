@@ -1,14 +1,10 @@
 (ns prolog-analyzer.core
   (:gen-class)
-  (:require [prolog-analyzer.parser.parser :as parser]
+  (:require [clojure.java.io :as io]
             [prolog-analyzer.analyzer.global-analysis :as global]
-            [clojure.java.io :as io]
-            [clojure.pprint :refer [pprint]]
-            [tableflisp.core :refer :all]
-            [clojure.java.io :refer [writer]]
-            [prolog-analyzer.records :as r]
+            [prolog-analyzer.parser.parser :as parser]
             [prolog-analyzer.result-visualizer :as visualizer]
-            ))
+            [tableflisp.core :refer :all]))
 
 (declare analyze-swi-packs)
 

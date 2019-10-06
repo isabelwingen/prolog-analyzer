@@ -1,15 +1,12 @@
 (ns prolog-analyzer.parser.create-missing-annotations
-  (:require [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r]
-            [prolog-analyzer.record-utils :as ru]
+  (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [prolog-analyzer.state :as state]
-            [clojure.spec.alpha :as s]
-            [prolog-analyzer.specs :as specs]
-            [orchestra.spec.test :as stest]
             [flatland.ordered.set :refer [ordered-set]]
             [orchestra.core :refer [defn-spec]]
-            ))
+            [prolog-analyzer.record-utils :as ru]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.specs :as specs]
+            [prolog-analyzer.utils :as utils :refer [case+]]))
 
 (def TRESHOLD 5)
 

@@ -1,7 +1,7 @@
 (ns prolog-analyzer.parser.add-userdefs
-  (:require [prolog-analyzer.records :as r]
+  (:require [prolog-analyzer.record-utils :as ru]
+            [prolog-analyzer.records :as r]
             [prolog-analyzer.state :as state]
-            [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.utils :refer [case+]]))
 
 (defmulti create-grounded-version (fn [_ i] i))

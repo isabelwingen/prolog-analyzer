@@ -1,18 +1,12 @@
 (ns prolog-analyzer.analyzer.calculate-env
-  (:require [prolog-analyzer.analyzer.domain :as dom]
-            [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r]
-            [prolog-analyzer.record-utils :as ru]
-            [clojure.pprint :refer [pprint]]
-            [ubergraph.core :as uber]
-            [clojure.tools.logging :as log]
-            [prolog-analyzer.state :as state]
+  (:require [clojure.tools.logging :as log]
+            [prolog-analyzer.analyzer.domain :as dom]
             [prolog-analyzer.analyzer.post-specs :as post-specs]
-            [clojure.spec.alpha :as s]
-            [prolog-analyzer.specs :as specs]
-            [orchestra.spec.test :as stest]
-            [orchestra.core :refer [defn-spec]]
-            ))
+            [prolog-analyzer.record-utils :as ru]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.state :as state]
+            [prolog-analyzer.utils :as utils :refer [case+]]
+            [ubergraph.core :as uber]))
 
 (def DEEPNESS 3)
 

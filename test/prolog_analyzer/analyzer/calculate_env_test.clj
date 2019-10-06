@@ -19,8 +19,8 @@
                                    ("List" "Float")])]))
   =>
   (contains {"H" "Integer"
-             "T" "List(OneOf(Integer, Atom))"
-             "[H|T]" "List(OneOf(Integer, Atom))"}))
+             "T" "List(OneOf(Atom, Integer))"
+             "[H|T]" "List(OneOf(Atom, Integer))"}))
  (fact
   "Pass domain of head upwards and pass it down to tail"
   (test-wrapper

@@ -1,15 +1,9 @@
 (ns prolog-analyzer.analyzer.core
-  (:require [prolog-analyzer.utils :as utils]
-            [prolog-analyzer.record-utils :as i]
-            [prolog-analyzer.records :as r]
-            [prolog-analyzer.record-utils :as ru]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
             [prolog-analyzer.analyzer.calculate-env :as calc]
-            [orchestra.spec.test :as stest]
-            [clojure.spec.alpha :as s]
-            [prolog-analyzer.specs :as specs]
-            [prolog-analyzer.state :as state]))
-
+            [prolog-analyzer.record-utils :as ru]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.utils :as utils]))
 
 (defn- get-pre-spec [data [_ _ arity :as pred-id]]
   (let [pre-specs (utils/get-pre-specs pred-id data)]
