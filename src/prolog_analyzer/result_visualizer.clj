@@ -1,12 +1,9 @@
 (ns prolog-analyzer.result-visualizer
-  (:require [clojure.data.json :as json]
-            [prolog-analyzer.records :as r]
-            [prolog-analyzer.record-utils :as ru]
-            [prolog-analyzer.utils :as utils]
-            [clojure.java.io :refer [writer make-parents]]
+  (:require [clojure.java.io :as io :refer [make-parents writer]]
             [hiccup.core :as hiccup]
-            [ubergraph.core :as uber]
-            [clojure.java.io :as io]))
+            [prolog-analyzer.record-utils :as ru]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.utils :as utils]))
 
 (def POST_SPECS "doc/post-specs")
 (def PRE_SPECS "doc/pre-specs")

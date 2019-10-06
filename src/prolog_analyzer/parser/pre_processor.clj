@@ -1,18 +1,12 @@
 (ns prolog-analyzer.parser.pre-processor
-  (:require [prolog-analyzer.utils :as utils :refer [case+]]
-            [prolog-analyzer.records :as r]
-            [prolog-analyzer.record-utils :as ru]
+  (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [prolog-analyzer.state :as state]
-            [clojure.spec.alpha :as s]
-            [prolog-analyzer.specs :as specs]
-            [orchestra.spec.test :as stest]
-            [orchestra.core :refer [defn-spec]]
-            [prolog-analyzer.parser.transform-to-records :as transform]
             [prolog-analyzer.parser.add-userdefs :as add-userdefs]
             [prolog-analyzer.parser.create-missing-annotations :as anno]
-            ))
-
+            [prolog-analyzer.parser.transform-to-records :as transform]
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.specs :as specs]
+            [prolog-analyzer.utils :as utils]))
 
 (defn- set-correct-goal-module [pred->module-map {goal-name :goal arity :arity goal-module :module :as goal}]
   (if (= "self" goal-module)

@@ -1,12 +1,11 @@
 (ns prolog-analyzer.record-utils
-  (:require [prolog-analyzer.records :as r :refer [spec]]
-            [prolog-analyzer.state :refer [user-typedefs]]
+  (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [prolog-analyzer.state :refer [grounded]]
-            [clojure.spec.alpha :as s]
-            [prolog-analyzer.specs :as specs]
-            [orchestra.spec.test :as stest]
             [orchestra.core :refer [defn-spec]]
+            [orchestra.spec.test :as stest]
+            [prolog-analyzer.records :as r :refer [spec]]
+            [prolog-analyzer.specs :as specs]
+            [prolog-analyzer.state :refer [user-typedefs]]
             [prolog-analyzer.utils :as utils :refer [case+ duocase]]))
 
 (declare intersect)

@@ -1,13 +1,11 @@
 (ns prolog-analyzer.analyzer.global-analysis
-  (:require [prolog-analyzer.state :as state]
-            [prolog-analyzer.utils :as utils :refer [case+]]
+  (:require [clojure.tools.logging :as log]
+            [flatland.ordered.set :refer [ordered-set]]
+            [prolog-analyzer.analyzer.core :as clause-analysis]
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.records :as r]
-            [clojure.tools.logging :as log]
-            [prolog-analyzer.result-visualizer :refer [print-intermediate-result]]
-            [flatland.ordered.set :refer [ordered-set]]
-            [prolog-analyzer.analyzer.core :as clause-analysis]))
-
+            [prolog-analyzer.state :as state]
+            [prolog-analyzer.utils :as utils]))
 
 (defn- log-if-empty [data]
   (when (empty? (utils/get-pred-identities data))

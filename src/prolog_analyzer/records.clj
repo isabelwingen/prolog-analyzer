@@ -1,9 +1,7 @@
 (ns prolog-analyzer.records
-  (:require [clojure.tools.logging :as log]
-            [clojure.tools.namespace.repl :refer [refresh]]
-            [instaparse.core :as insta]
-            [clojure.string]))
-
+  (:require clojure.string
+            [clojure.tools.logging :as log]
+            [instaparse.core :as insta]))
 
 (def INTEGER :integer)
 (def FLOAT :float)

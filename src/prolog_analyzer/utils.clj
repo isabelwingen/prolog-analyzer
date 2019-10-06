@@ -1,16 +1,10 @@
 (ns prolog-analyzer.utils
   "Contains usefull utility functions used across different namespaces."
-  (:require [ubergraph.core :as uber]
-            [clojure.tools.logging :as log]
-            [prolog-analyzer.records :as r]
-            [clojure.spec.alpha :as s]
-            [prolog-analyzer.specs :as specs]
+  (:require [orchestra.core :refer [defn-spec]]
             [orchestra.spec.test :as stest]
-            [orchestra.core :refer [defn-spec]]
-            [ubergraph.protocols]
-            [loom.graph]
-            [loom.attr]
-            ))
+            [prolog-analyzer.records :as r]
+            [prolog-analyzer.specs :as specs]
+            [ubergraph.core :as uber]))
 
 ;; for data extracted from a prolog file
 
