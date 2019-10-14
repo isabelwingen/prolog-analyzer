@@ -1,23 +1,25 @@
 (ns prolog-analyzer.analyzer.calculate-env
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.spec.alpha :as s]
+            [orchestra.core :refer [defn-spec]]
+            [orchestra.spec.test :as stest]
+            [clojure.tools.logging :as log]
             [prolog-analyzer.analyzer.domain :as dom]
             [prolog-analyzer.analyzer.post-specs :as post-specs]
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.state :as state]
             [prolog-analyzer.utils :as utils :refer [case+]]
-            [ubergraph.core :as uber]))
+            [ubergraph.core :as uber]
+            [prolog-analyzer.specs :as specs]))
 
-(def DEEPNESS 3)
+(def ^:private DEEPNESS 3)
 
-(defn xyzabc [env term spec {initial? :initial overwrite? :overwrite}]
+(defn ^:private add-to-dom [env term spec {initial? :initial overwrite? :overwrite}]
   (if overwrite?
     (dom/add-to-dom-post-spec env term spec)
     (dom/add-to-dom env initial? term spec)))
 
-(defmulti ^{:private true} process-edge (fn [_ env edge] (uber/attr env edge :relation)))
-
-(defn- compatible-with-head [{initial? :initial :as parameters} head-dom term-dom]
+(defn ^:private compatible-with-head [{initial? :initial :as parameters} head-dom term-dom]
   (case+ (ru/spec-type term-dom)
          r/TUPLE (let [new-dom (update term-dom :arglist #(assoc % 0 head-dom))]
                    (if (ru/non-empty-intersection new-dom term-dom initial?)
@@ -37,22 +39,24 @@
            term-dom
            nil)))
 
-
-(defn- singleton-list? [term]
+(defn ^:private singleton-list? [term]
   (and (ru/empty-list-term? (ru/tail term))))
 
-(defmethod process-edge :is-head [parameters env edge]
-  (let [head (uber/src edge)
-        term (uber/dest edge)
-        head-dom (utils/get-dom-of-term env head)
-        term-dom (utils/get-dom-of-term env term)
-        filtered-dom (compatible-with-head parameters head-dom term-dom)]
-    (if (singleton-list? term)
-      (xyzabc env term (r/->TupleSpec [head-dom]) parameters)
-      (xyzabc env term (or filtered-dom (r/DISJOINT "No term dom is compatible with head")) parameters))))
+(defn ^:private deepness [spec]
+  (case+ (ru/spec-type spec)
+         (r/USERDEFINED, r/COMPOUND, r/TUPLE) (->> spec
+                                                   :arglist
+                                                   (map deepness)
+                                                   (apply max 0)
+                                                   inc)
+         r/OR (->> spec
+                   :arglist
+                   (map deepness)
+                   (apply max 0))
+         r/LIST (-> spec :type deepness inc)
+         1))
 
-
-(defn get-matching-head [tail pair-id env]
+(defn ^:private get-matching-head [tail pair-id env]
   (let [head (some->> env
                       uber/edges
                       (filter #(= :is-head (uber/attr env % :relation)))
@@ -61,6 +65,18 @@
                       uber/src)]
     (assert (not (nil? head)) (str (utils/get-title env) " " (r/to-string tail)))
     head))
+
+(defmulti ^:private process-edge (fn [_ env edge] (uber/attr env edge :relation)))
+
+(defmethod process-edge :is-head [parameters env edge]
+  (let [head (uber/src edge)
+        term (uber/dest edge)
+        head-dom (utils/get-dom-of-term env head)
+        term-dom (utils/get-dom-of-term env term)
+        filtered-dom (compatible-with-head parameters head-dom term-dom)]
+    (if (singleton-list? term)
+      (add-to-dom env term (r/->TupleSpec [head-dom]) parameters)
+      (add-to-dom env term (or filtered-dom (r/DISJOINT "No term dom is compatible with head")) parameters))))
 
 (defmethod process-edge :is-tail [parameters env edge]
   (let [tail (uber/src edge)
@@ -75,23 +91,7 @@
                                                                (apply vector)))
                        r/LIST (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom)))
                        term-dom)]
-    (xyzabc env term new-dom parameters)))
-
-
-(defn deepness [spec]
-  (case+ (ru/spec-type spec)
-         (r/USERDEFINED, r/COMPOUND, r/TUPLE) (->> spec
-                                                   :arglist
-                                                   (map deepness)
-                                                   (apply max 0)
-                                                   inc)
-         r/OR (->> spec
-                   :arglist
-                   (map deepness)
-                   (apply max 0))
-         r/LIST (-> spec :type deepness inc)
-         1))
-
+    (add-to-dom env term new-dom parameters)))
 
 (defmethod process-edge :arg-at-pos [parameters env edge]
   (let [child (uber/src edge)
@@ -108,23 +108,23 @@
                      (r/->CompoundSpec functor))]
     (if (> (deepness new-dom) DEEPNESS)
       env
-      (xyzabc env parent new-dom parameters))))
+      (add-to-dom env parent new-dom parameters))))
 
 (defmethod process-edge :default [defs env edge]
   env)
 
-(defn process-edges [env parameters]
+(defn ^:private process-edges [env parameters]
   (reduce (partial process-edge parameters) env (uber/edges env)))
 
-(defn process-post-specs [env parameters]
-  (reduce (fn [e [term spec]] (xyzabc e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
+(defn ^:private process-post-specs [env parameters]
+  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
 
-(defn- post-process-step [env parameters]
+(defn ^:private post-process-step [env parameters]
   (-> env
       (process-edges parameters)
       (process-post-specs parameters)))
 
-(defn- post-process [env parameters]
+(defn ^:private post-process [env parameters]
   (loop [counter 0
          res env]
     (log/trace (utils/format-log env "Post Process - " counter))
@@ -133,31 +133,32 @@
         res
         (recur (inc counter) next)))))
 
-(defn get-env-for-head
+(defn-spec get-env-for-head ::specs/env
   "Calculates an environment from the header terms and the prespec"
-  [title arglist pre-spec]
+  [title ::specs/clause-id, arglist ::specs/arglist, pre-spec ::specs/spec]
   (log/trace (utils/format-log title "Calculate env for head"))
   (let [parameters {:initial true}]
     (-> (uber/digraph)
         (utils/set-arguments arglist)
         (utils/set-title title)
-        (xyzabc (apply ru/to-head-tail-list arglist) pre-spec parameters)
+        (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
         (post-process parameters)
         )))
 
-(defn- get-env-for-pre-spec-of-subgoal
-  "Calculates an environment from a subgoal and its pre-specs"
-  [in-env arglist pre-spec]
+(defn-spec ^:private get-env-for-pre-spec-of-subgoal ::specs/env
+  "Takes an environment and adds the information from the prespecs"
+  [in-env ::specs/env, arglist ::specs/arglist, pre-spec ::specs/spec]
   (log/trace (utils/format-log in-env "Calculate env for pre spec"))
   (let [parameters {:initial false}]
     (-> in-env
-        (xyzabc (apply ru/to-head-tail-list arglist) pre-spec parameters)
+        (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
         dom/add-structural-edges
         (post-process parameters))))
 
-(defn- get-env-for-post-spec-of-subgoal
-  [in-env arglist post-specs]
+(defn-spec ^:private get-env-for-post-spec-of-subgoal ::specs/env
+  "Takes an environment and adds the information from the postspecs"
+  [in-env ::specs/env, arglist ::specs/arglist, post-specs ::specs/post-specs]
   (log/trace (utils/format-log in-env "Calculate env for post spec"))
   (let [parameters {:initial false :overwrite true}]
     (-> in-env
@@ -165,15 +166,16 @@
         dom/add-structural-edges
         (post-process parameters))))
 
-(defn mark-self-calling [in-env subgoal-id]
-  (let [pred-id (vec (drop-last (utils/get-title in-env)))]
-    (when (= pred-id subgoal-id)
-      (swap! state/self-calling update pred-id #(inc (or % 0))))
-    (get @state/self-calling pred-id 0)))
-
-(defn get-env-for-subgoal
-  [in-env subgoal-id arglist pre-spec post-specs]
+(defn-spec get-env-for-subgoal ::specs/env
+  "Takes an environment and adds the information gained from the given subgoal."
+  [in-env ::specs/env,
+   subgoal-id ::specs/pred-id,
+   arglist ::specs/arglist,
+   pre-spec ::specs/spec,
+   post-specs ::specs/post-specs]
   (log/trace (utils/format-log in-env "Calculate env for subgoal"))
   (-> in-env
       (get-env-for-pre-spec-of-subgoal arglist pre-spec)
       (get-env-for-post-spec-of-subgoal arglist post-specs)))
+
+(stest/instrument)
