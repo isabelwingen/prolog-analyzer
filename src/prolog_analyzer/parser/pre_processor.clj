@@ -13,11 +13,18 @@
             [prolog-analyzer.parser.create-missing-annotations :as anno]
             ))
 
+(def loaded-preds (atom {}))
 
 (defn- set-correct-goal-module [pred->module-map {goal-name :goal arity :arity goal-module :module :as goal}]
-  (if (= "self" goal-module)
-    (assoc goal :module (get pred->module-map goal-name "user"))
-    goal))
+  (cond
+    (= "self" goal-module) (assoc goal :module (get pred->module-map goal-name "user"))
+    (= :or goal-name) (-> goal
+                          (assoc :module :built-in)
+                          (update :arglist (partial map (partial map (partial set-correct-goal-module pred->module-map)))))
+    (= :if goal-name) (-> goal
+                          (assoc :module :built-in)
+                          (update :arglist (partial map (partial map (partial set-correct-goal-module pred->module-map)))))
+    :else goal))
 
 
 (defn- calculate-pred-to-module-map [pred->module-maps caller-module imports]
@@ -35,21 +42,35 @@
                              (apply merge))]
     (merge weak-mappings strong-mappings)))
 
+(defn switch-map [m]
+  (apply merge (for [[k v] m
+                     y v]
+                 {y k})))
+
+(defn apply-to-value [f m]
+  (reduce-kv #(assoc %1 %2 (f %3)) {} m))
+
+(defn map-loaded-preds [l]
+  (->> l
+       (group-by first)
+       (apply-to-value (partial map second))
+       switch-map))
+
 (defn calculate-pred-to-module-maps [data]
   (let [m (->> (select-keys data [:pre-specs :post-specs :preds])
                (vals)
                (mapcat keys)
                (group-by first)
-               (reduce-kv (fn [m k v] (assoc m k (reduce #(assoc %1 (second %2) (first %2)) {} v))) {}))]
+               (apply-to-value map-loaded-preds))]
     (reduce #(assoc %1 %2 (calculate-pred-to-module-map %1 %2 (:imports data))) m (keys m))))
 
+(defn fix-modules-in-clause [result [[source-module & _ :as pred-id] clause-number]]
+  (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module (get @loaded-preds source-module)))))
+
+
 (defn set-correct-modules [data]
-  (let [pred->module-maps (calculate-pred-to-module-maps data)]
-    (reduce
-     (fn [result [[source-module & _ :as pred-id] clause-number]]
-       (update-in result [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module (get pred->module-maps source-module)))))
-     data
-     (utils/get-clause-identities data))))
+  (reset! loaded-preds (calculate-pred-to-module-maps data))
+  (reduce fix-modules-in-clause data (utils/get-clause-identities data)))
 
 (defn transform-singleton-lists [data]
   (reduce (fn [d [pred-id clause-number]] (update-in d [:singletons pred-id clause-number] #(apply vector (map r/map-to-term %)))) data (utils/get-clause-identities data)))
