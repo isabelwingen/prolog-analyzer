@@ -135,24 +135,24 @@
 
 (defn-spec get-env-for-head ::specs/env
   "Calculates an environment from the header terms and the prespec"
-  [title ::specs/clause-id, arglist ::specs/arglist, pre-spec ::specs/spec]
-  (log/trace (utils/format-log title "Calculate env for head"))
+  [clause-id ::specs/clause-id, arglist ::specs/arglist, prespec-as-spec ::specs/spec]
+  (log/trace (utils/format-log clause-id "Calculate env for head"))
   (let [parameters {:initial true}]
     (-> (uber/digraph)
         (utils/set-arguments arglist)
-        (utils/set-title title)
-        (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
+        (utils/set-title clause-id)
+        (add-to-dom (apply ru/to-head-tail-list arglist) prespec-as-spec parameters)
         dom/add-structural-edges
         (post-process parameters)
         )))
 
 (defn-spec ^:private get-env-for-pre-spec-of-subgoal ::specs/env
   "Takes an environment and adds the information from the prespecs"
-  [in-env ::specs/env, arglist ::specs/arglist, pre-spec ::specs/spec]
+  [in-env ::specs/env, arglist ::specs/arglist, prespec-as-spec ::specs/spec]
   (log/trace (utils/format-log in-env "Calculate env for pre spec"))
   (let [parameters {:initial false}]
     (-> in-env
-        (add-to-dom (apply ru/to-head-tail-list arglist) pre-spec parameters)
+        (add-to-dom (apply ru/to-head-tail-list arglist) prespec-as-spec parameters)
         dom/add-structural-edges
         (post-process parameters))))
 
@@ -171,11 +171,11 @@
   [in-env ::specs/env,
    subgoal-id ::specs/pred-id,
    arglist ::specs/arglist,
-   pre-spec ::specs/spec,
+   prespec-as-spec ::specs/spec,
    post-specs ::specs/post-specs]
   (log/trace (utils/format-log in-env "Calculate env for subgoal"))
   (-> in-env
-      (get-env-for-pre-spec-of-subgoal arglist pre-spec)
+      (get-env-for-pre-spec-of-subgoal arglist prespec-as-spec)
       (get-env-for-post-spec-of-subgoal arglist post-specs)))
 
 (stest/instrument)
