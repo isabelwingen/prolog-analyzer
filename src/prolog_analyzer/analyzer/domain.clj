@@ -15,20 +15,13 @@
 (def DOM :dom)
 (def HIST :history)
 
-(s/fdef add-steps
-  :args (s/cat
-         :env utils/is-graph?
-         :steps (s/coll-of (s/tuple ::specs/term ::specs/spec))
-         :initial? boolean?)
-  :ret utils/is-graph?)
-
-(defn-spec execute-step ::specs/env
+(defn-spec ^:private execute-step ::specs/env
   [initial? boolean?,
    env ::specs/env
    [term spec] ::specs/step]
   (add-to-dom env initial? term (ru/simplify spec initial?)))
 
-(defn-spec process-next-steps ::specs/env
+(defn-spec ^:private process-next-steps ::specs/env
   [env ::specs/env
    term ::specs/term
    spec ::specs/spec
@@ -38,11 +31,11 @@
    env
    (next-steps/get-steps env term (ru/simplify spec initial?))))
 
-(defn- has-dom? [env term]
-  (and (uber/has-node? env term) (uber/attr env term :dom)))
+(defn-spec ^:private has-dom? boolean?
+  [env ::specs/env, term ::specs/term]
+  (and (uber/has-node? env term) (uber/attr env term :dom) true))
 
-
-(defn-spec first-add ::specs/env
+(defn-spec ^:private first-add ::specs/env
   [env ::specs/env
    initial? boolean?
    term ::specs/term
@@ -61,27 +54,31 @@
           (add-to-dom initial? term (ru/initial-spec term))
           (add-to-dom initial? term spec)))))
 
-(defn- fully-qualified-spec? [spec]
+(defn-spec ^:private fully-qualified-spec? boolean?
+  [spec ::specs/spec]
   (case+ (ru/spec-type spec)
          (r/TUPLE, r/LIST, r/COMPOUND) true
          r/OR (every? fully-qualified-spec? (:arglist spec))
          false))
 
-(defn- incomplete-list? [spec term]
+(defn-spec ^:private incomplete-list? boolean?
+  [spec ::specs/spec, term ::specs/term]
   (and
    (not (fully-qualified-spec? spec))
    (ru/list-term? term)))
 
-(defn- old? [new env term]
+(defn-spec ^:private old? boolean?
+  [new ::specs/spec, env ::specs/env, term ::specs/term]
   (contains? (apply hash-set (uber/attr env term HIST)) new))
 
-(defn create-incomplete-list-spec
+(defn-spec ^:private create-incomplete-list-spec ::specs/spec
   ([] (create-incomplete-list-spec (r/->AnySpec)))
-  ([head-dom]
+  ([head-dom ::specs/spec]
    (r/->CompoundSpec "." [head-dom (r/->AnySpec)])))
 
 
 (defn-spec add-to-dom ::specs/env
+  "Adds a spec to a domain of a term and executes cascading steps"
   ([env ::specs/env,
     term ::specs/term
     spec ::specs/spec]
@@ -110,7 +107,9 @@
                                               (process-next-steps term new initial?)
                                               )))))))
 
-(defn add-to-dom-post-spec [env term spec]
+(defn-spec add-to-dom-post-spec ::specs/env
+  "Adds a spec obtained from a postspec to the environment"
+  [env ::specs/env, term ::specs/term, spec ::specs/spec]
   (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))
 
 
@@ -119,7 +118,7 @@
   :args (s/cat :term ::specs/term)
   :ret (s/coll-of (s/tuple ::specs/term ::specs/term map?)))
 
-(defmulti ^{:private true} edges (fn [term] (ru/term-type term)))
+(defmulti ^:private edges (fn [term] (ru/term-type term)))
 
 (defmethod edges :list [term]
   (let [pair (gensym)]
@@ -132,7 +131,9 @@
 (defmethod edges :default [term]
   [])
 
-(defn add-structural-edges [env]
+(defn-spec add-structural-edges ::specs/env
+  "Adds relationships between compound terms and their children"
+  [env ::specs/env]
   (log/trace "add structural edges")
   (loop [res env
          terms (vec (utils/get-terms env))]
