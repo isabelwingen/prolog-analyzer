@@ -134,7 +134,7 @@
         (recur (inc counter) next)))))
 
 (defn-spec get-env-for-head ::specs/env
-  "Calculates an environment from the header terms and the prespec"
+  "Calculates an environment from the header terms and the prespecs"
   [clause-id ::specs/clause-id, arglist ::specs/arglist, prespec-as-spec ::specs/spec]
   (log/trace (utils/format-log clause-id "Calculate env for head"))
   (let [parameters {:initial true}]
