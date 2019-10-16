@@ -125,25 +125,31 @@
 (defmethod next-steps :default [term spec]
   [])
 
-(defn- fully-qualified-spec? [spec]
+(defn-spec ^:private fully-qualified-spec? boolean?
+  [spec ::specs/spec]
   (case+ (ru/spec-type spec)
          (r/TUPLE, r/LIST, r/COMPOUND) true
          r/OR (every? fully-qualified-spec? (:arglist spec))
          false))
 
-(defn- fully-qualified-term? [env term]
+(defn-spec ^:private fully-qualified-term? boolean?
+  [env ::specs/env, term ::specs/term]
   (if (ru/empty-list-term? term)
     true
     (if (ru/list-term? term)
       (recur env (ru/tail term))
       false)))
 
-(defn- fully-qualified? [env term spec]
-  (or
-   (fully-qualified-term? env term)
-   (fully-qualified-spec? spec)))
+(defn-spec ^:private fully-qualified? boolean?
+  [env ::specs/env, term ::specs/term, spec ::specs/spec]
+  (if (or
+       (fully-qualified-term? env term)
+       (fully-qualified-spec? spec))
+    true
+    false))
 
-(defn- next-steps-of-list-term [env term spec]
+(defn-spec ^:private next-steps-of-list-term ::specs/steps
+  [env ::specs/env, term ::specs/term, spec ::specs/spec]
   (if (or
        (fully-qualified-term? env term)
        (fully-qualified-spec? spec))
@@ -152,6 +158,7 @@
 
 
 (defn-spec get-steps ::specs/steps
+  "Get next steps from term"
   [env ::specs/env,
    term ::specs/term,
    spec ::specs/spec]
