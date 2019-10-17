@@ -121,6 +121,7 @@
     nil))
 
 (defn-spec get-next-steps-from-post-specs ::specs/steps
+  "Calculates steps from the registered, applicable postspecs"
   [env ::specs/env]
   (let [post-specs (get-post-specs env)]
     (->> post-specs
