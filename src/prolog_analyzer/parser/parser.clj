@@ -47,7 +47,7 @@
 (defmulti ^{:private true} call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
-  (log/info "Call prolog")
+  (log/info "Call prolog on " file)
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
@@ -58,7 +58,7 @@
     err))
 
 (defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file edn-file]
-  (log/info "Call prolog")
+  (log/info "Call prolog on " file)
   (let [path-to-analyzer (str "'" term-expander "'")
         goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
                   "set_file('" edn-file "'),"
