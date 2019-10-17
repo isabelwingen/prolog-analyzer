@@ -7,7 +7,7 @@ jobs:
   build:
     docker:
       # specify the version you desire here
-      - image: circleci/clojure:lein-2.7.1
+      - image: circleci/clojure:lein-2.9.1
 
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -26,6 +26,9 @@ jobs:
       - run:
           name: Install swipl
           command: "sudo apt-get update && sudo apt-get install swi-prolog"
+      - run:
+          name: Check Version
+          command: "swipl --version"
 
       # Download and cache dependencies
       - restore_cache:
@@ -33,9 +36,7 @@ jobs:
           - v1-dependencies-{{ checksum "project.clj" }}
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
-
       - run: lein deps
-
       - save_cache:
           paths:
             - ~/.m2
@@ -43,5 +44,9 @@ jobs:
 
       # run tests!
       - run:
+          name: Prepare CI term expander
+          command: cp .circleci/prolog_analyzer.pl prolog/prolog_analyzer.pl
+      - run:
+          name: Test
           command: lein midje
           no_output_timeout: 60m

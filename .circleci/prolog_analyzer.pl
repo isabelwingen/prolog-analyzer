@@ -626,7 +626,7 @@ write_singletons(_) :- !.
 user:term_expansion(A,Out) :-
     !,
     term_expander(A),
-    write_singletons(A),
+   % write_singletons(A),
     ((A = ':-'(module(_));A=':-'(module(_,_))) -> Out=A; Out=[]).
 
 :- multifile user:term_expansion/6.

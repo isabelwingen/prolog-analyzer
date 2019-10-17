@@ -10,6 +10,7 @@
                  [org.clojure/tools.logging "0.4.1"]
                  [hiccup "1.0.5"]
                  [midje "1.9.9"]
+                 [lein-midje "3.2.1"]
                  [instaparse "1.4.10"]
                  [orchestra "2018.12.06-2"]
                  [org.flatland/ordered "1.5.7"]
@@ -24,4 +25,6 @@
   :main ^:skip-aot prolog-analyzer.core
   :target-path "target/%s"
   :jvm-opts ["-Xms2g" "-Xmx6g"]
-  :profiles {:uberjar {:aot :all}})
+  :profiles {:dev {:dependencies [[midje "1.9.9"]]
+                   :plugins [[lein-midje "3.2.1"]]}
+             :uberjar {:aot :all}})

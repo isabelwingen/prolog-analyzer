@@ -47,23 +47,24 @@
 (defmulti ^{:private true} call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
 
 (defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
-  (log/info "Call prolog on " file)
+  (log/info "Call prolog on" file)
   (let [path-to-analyzer (str "'" term-expander "'")
-        goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
+        goal (str "use_module(" path-to-analyzer ", [set_file/1, close_orphaned_stream/0]),"
                   "set_file('" edn-file "'),"
                   "['" file "'],"
-                  "prolog_analyzer:close_orphaned_stream,"
+                  "close_orphaned_stream,"
                   "halt.")
-        {err :err} (sh/sh "swipl" "-g" goal "-q" :env (into {} (System/getenv)))]
+        {err :err} (sh/sh prolog-exe "-g" goal :env (into {} (System/getenv)))]
     err))
 
+
 (defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file edn-file]
-  (log/info "Call prolog on " file)
+  (log/info "Call prolog on" file)
   (let [path-to-analyzer (str "'" term-expander "'")
-        goal (str "use_module(" path-to-analyzer ", [set_file/1]),"
+        goal (str "use_module(" path-to-analyzer ", [set_file/1, close_orphaned_stream/0]),"
                   "set_file('" edn-file "'),"
                   "['" file "'],"
-                  "prolog_analyzer:close_orphaned_stream,"
+                  "close_orphaned_stream,"
                   "halt.")
         {err :err} (time (sh/sh prolog-exe "--goal" goal "--noinfo" :env (into {} (System/getenv))))]
     err))
@@ -310,7 +311,9 @@
         edn-file (get-edn-file-name file-name)]
     (when (.exists (io/file edn-file))
       (io/delete-file edn-file))
-    (call-prolog dialect term-expander prolog-exe file-name edn-file)
+    (if-let [err (call-prolog dialect term-expander prolog-exe file-name edn-file)]
+      (log/warn err)
+      nil)
     (process-edn edn-file built-ins)))
 
 (defn process-prolog-directory [dialect term-expander prolog-exe dir-name]
