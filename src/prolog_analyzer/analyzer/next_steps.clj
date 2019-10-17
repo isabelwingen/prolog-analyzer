@@ -13,7 +13,7 @@
   :args (s/cat :term ::specs/term :spec ::specs/spec)
   :ret ::specs/steps)
 
-(defmulti process-or (fn [term spec] (ru/term-type term)))
+(defmulti ^:private process-or (fn [term spec] (ru/term-type term)))
 
 (defmethod process-or r/LIST [term spec]
   (let [{head :head tail :tail} term
@@ -70,7 +70,7 @@
          :spec ::specs/spec)
   :ret ::specs/steps)
 
-(defmulti ^{:private true} next-steps
+(defmulti ^:private next-steps
   (fn [term spec]
     (case+ (ru/spec-type spec)
            r/TUPLE :tuple
