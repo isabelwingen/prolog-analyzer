@@ -277,6 +277,11 @@
       (merge-with into data built-in)
       )))
 
+(defn write-and-return-result [edn-file result]
+  (spit (io/file (str edn-file ".transformed")) (with-out-str (pprint result)))
+  result)
+
+
 (defn process-built-ins [dialect term-expander prolog-exe]
   (let [file-name "prolog/builtins.pl"
         edn-file (get-edn-file-name file-name)]
@@ -284,17 +289,21 @@
       (call-prolog dialect term-expander prolog-exe file-name edn-file))
     (->> edn-file
          read-in-data
-         format-and-clean-up)))
+         format-and-clean-up
+         (write-and-return-result edn-file))))
 
 (defn process-edn
-  ([edn]
+  ([edn-file]
    (let [built-ins (process-built-ins "swipl" "prolog/prolog-analyzer.pl" "swipl")]
-     (process-edn edn built-ins)))
-  ([edn built-ins]
-   (let [data (->> edn
+     (process-edn edn-file built-ins)))
+  ([edn-file built-ins]
+   (let [data (->> edn-file
                    read-in-data
                    format-and-clean-up)]
-     (pre-processor/pre-process-single (merge-with into data built-ins)))))
+     (->> built-ins
+          (merge-with into data)
+          pre-processor/pre-process-single
+          (write-and-return-result edn-file)))))
 
 (defn process-prolog-file [dialect term-expander prolog-exe file-name]
   (let [built-ins (process-built-ins dialect term-expander prolog-exe)
