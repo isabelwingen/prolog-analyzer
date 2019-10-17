@@ -7,7 +7,7 @@
             [midje.sweet :refer :all]))
 
 (defmacro test-wrapper [header-vars spec]
-  `(utils/env->map (sut/get-env-for-head "test" (apply vector (map to-term ~header-vars)) (to-spec ~spec))))
+  `(utils/env->map (sut/get-env-for-head ["tmp" "foo" (count ~header-vars) 0] (apply vector (map to-term ~header-vars)) (to-spec ~spec))))
 
 (facts
  "About Lists"

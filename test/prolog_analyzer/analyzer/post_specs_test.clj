@@ -13,20 +13,29 @@
    :environment
    :post-specs))
 
+(def a (r/->VarTerm "A"))
+(def b (r/->VarTerm "B"))
+(def c (r/->VarTerm "C"))
+(def s1 (r/->IntegerSpec))
+(def s2 (r/->FloatSpec))
+(def s3 (r/->AtomSpec))
+(def s4 (r/->EmptyListSpec))
+(def s5 (r/->StringSpec))
+
 (facts
  "About regist-post-specs"
  (fact
   "Empty guard"
-  (register-post-specs [:a :b :c] [{:guard [] :conclusion [[{:id 0 :type :x} {:id 1 :type :y} {:id 2 :type :z}]]}])
+  (register-post-specs [a b c] [{:guard [] :conclusion [[{:id 0 :type s1} {:id 1 :type s2} {:id 2 :type s3}]]}])
   =>
-  (contains [{:guard [] :conclusion [[{:arg :a :type :x} {:arg :b :type :y} {:arg :c :type :z}]]}]))
+  (contains [{:guard [] :conclusion [[{:arg a :type s1} {:arg b :type s2} {:arg c :type s3}]]}]))
  (fact
-  (register-post-specs [:a :b :c] [{:guard [{:id 0 :type :x} {:id 1 :type :y}] :conclusion [[{:id 2 :type :z}], [{:id 2 :type :x}]]}
-                                   {:guard [{:id 2 :type :p}] :conclusion [[{:id 0 :type :q} {:id 1 :type :q}]]}])
+  (register-post-specs [a b c] [{:guard [{:id 0 :type s1} {:id 1 :type s2}] :conclusion [[{:id 2 :type s3}], [{:id 2 :type s1}]]}
+                                {:guard [{:id 2 :type s4}] :conclusion [[{:id 0 :type s5} {:id 1 :type s5}]]}])
 
 
-  => (contains [{:conclusion [[{:arg :c :type :z}], [{:arg :c :type :x}]] :guard [{:arg :a :type :x} {:arg :b :type :y}]}
-                {:conclusion [[{:arg :a :type :q} {:arg :b :type :q}]] :guard [{:arg :c :type :p}]}])))
+  => (contains [{:conclusion [[{:arg c :type s3}], [{:arg c :type s1}]] :guard [{:arg a :type s1} {:arg b :type s2}]}
+                {:conclusion [[{:arg a :type s5} {:arg b :type s5}]] :guard [{:arg c :type s4}]}])))
 
 
 (defn test-wrapper [arglist values post-specs]
