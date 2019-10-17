@@ -76,9 +76,9 @@
         nil))))
 
 (defn-spec ^:private merge-single-guard-values ::alias-map-or-nil
-  [guard-maps (s/coll-of map?)]
+  [guard-maps (s/coll-of ::alias-map-or-nil)]
   (if (some nil? guard-maps)
-    false
+    nil
     (let [to-seq (fn [x] (if (seq? x) x [x]))
           res (->> guard-maps
                    (apply merge-with (comp flatten vector))

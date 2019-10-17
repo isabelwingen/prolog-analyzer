@@ -33,7 +33,9 @@
 
 (defn-spec ^:private has-dom? boolean?
   [env ::specs/env, term ::specs/term]
-  (and (uber/has-node? env term) (uber/attr env term :dom) true))
+  (if (and (uber/has-node? env term) (uber/attr env term :dom))
+    true
+    false))
 
 (defn-spec ^:private first-add ::specs/env
   [env ::specs/env
