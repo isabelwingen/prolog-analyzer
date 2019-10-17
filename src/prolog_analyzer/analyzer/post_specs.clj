@@ -9,18 +9,22 @@
             [orchestra.core :refer [defn-spec]]
             ))
 
-(defn- replace-id-with-arg [arglist {id :id :as p}]
+
+(defn-spec ^:private replace-id-with-arg ::specs/resolved-typing
+  [arglist ::specs/arglist, {id :id :as p} ::specs/typing]
   (-> p
       (assoc :arg (nth arglist id))
       (dissoc :id)))
 
-(defn- replace-ids-with-args [postspec arglist]
+(defn-spec ^:private replace-ids-with-args ::specs/resolved-post-spec
+  [postspec ::specs/post-spec, arglist ::specs/arglist]
   (-> postspec
       (update :guard (partial map (partial replace-id-with-arg arglist)))
       (update :conclusion (partial map (partial map (partial replace-id-with-arg arglist))))
       ))
 
-(defn- register-post-spec [env arglist post-spec]
+(defn-spec ^:private register-post-spec ::specs/env
+  [env ::specs/env, arglist ::specs/arglist, post-spec ::specs/post-spec]
   (if (uber/has-node? env :environment)
     (utils/update-attr env :environment :post-specs conj (replace-ids-with-args post-spec arglist))
     (-> env
@@ -28,19 +32,22 @@
         (uber/add-attr :environment :post-specs [])
         (register-post-spec arglist post-spec))))
 
-(defn register-post-specs [env arglist post-specs]
+(defn-spec register-post-specs ::specs/env
+  "Adds a postspec as active to an environment"
+  [env ::specs/env, arglist ::specs/arglist, post-specs ::specs/post-specs]
   (reduce #(register-post-spec %1 arglist %2) env post-specs))
 
-(defn- get-post-specs [env]
+(defn-spec ^:private get-post-specs ::specs/resolved-post-specs
+  [env ::specs/env]
   (if (uber/has-node? env :environment)
-    (uber/attr env :environment :post-specs)
+    (or (uber/attr env :environment :post-specs) [])
     []))
 
-(s/fdef match-guard-with-type
-  :args (s/cat :guard ::specs/spec :actual-type ::specs/spec)
-  :ret (s/or :map map? :nil nil?))
+(s/def ::alias-map (s/map-of string? ::specs/spec))
+(s/def ::alias-map-or-nil (s/or :map ::alias-map :nil nil?))
 
-(defn- match-guard-with-type [guard-type actual-type]
+(defn-spec ^:private match-guard-with-type ::alias-map-or-nil
+  [guard-type ::specs/spec actual-type ::specs/spec]
   (let [merge-fn #(if (empty? %)
                     (r/->ErrorSpec "Empty alias!")
                     (ru/simplify (r/->OneOfSpec %) false))
@@ -58,12 +65,9 @@
 
 (s/def ::arg ::specs/term)
 (s/def ::type ::specs/spec)
-(s/fdef is-guard-true?
-  :args (s/cat
-         :env utils/is-graph?
-         :p (s/keys :req-un [::arg ::type])))
 
-(defn is-guard-true? [env {arg :arg guard-type :type :as p}]
+(defn-spec is-guard-true? ::alias-map-or-nil
+  [env ::specs/env {arg :arg guard-type :type :as p} (s/keys :req-un [::arg ::type])]
   (let [actual-type (utils/get-dom-of-term env arg)]
     (if (ru/contains-placeholder? guard-type)
       (match-guard-with-type guard-type actual-type)
@@ -71,7 +75,8 @@
         {}
         nil))))
 
-(defn- merge-single-guard-values [guard-maps]
+(defn-spec ^:private merge-single-guard-values ::alias-map-or-nil
+  [guard-maps (s/coll-of map?)]
   (if (some nil? guard-maps)
     false
     (let [to-seq (fn [x] (if (seq? x) x [x]))
@@ -82,18 +87,20 @@
         nil
         res))))
 
-(defn- post-spec-applicable? [env {guards :guard}]
+(defn-spec ^:private post-spec-applicable? ::alias-map-or-nil
+  [env ::specs/env {guards :guard} ::specs/resolved-post-spec]
   (->> guards
        (map (partial is-guard-true? env))
        merge-single-guard-values))
 
-(defn- complete-conclusion [part arglist]
+(defn-spec ^:private complete-conclusion (s/map-of ::specs/term ::specs/spec)
+  [part ::specs/resolved-typings arglist ::specs/arglist]
   (let [specifics-as-map (reduce #(assoc %1 (:arg %2) (:type %2)) {} part)
         all-as-map (reduce #(assoc %1 %2 (r/->AnySpec)) {} arglist)]
     (merge all-as-map specifics-as-map)))
 
-(defn- create-step-from-post-spec
-  [{conclusions :conclusion} alias-map]
+(defn-spec ^:private create-step-from-post-spec ::specs/step
+  [{conclusions :conclusion} ::specs/resolved-post-spec alias-map ::alias-map]
   (let [args (set (mapcat #(map :arg %) conclusions))
         new-conc (map #(complete-conclusion % args) conclusions)
         spec (->> new-conc
@@ -107,14 +114,18 @@
     [tuple spec]))
 
 
-(defn- create-step [env post-spec]
+(defn-spec ^:private create-step (s/or :nil nil? :step ::specs/step)
+  [env ::specs/env post-spec ::specs/resolved-post-spec]
   (if-let [alias-map (post-spec-applicable? env post-spec)]
     (create-step-from-post-spec post-spec alias-map)
     nil))
 
-(defn get-next-steps-from-post-specs [env]
+(defn-spec get-next-steps-from-post-specs ::specs/steps
+  [env ::specs/env]
   (let [post-specs (get-post-specs env)]
     (->> post-specs
          (map (partial create-step env))
          (remove nil?)
          set)))
+
+(stest/instrument)
