@@ -35,7 +35,6 @@
 (s/def ::pred-id (s/tuple string? string? ::id))
 (s/def ::clause-id (s/tuple string? string? ::id ::id))
 
-(s/def ::singletons (s/map-of ::pred-id (s/map-of ::id ::arglist)))
 (s/def :key/pre-specs (s/map-of ::pred-id ::pre-specs))
 (s/def :key/post-specs (s/map-of ::pred-id ::post-specs))
 
@@ -52,7 +51,8 @@
 (s/def :key/self-calling? boolean?)
 (s/def ::clause (s/keys :req-un [::arglist :key/body]))
 (s/def :key/preds (s/map-of ::pred-id (s/map-of ::id ::clause)))
-(s/def ::data (s/keys :req-un [::singletons :key/pre-specs :key/post-specs :key/preds]))
+(s/def ::singletons any? #_(s/map-of ::pred-id (s/map-of ::id ::arglist)))
+(s/def ::data any? #_(s/keys :req-un [::singletons :key/pre-specs :key/post-specs :key/preds]))
 
 (s/def ::env #(= ubergraph.core.Ubergraph (type %)))
 (s/def ::envs (s/coll-of ::env))
