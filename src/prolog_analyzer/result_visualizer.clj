@@ -242,3 +242,56 @@
   (let [file (io/file (str ERRORS "/errors_" counter ".txt"))]
     (make-parents file)
     (pr-str-errors data file)))
+
+
+(defn prettify-spec [spec]
+  (cond
+    (:arglist spec) (-> spec
+                        (assoc :spec (r/spec-type spec))
+                        (update :arglist (partial map prettify-spec)))
+    (:type spec) (-> spec
+                     (assoc :spec (r/spec-type spec))
+                     (update :type prettify-spec))
+    :else (assoc spec :spec (r/spec-type spec))))
+
+(defn prettify-term [term]
+  (cond
+    (:head term) (-> term
+                     (assoc :term (r/term-type term))
+                     (update :head prettify-term)
+                     (update :tail prettify-term))
+    (:arglist term) (-> term
+                        (assoc :term (r/term-type term))
+                        (update :arglist (partial map prettify-term)))
+    :else (assoc term :term (r/term-type term))))
+
+(defn prettify-pre-spec [pre-spec]
+  (map prettify-spec pre-spec))
+
+(defn prettify-pre-specs [pre-specs]
+  (map prettify-pre-spec pre-specs))
+
+(defn prettify-guard [guard]
+  (update guard :type prettify-spec))
+
+(defn prettify-conclusion [conclusion]
+  (map prettify-guard conclusion))
+
+(defn prettify-post-spec [post-spec]
+  (-> post-spec
+      (update :guard (partial map prettify-guard))
+      (update :conclusion (partial map prettify-conclusion))))
+
+
+(defn prettify-goal [{name :goal :as goal}]
+  (if (#{:or :if :not} name)
+    (update goal :arglist (partial map (partial map prettify-goal)))
+    (update goal :arglist (partial map prettify-term))))
+
+(defn prettify-clause [clause]
+  (-> clause
+      (update :arglist (partial map prettify-term))
+      (update :body (partial map prettify-goal))))
+
+(defn prettify-data [data]
+  )
