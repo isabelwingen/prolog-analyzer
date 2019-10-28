@@ -9,12 +9,11 @@ The tool uses specs for predicates based on [plspec](https://github.com/wysiib/p
 * Download the provided ZIP
 * Unzip it somewhere and open a terminal in the directory `prolog-analyzer`
 * Execute
-`java -jar prolog-analyzer-1.0.0-standalone.jar <dialect> "prolog/prolog_analyzer.pl" <path-to-your-code> <path-to-prolog-exe> <edn-print?>` where 
+`java -jar prolog-analyzer-1.0.0-standalone.jar <dialect> "prolog/prolog_analyzer.pl" <path-to-your-code> <path-to-prolog-exe>` where 
 
     * `<dialect>` is "swipl" or "sicstus"
     * `<path-to-your-code>` is a directory containing your source code, or your load file
     * `<path-to-prolog-exe>` is the path to the SWI or SICSTUS executable
-    * `<edn-print?>` is `true` or `false` (recommended). If true, an `edn` output is created, if `false` an overview of the term types is printed 
 
 ### Optional: Annotate your Code
 With the provided `annotations` module, you can spec your own code.
