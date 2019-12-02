@@ -101,7 +101,7 @@
 :- spec_post(user:keysort/2, [], [[0:list(pair), 1:list(pair)]]).
 
 :- spec_pre(user:copy_term/2, [any, any]). % not a specvar!
-%% :- spec_post(user:copy_term/2, [any, any], [any, any]).
+:- spec_post(user:copy_term/2, [], [[0:any, 1:any]]).
 
 :- spec_pre(user:op/3, [int, one_of([atom(xfx), atom(xfy), atom(yfx), atom(fx), atom(fy), atom(xf), atom(yf)]), one_of([atom, list(atom)])]).
 % no spec_post
@@ -122,27 +122,26 @@
 
 
 :- spec_pre(user:arg/3, [int, compound, maybe(any)]).
-%% :- spec_post(user:arg/3, [any, any, any], [int, compound, any]).
+:- spec_pre(user:arg/3, [], [[0:int, 1:compound, 2:any]]).
 
 :- spec_pre(user:catch/3, [callable, maybe(any), callable]).
-%% :- spec_post(user:catch/3, [any, any, any], [callable, nonvar, callable]).
+:- spec_pre(user:catch/3, [], [[0:callable, 1:nonvar, 2:callable]]).
 
 :- spec_pre(user:bagof/3, [any, callable, maybe(list(any))]).
-%% :- spec_post(user:bagof/3, [any, any, any], [any, callable, list(any)]).
+:- spec_pre(user:bagof/3, [], [[0:any, 1:callable, 2:list(any)]]).
 
 :- spec_pre(user:findall/3, [any, callable, maybe(list(any))]).
-%% :- spec_post(user:findall/3, [any, any, any], [any, callable, list(any)]).
+:- spec_pre(user:findall/3, [], [[0:any, 1:callable, 2:list(any)]]).
 
 :- spec_pre(user:setof/3, [any, callable, maybe(list(any))]).
-%% %% :- spec_post(user:setof/3, [any, any, any], [any, callable, list(any)]).
+:- spec_pre(user:setof/3, [], [[0:any, 1:callable, 2:list(any)]]).
 
 :- spec_pre(user:char_code/2, [atom, maybe(int)]).
 :- spec_pre(user:char_code/2, [var, int]).
-%% :- spec_post(user:char_code/2, [any, any], [atom, int]).
+:- spec_post(user:char_code/2, [], [[0:atom, 1:int]]).
 
 :- spec_pre(user:current_char_conversion/2, [maybe(atom), maybe(atom)]).
-%% :- spec_post(user:current_char_conversion/2, [any, any], [atom, atom]).
-% no spec_post
+:- spec_post(user:current_char_conversion/2, [], [[0:atom, 1:atom]]).
 
 :- spec_pre(user:char_conversion/2, [atom, atom]).
 % no spec_post
@@ -230,49 +229,49 @@
 % no spec post
 
 :- spec_pre(user:current_input/1, [maybe(stream)]).
-%% :- spec_post(user:current_input/1, [any], [stream]).
+:- spec_post(user:current_input/1, [], [[0:stream]]).
 
 :- spec_pre(user:current_output/1, [maybe(stream)]).
-%% :- spec_post(user:current_output/1, [any], [stream]).
+:- spec_post(user:current_output/1, [], [[0:stream]]).
 
 :- spec_pre(user:flush_output/1, [stream]).
 % no spec post
 
 :- spec_pre(user:get_byte/1, [maybe(int)]).
-%% :- spec_post(user:get_byte/1, [any], [int]).
+:- spec_post(user:get_byte/1, [], [[0:int]]).
 
 :- spec_pre(user:get_byte/2, [stream, maybe(int)]).
-%% :- spec_post(user:get_byte/2, [any, any], [stream, int]).
+:- spec_post(user:get_byte/2, [], [[0:stream, 1:int]]).
 
 :- spec_pre(user:get_code/1, [maybe(int)]).
-%% :- spec_post(user:get_code/1, [any], [int]).
+:- spec_post(user:get_code/1, [], [[0:int]]).
 
 :- spec_pre(user:get_code/2, [stream, maybe(int)]).
-%% :- spec_post(user:get_code/2, [any, any], [stream, int]).
+:- spec_post(user:get_code/2, [], [[0:stream, 1:int]]).
 
 :- spec_pre(user:get_char/1, [maybe(atom)]).
-%% :- spec_post(user:get_char/1, [any], [atom]).
+:- spec_post(user:get_char/1, [], [[0:atom]]).
 
 :- spec_pre(user:get_char/2, [stream, maybe(atom)]).
-%% :- spec_post(user:get_char/2, [any, any], [stream, atom]).
+:- spec_post(user:get_char/2, [], [[0:stream, 1:atom]]).
 
 :- spec_pre(user:peek_byte/1, [maybe(int)]).
-%% :- spec_post(user:peek_byte/1, [any], [int]).
+:- spec_post(user:peek_byte/1, [], [[0:int]]).
 
 :- spec_pre(user:peek_byte/2, [stream, maybe(int)]).
-%% :- spec_post(user:peek_byte/2, [any, any], [stream, int]).
+:- spec_post(user:peek_byte/2, [], [[0:stream, 1:int]]).
 
 :- spec_pre(user:peek_code/1, [maybe(int)]).
-%% :- spec_post(user:peek_code/1, [any], [int]).
+:- spec_post(user:peek_code/1, [], [[0:int]]).
 
 :- spec_pre(user:peek_code/2, [stream, maybe(int)]).
-%% :- spec_post(user:peek_code/2, [any, any], [stream, int]).
+:- spec_post(user:peek_code/2, [], [[0:stream, 1:int]]).
 
 :- spec_pre(user:peek_char/1, [maybe(atom)]).
-%% :- spec_post(user:peek_char/1, [any], [atom]).
+:- spec_post(user:peek_char/1, [], [[0:atom]]).
 
 :- spec_pre(user:peek_char/2, [stream, maybe(atom)]).
-%% :- spec_post(user:peek_char/2, [any, any], [stream, atom]).
+:- spec_post(user:peek_char/2, [], [[0:stream, 1:atom]]).
 
 :- spec_pre(user:put_byte/1, [int]).
 % no spec post
@@ -293,10 +292,10 @@
 % no spec post
 
 :- spec_pre(user:read/1, [maybe(any)]).
-%% :- spec_post(user:read/1, [any], [any]).
+:- spec_post(user:read/1, [], [[0:any]]).
 
-:- spec_pre(user:read/2, [stream, maybe(any)]).
-%% :- spec_post(user:read/2, [stream, any], [stream, any]).
+:- spec_pre(user:read/2, [stream, any]).
+:- spec_post(user:read/2, [], [[0:stream, 1:any]]).
 
 :- declare_spec(boolean).
 :- define_spec(boolean, one_of([atom(true), atom(false)])).
@@ -309,13 +308,13 @@
                                          compound(cycles(boolean)) ])).
 
 :- spec_pre(user:read_term/2, [maybe(any), list(read_term_option)]). % any already includes var?
-%% :- spec_post(user:read_term/2, [any, any], [any, list(read_term_option)]). %TODO: clarify if nonvar
+:- spec_post(user:read_term/2, [], [[0:any, 1:list(read_term_option)]]). %TODO: clarify if nonvar
 
 :- spec_pre(user:read_term/3, [stream, maybe(any), list(read_term_option)]).
-%% :- spec_post(user:read_term/3, [any, any, any], [stream, any, list(read_term_option)]).
+:- spec_post(user:read_term/3, [], [[0:stream, 1:any, 2:list(read_term_option)]]).
 
 :- spec_pre(user:close/1, [stream]).
-%% :- spec_post(user:close/1, [any], [stream]).
+:- spec_post(user:close/1, [], [[0:stream]]).
 
 :- spec_pre(user:close/2, [stream, list(compound(force(atom(true))))]).
 % no spec post
@@ -327,7 +326,7 @@
 :- define_spec(file, one_of([atom, string, and([compound,ground])])).
 
 :- spec_pre(user:open/3, [file, one_of([atom(read), atom(write), atom(append)]), maybe(stream)]).
-%% :- spec_post(user:open/3, [any, any, any], [file, one_of([atom(read), atom(write), atom(append)]), stream]).
+:- spec_post(user:open/3, [], [[0:file, 1:one_of([atom(read), atom(write), atom(append)]), 2:stream]]).
 
 :- declare_spec(open_option).
 :- define_spec(open_option, one_of([compound(alias(atom)),
@@ -335,7 +334,7 @@
                                     compound(eof_action(one_of([atom(error), atom(eof_code), atom(reset)]))) ])).
 
 :- spec_pre(user:open/4, [file, one_of([atom(read), atom(write), atom(append)]), list(open_option), maybe(stream)]).
-%% :- spec_post(user:open/4, [any, any, any, any], [file, one_of([atom(read), atom(write), atom(append)]), list(open_option), stream]).
+:- spec_post(user:open/4, [], [[0:file, 1:one_of([atom(read), atom(write), atom(append)]), 2:list(open_option), 3:stream]]).
 
 :- spec_pre(user:set_input/1, [stream]).
 % no spec post
