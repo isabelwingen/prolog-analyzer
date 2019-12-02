@@ -3,12 +3,14 @@
             [hiccup.core :as hiccup]
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.records :as r]
-            [prolog-analyzer.utils :as utils]))
+            [prolog-analyzer.utils :as utils]
+            [ubergraph.core :as uber]))
 
 (def POST_SPECS "doc/post-specs")
 (def PRE_SPECS "doc/pre-specs")
 (def HTML "doc/html")
 (def ERRORS "doc/errors")
+(def TYPES "doc/types")
 
 (defn- get-error-terms [env]
   (->> env
@@ -100,7 +102,7 @@
        (map first)
        distinct))
 
-(defn delete-directory-recursive
+(defn- delete-directory-recursive
   "Recursively delete a directory.
   https://gist.github.com/olieidel/c551a911a4798312e4ef42a584677397
   "
@@ -145,23 +147,23 @@
   (doseq [m (concat (get-all-modules data) (get-program-modules data))]
     (subpage m data)))
 
-(defn pr-str-pre-spec [v]
+(defn- pr-str-pre-spec [v]
   (vec (map r/to-string (seq v))))
 
-(defn pr-str-guard [{id :id type :type}]
+(defn- pr-str-guard [{id :id type :type}]
   (str "$" id ":" (r/to-string type)))
 
-(defn pr-str-guards [guards]
+(defn- pr-str-guards [guards]
   (clojure.string/join ", " (map pr-str-guard guards)))
 
-(defn pr-str-conclusion [v]
+(defn- pr-str-conclusion [v]
   (vec (map pr-str-guard v)))
 
-(defn fill [length string]
+(defn- fill [length string]
   (format (str "%1$" length "s") string))
 
 
-(defn pr-str-conclusions [v]
+(defn- pr-str-conclusions [v]
   (let [strs (map pr-str-conclusion v)
         lengths (->> strs
                      (apply map vector)
@@ -173,16 +175,16 @@
 
 
 
-(defn pr-str-post-spec [{guard :guard conc :conclusion}]
+(defn- pr-str-post-spec [{guard :guard conc :conclusion}]
   (if (empty? guard)
     {:guard "true" :conclusion (pr-str-conclusions conc)}
     {:guard (pr-str-guards guard) :conclusion (pr-str-conclusions conc)}))
 
-(defn valid-module [module]
+(defn- valid-module [module]
   (and (not= module "user")
        (not= module "lists")))
 
-(defn print-pre-specs [counter data]
+(defn- print-pre-specs [counter data]
   (let [file (io/file (str PRE_SPECS "/step-" counter ".txt"))
         append #(spit file % :append true)]
     (make-parents file)
@@ -196,7 +198,7 @@
           (append (with-out-str (clojure.pprint/pprint (pr-str-pre-spec x)))))))))
 
 
-(defn as-table [postspecs]
+(defn- as-table [postspecs]
   (let [length (apply max (map (comp count :guard) postspecs))
         fill-str (fill (+ length 5) "")
         new-maps (map #(update % :guard (partial fill length)) postspecs)]
@@ -208,7 +210,7 @@
         "\n"
         (cons (str guard " --> " c) (map (partial str fill-str) cs)))))))
 
-(defn print-post-specs [counter data]
+(defn- print-post-specs [counter data]
   (let [file (io/file (str POST_SPECS "/step-" counter ".txt"))
         append #(spit file % :append true)]
     (make-parents file)
@@ -231,7 +233,7 @@
   (print-pre-specs counter data)
   (print-post-specs counter data))
 
-(defn pr-str-errors [data file]
+(defn- pr-str-errors [data file]
   (let [inner-map (partial reduce-kv #(assoc %1 (r/to-string %2) (r/to-string %3)) {})
         result-map (reduce-kv #(assoc %1 %2 (inner-map %3)) {} (:errors data))]
     (clojure.pprint/pprint result-map (clojure.java.io/writer file))))
@@ -243,55 +245,30 @@
     (make-parents file)
     (pr-str-errors data file)))
 
+(defn- any-ratio [{any :any total :total :as p}]
+  (assoc p :any-ratio (->> (/ any total)
+                           double
+                           (format "%.4f"))))
 
-(defn prettify-spec [spec]
-  (cond
-    (:arglist spec) (-> spec
-                        (assoc :spec (r/spec-type spec))
-                        (update :arglist (partial map prettify-spec)))
-    (:type spec) (-> spec
-                     (assoc :spec (r/spec-type spec))
-                     (update :type prettify-spec))
-    :else (assoc spec :spec (r/spec-type spec))))
+(defn- any-distribution [env]
+  (-> (->> env
+           utils/get-arguments
+           (map (partial utils/get-dom-of-term env))
+           (map ru/any-spec?)
+           frequencies)
+      (clojure.set/rename-keys {false :not-any true :any})
+      (assoc :total (count (utils/get-arguments env)))
+      any-ratio
+      (assoc :faulty? (utils/faulty-env? env))))
 
-(defn prettify-term [term]
-  (cond
-    (:head term) (-> term
-                     (assoc :term (r/term-type term))
-                     (update :head prettify-term)
-                     (update :tail prettify-term))
-    (:arglist term) (-> term
-                        (assoc :term (r/term-type term))
-                        (update :arglist (partial map prettify-term)))
-    :else (assoc term :term (r/term-type term))))
+(defn any-distributions [envs]
+  (->> envs
+       (map #(hash-map (utils/get-title %) (any-distribution %)))
+       (apply merge)))
 
-(defn prettify-pre-spec [pre-spec]
-  (map prettify-spec pre-spec))
-
-(defn prettify-pre-specs [pre-specs]
-  (map prettify-pre-spec pre-specs))
-
-(defn prettify-guard [guard]
-  (update guard :type prettify-spec))
-
-(defn prettify-conclusion [conclusion]
-  (map prettify-guard conclusion))
-
-(defn prettify-post-spec [post-spec]
-  (-> post-spec
-      (update :guard (partial map prettify-guard))
-      (update :conclusion (partial map prettify-conclusion))))
-
-
-(defn prettify-goal [{name :goal :as goal}]
-  (if (#{:or :if :not} name)
-    (update goal :arglist (partial map (partial map prettify-goal)))
-    (update goal :arglist (partial map prettify-term))))
-
-(defn prettify-clause [clause]
-  (-> clause
-      (update :arglist (partial map prettify-term))
-      (update :body (partial map prettify-goal))))
-
-(defn prettify-data [data]
-  )
+(defn print-type-information [counter envs]
+  (let [file (io/file (str TYPES "/types_" counter ".txt"))
+        result {:number-of-clauses (count envs)
+                :distributions (any-distributions envs)}]
+    (make-parents file)
+    (clojure.pprint/pprint result (clojure.java.io/writer file))))

@@ -5,7 +5,8 @@
             [prolog-analyzer.record-utils :as ru]
             [prolog-analyzer.records :as r]
             [prolog-analyzer.state :as state]
-            [prolog-analyzer.utils :as utils]))
+            [prolog-analyzer.utils :as utils]
+            [prolog-analyzer.result-visualizer :refer [print-type-information]]))
 
 (defn- log-if-empty [data]
   (when (empty? (utils/get-pred-identities data))
@@ -79,6 +80,7 @@
     (if (same in-data new-data)
       (do
         (log/info "Done")
+        (print-type-information counter envs)
         new-data)
       (recur write (inc counter) new-data))))
 
@@ -90,6 +92,5 @@
 
 (defn global-analysis [write data]
   (let [cleared-data (add-dummy-post-specs data)]
-    (reset! state/self-calling {})
     (log-if-empty cleared-data)
     (fixpoint write 0 cleared-data)))
