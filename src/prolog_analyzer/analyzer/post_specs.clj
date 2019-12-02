@@ -128,5 +128,3 @@
          (map (partial create-step env))
          (remove nil?)
          set)))
-
-(stest/instrument)

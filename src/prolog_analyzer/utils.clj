@@ -190,5 +190,3 @@
     (if (nil? error-map)
       {}
       {:errors {(get-title env) error-map}})))
-
-(stest/instrument)

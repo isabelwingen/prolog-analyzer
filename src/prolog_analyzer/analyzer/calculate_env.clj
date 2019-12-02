@@ -177,5 +177,3 @@
   (-> in-env
       (get-env-for-pre-spec-of-subgoal arglist prespec-as-spec)
       (get-env-for-post-spec-of-subgoal arglist post-specs)))
-
-(stest/instrument)

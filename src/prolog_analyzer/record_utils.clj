@@ -632,5 +632,3 @@
            r/EXACT (= (:value spec1) (:value spec2))
            true)
     false))
-
-(stest/instrument)

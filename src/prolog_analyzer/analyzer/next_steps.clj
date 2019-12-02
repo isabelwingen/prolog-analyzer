@@ -166,6 +166,3 @@
     (ru/error-spec? spec) []
     (ru/list-term? term) (next-steps-of-list-term env term spec)
     :else (next-steps term spec)))
-
-
-(stest/instrument)
