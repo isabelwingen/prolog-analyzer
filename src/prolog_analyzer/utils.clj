@@ -190,3 +190,6 @@
     (if (nil? error-map)
       {}
       {:errors {(get-title env) error-map}})))
+
+(defn faulty-env? [env]
+  (not= {} (errors env)))

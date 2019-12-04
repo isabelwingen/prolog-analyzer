@@ -77,10 +77,11 @@
   (write in-data counter)
   (let [envs (clause-analysis/complete-analysis in-data)
         new-data (create-new-data in-data envs)]
+    (print-type-information counter envs)
     (if (same in-data new-data)
       (do
         (log/info "Done")
-        (print-type-information counter envs)
+        (print-type-information 999 envs)
         new-data)
       (recur write (inc counter) new-data))))
 

@@ -246,9 +246,11 @@
     (pr-str-errors data file)))
 
 (defn- any-ratio [{any :any total :total :as p}]
-  (assoc p :any-ratio (->> (/ any total)
-                           double
-                           (format "%.4f"))))
+  (if (or (nil? total) (zero? total))
+    (assoc p :any-ratio 0)
+    (assoc p :any-ratio (->> (/ any total)
+                             double
+                             (format "%.4f")))))
 
 (defn- any-distribution [env]
   (-> (->> env
@@ -257,6 +259,8 @@
            (map ru/any-spec?)
            frequencies)
       (clojure.set/rename-keys {false :not-any true :any})
+      (update :any #(or % 0))
+      (update :not-any #(or % 0))
       (assoc :total (count (utils/get-arguments env)))
       any-ratio
       (assoc :faulty? (utils/faulty-env? env))))
@@ -267,6 +271,8 @@
        (apply merge)))
 
 (defn print-type-information [counter envs]
+  (when (zero? counter)
+    (delete-directory-recursive (io/file TYPES)))
   (let [file (io/file (str TYPES "/types_" counter ".txt"))
         result {:number-of-clauses (count envs)
                 :distributions (any-distributions envs)}]
