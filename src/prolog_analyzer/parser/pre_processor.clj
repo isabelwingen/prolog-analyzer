@@ -18,6 +18,7 @@
   (let [used-modules (-> imports
                          (get caller-module)
                          (assoc "user" :all)
+                         (assoc "lists" :all)
                          (assoc caller-module :all))
         import-all-modules (reduce-kv #(if (= :all %3) (conj %1 %2) %1) [] used-modules)
         weak-mappings (->> (select-keys pred->module-maps import-all-modules)
