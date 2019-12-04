@@ -367,7 +367,7 @@
 % no spec post
 
 :- spec_pre(user:clause/2, [callable, maybe(callable)]).
-%% :- spec_post(user:clause/2, [any, any], [callable, callable]).
+:- spec_post(user:clause/2, [], [[0:callable, 1:callable]]).
 
 :- spec_pre(user:abolish/1, [callable]).
 % no spec post
@@ -408,63 +408,72 @@
 :- spec_post(user:length/2, [], [[0:list(any), 1:int]]).
 
 :- spec_pre(user:is_list/1, [any]).
-%% :- spec_post(user:is_list/1, [any], [list(any)]).
+:- spec_post(user:is_list/1, [], [[0:list(any)]]).
 
-:- spec_pre(user:memberchk/2, [any, maybe(list(any))]).
-%% :- spec_post(user:memberchk/2, [any,any], [compatible(X), list(union(X))]).
+:- spec_pre(user:memberchk/2, [any, list(any)]).
+:- spec_post(user:memberchk/2, [1:list(placeholder(a))], [[0:placeholder(a)]]).
 
 :- spec_pre(user:msort/2, [list(any), list(any)]).
 :- spec_pre(user:msort/2, [list(any), var]).
-%% :- spec_post(user:msort/2, [any, any], [and([list(union(_X)), compatible(Y)]),
-                                        %% compatible(Y)]).
+:- spec_post(user:msort/2, [0:list(placeholder(a))], [[1:placeholder(a)]]).
 
 :- spec_pre(user:append/3,  [maybe(list(any)), maybe(list(any)), maybe(list(any))]).
 :- spec_post(user:append/3, [0:list(placeholder(a)), 1:list(placeholder(b))], [[2:list(one_of([placeholder(a), placeholder(b)]))]]).
 :- spec_post(user:append/3, [2:list(placeholder(a))], [[0:list(placeholder(a)), 1:list(placeholder(a))]]).
 
 :- spec_pre(lists:append/2,  [list(list(any)), maybe(list(any))]).
-%% :- spec_post(lists:append/2,  [any, any], [list(list(union(X))), list(compatible(X))]).
+:- spec_post(lists:append/2, [0:list(list(placeholder(a)))], [[1:list(placeholder(a))]]).
 
 :- spec_pre(lists:flatten/2,  [list(list(any)), maybe(list(any))]).
 :- spec_post(lists:flatten/2,  [0:list(list(placeholder(a)))], [[1:list(placeholder(a))]]).
 
 :- spec_pre(lists:prefix/2,  [maybe(list(any)), maybe(list(any))]).
-%% :- spec_post(lists:prefix/2, [any,any], [list(union(X)), list(union(X))]).
+:- spec_post(lists:prefix/2, [1:list(placeholder(a))], [[0:list(placeholder(a))]]).
 
 :- spec_pre(lists:select/3,  [any, maybe(list(any)), maybe(list(any))]).
-%% :- spec_post(lists:select/3, [any,any,any], [compatible(X), and([list(union(X)),compatible(Y)]), compatible(Y)]).
+:- spec_post(lists:select/3, [1:list(placeholder(a))], [[0:placeholder(a),2:list(placeholder(a))]]).
+:- spec_post(lists:select/3, [0:placeholder(a),2:list(placeholder(b))], [[1:list(one_of([placeholder(a), placeholder(b)]))]]).
 
 :- spec_pre(lists:selectchk/3,  [any, maybe(list(any)), maybe(list(any))]).
-%% :- spec_post(lists:selectchk/3, [any,any,any], [compatible(X), and([list(union(X)),compatible(Y)]), compatible(Y)]).
+:- spec_post(lists:selectchk/3, [1:list(placeholder(a))], [[0:placeholder(a),2:list(placeholder(a))]]).
+:- spec_post(lists:selectchk/3, [0:placeholder(a),2:list(placeholder(b))], [[1:list(one_of([placeholder(a), placeholder(b)]))]]).
+
 
 :- spec_pre(lists:delete/3,  [maybe(list(any)), any, maybe(list(any))]).
-%% :- spec_post(lists:delete/3,  [any,any,any], [and([list(union(X)), compatible(Y)]), compatible(X), compatible(Y)]).
+:- spec_post(lists:delete/3, [0:list(placeholder(a))], [[1:placeholder(a),2:list(placeholder(a))]]).
+:- spec_post(lists:delete/3, [1:placeholder(a),2:list(placeholder(b))], [[0:list(one_of([placeholder(a),placeholder(b)]))]]).
 
 :- spec_pre(lists:nth0/3,  [maybe(int), maybe(list(any)), any]).
-%% :- spec_post(lists:nth0/3,  [any,any,any], [int, list(union(X)), compatible(X)]).
+:- spec-post(lists:nth0/3, [], [[0:int]]).
+:- spec_post(lists:nth0/3, [1:list(placeholder(a))], [[0:int,2:placeholder(a)]]).
 
 :- spec_pre(lists:nth1/3,  [maybe(int), maybe(list(any)), any]).
-%% :- spec_post(lists:nth1/3,  [any,any,any], [int, list(union(X)), compatible(X)]).
+:- spec-post(lists:nth1/3, [], [[0:int]]).
+:- spec_post(lists:nth1/3, [1:list(placeholder(a))], [[0:int,2:placeholder(a)]]).
 
 :- spec_pre(lists:nth0/4,  [maybe(int), maybe(list(any)), any, maybe(list(any))]).
-%% :- spec_post(lists:nth0/4,  [any,any,any,any], [int, and([list(union(X)), compatible(Y)]), compatible(X), compatible(Y)]).
+:- spec_post(lists:nth0/4, [],[[0:int]]).
+:- spec_post(lists:nth0/4, [1:list(placeholder(a))], [[2:placeholder(a), 3:list(placeholder(a))]]).
 
 :- spec_pre(lists:nth1/4,  [maybe(int), maybe(list(any)), any, maybe(list(any))]).
-%% :- spec_post(lists:nth1/4,  [any,any,any,any], [int, and([list(union(X)), compatible(Y)]), compatible(X), compatible(Y)]).
+:- spec_post(lists:nth1/4, [],[[0:int]]).
+:- spec_post(lists:nth1/4, [1:list(placeholder(a))], [[2:placeholder(a), 3:list(placeholder(a))]]).
+
 
 :- spec_pre(lists:proper_length/2, [list(any), maybe(int)]).
-%% :- spec_post(lists:proper_length/2, [any, any], [list(any), int]).
+:- spec_post(lists:proper_length/2, [], [[1:int]]).
 
-% :- spec_pre(lists:reverse/2, [maybe(list(any)), maybe(list(any))]). % Todo: Check
-% :- spec_pre(lists:reverse/2, [compatible(Y), maybe(and([list(union(_X)), compatible(Y)]))]).
-%% :- spec_post(lists:reverse/2, [any, any], [and([list(union(_X)), compatible(Y)]), compatible(Y)]).
+:- spec_pre(lists:reverse/2, [maybe(list(any)), maybe(list(any))]).
+:- spec_post(lists:reverse/2, [0:list(placeholder(a))], [[1:list(placeholder(a))]]).
+:- spec_post(lists:reverse/2, [1:list(placeholder(a))], [[0:list(placeholder(a))]]).
 
-% :- spec_pre(lists:permutation/2, [maybe(and([list(union(_X)), compatible(Y)])), compatible(Y)]).
-% :- spec_pre(lists:permutation/2, [compatible(Y), maybe(and([list(union(_X)), compatible(Y)]))]).
-%% :- spec_post(lists:permutation/2, [any, any], [and([list(union(_X)), compatible(Y)]), compatible(Y)]).
+:- spec_pre(lists:permutation/2, [maybe(list(any)), maybe(list(any))]).
+:- spec_post(lists:permutation/2, [0:list(placeholder(a))], [[1:list(placeholder(a))]]).
+:- spec_post(lists:permutation/2, [1:list(placeholder(a))], [[0:list(placeholder(a))]]).
+
 
 :- spec_pre(lists:max_member/2, [any, list(any)]).
-%% :- spec_post(lists:max_member/2, [any,any], [compatible(X), list(union(X))]).
+:- spec_post(lists:max_member/2, [1:list(placeholder(a))], [[0:placeholder(a)]]).
 
 :- spec_pre(lists:min_member/2, [any, list(any)]).
 %% :- spec_post(lists:min_member/2, [any,any], [compatible(X), list(union(X))]).
