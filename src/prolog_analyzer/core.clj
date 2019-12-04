@@ -6,32 +6,27 @@
             [prolog-analyzer.result-visualizer :as visualizer]
             [tableflisp.core :refer :all]))
 
-(declare analyze-swi-packs)
-
 (defn write [data counter]
   (visualizer/htmlify-data data)
   (visualizer/print-intermediate-result counter data)
   (visualizer/print-errors counter data))
 
+(defn properties []
+  (read-string (slurp (io/file "properties.edn"))))
 
 (defn run
-  ([edn]
-   (->> edn
-        parser/process-edn
-        (global/global-analysis write)
-        ))
-  ([dialect term-expander file prolog-exe]
-   (run dialect term-expander file prolog-exe "false"))
-  ([dialect term-expander file prolog-exe edn?]
-   (if (.isDirectory (io/file file))
-     (->> file
-          (parser/process-prolog-directory dialect term-expander prolog-exe)
-          (global/global-analysis write)
-          )
-     (->> file
-          (parser/process-prolog-file dialect term-expander prolog-exe)
-          (global/global-analysis write)
-          ))))
+  ([file]
+   (let [{dialect :dialect expander :expander exe :exe} (properties)]
+     (if (.isDirectory (io/file file))
+       (->> file
+            (parser/process-prolog-directory
+             dialect expander exe)
+            (global/global-analysis write)
+            )
+       (->> file
+            (parser/process-prolog-file dialect expander exe)
+            (global/global-analysis write)
+            )))))
 
 
 (defn -main [& args]
