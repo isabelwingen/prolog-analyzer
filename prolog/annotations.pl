@@ -15,12 +15,26 @@ spec_pre(Pred,SpecPre) :-
     (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
     maplist(valid_spec,SpecPre).
 
+indexed_arg(I:Type,Arity) :-
+    integer(I),
+    valid_spec(Type),
+    I < Arity.
+
+valid_premise([],_) :- !.
+valid_premise([H|T],Arity) :-
+    indexed_arg(H,Arity),
+    valid_premise(T,Arity).
+
+valid_conclusions([],_) :- !.
+valid_conclusions([H|T],Arity) :-
+    valid_premise(H,Arity),
+    valid_conclusions(T,Arity).
+
+
 spec_post(Pred,SpecPre,SpecPost) :-
     ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
-    (length(SpecPre,Arity) -> true ; domain_error('length of spec list',Arity)),
-    (length(SpecPost,Arity) -> true ; domain_error('length of spec list',Arity)),
-    maplist(valid_spec,SpecPre),
-    maplist(valid_spec,SpecPost).
+    (valid_premise(SpecPre,Arity) -> true; domain_error('valid premise','invalid premise')),
+    (valid_conclusions(SpecPost,Arity) -> true; domain_error('valid conclusion', 'invalid conclusion')).
 
 spec_invariant(Pred,SpecInv) :-
     ((Pred = _/Arity; Pred = _:_/Arity) -> true ; type_error("<optional-module>:<predname>/<arity>",Pred)),
@@ -49,6 +63,8 @@ spec(ground).
 spec(nonvar).
 spec(any).
 spec(specvar(X)) :- var(X),!.
+spec(placeholder(X)) :- atom(X),!.
+spec(placeholder(X,super(Y))) :- atom(X),atom(Y),!.
 
 % Definition of spec predicates
 spec(atomic).

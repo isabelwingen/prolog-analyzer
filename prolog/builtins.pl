@@ -28,7 +28,7 @@
 :- spec_post(user:ground/1, [], [[0:ground]]).
 
 :- spec_pre(user:integer/1, [any]).
-:- spec_post(user:integer/1, [any], [[0:integer]]).
+:- spec_post(user:integer/1, [], [[0:integer]]).
 
 :- spec_pre(user:number/1, [any]).
 :- spec_post(user:number/1, [], [[0:number]]).
@@ -37,7 +37,7 @@
 :- spec_post(user:nonvar/1, [], [[0:nonvar]]).
 
 :- spec_pre(user:var/1, [any]).
-:- spec_post(user:var/1, [any], [[0:var]]).
+:- spec_post(user:var/1, [], [[0:var]]).
 
 
 :- declare_spec(maybe(specvar(_X))).
@@ -122,19 +122,19 @@
 
 
 :- spec_pre(user:arg/3, [int, compound, maybe(any)]).
-:- spec_pre(user:arg/3, [], [[0:int, 1:compound, 2:any]]).
+:- spec_post(user:arg/3, [], [[0:int, 1:compound, 2:any]]).
 
 :- spec_pre(user:catch/3, [callable, maybe(any), callable]).
-:- spec_pre(user:catch/3, [], [[0:callable, 1:nonvar, 2:callable]]).
+:- spec_post(user:catch/3, [], [[0:callable, 1:nonvar, 2:callable]]).
 
 :- spec_pre(user:bagof/3, [any, callable, maybe(list(any))]).
-:- spec_pre(user:bagof/3, [], [[0:any, 1:callable, 2:list(any)]]).
+:- spec_post(user:bagof/3, [], [[0:any, 1:callable, 2:list(any)]]).
 
 :- spec_pre(user:findall/3, [any, callable, maybe(list(any))]).
-:- spec_pre(user:findall/3, [], [[0:any, 1:callable, 2:list(any)]]).
+:- spec_post(user:findall/3, [], [[0:any, 1:callable, 2:list(any)]]).
 
 :- spec_pre(user:setof/3, [any, callable, maybe(list(any))]).
-:- spec_pre(user:setof/3, [], [[0:any, 1:callable, 2:list(any)]]).
+:- spec_post(user:setof/3, [], [[0:any, 1:callable, 2:list(any)]]).
 
 :- spec_pre(user:char_code/2, [atom, maybe(int)]).
 :- spec_pre(user:char_code/2, [var, int]).
@@ -445,11 +445,11 @@
 :- spec_post(lists:delete/3, [1:placeholder(a),2:list(placeholder(b))], [[0:list(one_of([placeholder(a),placeholder(b)]))]]).
 
 :- spec_pre(lists:nth0/3,  [maybe(int), maybe(list(any)), any]).
-:- spec-post(lists:nth0/3, [], [[0:int]]).
+:- spec_post(lists:nth0/3, [], [[0:int]]).
 :- spec_post(lists:nth0/3, [1:list(placeholder(a))], [[0:int,2:placeholder(a)]]).
 
 :- spec_pre(lists:nth1/3,  [maybe(int), maybe(list(any)), any]).
-:- spec-post(lists:nth1/3, [], [[0:int]]).
+:- spec_post(lists:nth1/3, [], [[0:int]]).
 :- spec_post(lists:nth1/3, [1:list(placeholder(a))], [[0:int,2:placeholder(a)]]).
 
 :- spec_pre(lists:nth0/4,  [maybe(int), maybe(list(any)), any, maybe(list(any))]).
@@ -489,4 +489,4 @@
 :- spec_post(lists:min_list/2, [], [[1:number]]).
 
 :- spec_pre(lists:numlist/3, [integer, integer, maybe(list(integer))]).
-:- spec_post(lists:numlist/3, [], [2:list(integer)]).
+:- spec_post(lists:numlist/3, [], [[2:list(integer)]]).
