@@ -1,4 +1,5 @@
 :- module(prolog_analyzer,[set_file/1, close_orphaned_stream/0]).
+:- use_module(annotations).
 :- use_module(library(lists)).
 
 initialize_dialect :-
