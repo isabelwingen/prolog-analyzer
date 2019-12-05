@@ -150,7 +150,7 @@
 % no spec_post
 
 :- spec_pre(user:is/2, [maybe(number), ground]).
-%% :- spec_post(user:is/2, [any, any], [number, ground]).
+:- spec_post(user:is/2, [], [[0:number]]).
 
 :- spec_pre(user:'<'/2, [ground, ground]).
 % no spec post
@@ -171,14 +171,15 @@
 % no spec post
 
 :- spec_pre(user:'='/2, [any, any]).
-%% :- spec_post(user:'='/2, [any, any], [compatible(X), compatible(X)]).
-% no spec post
+:- spec_post(user:'='/2, [0:placeholder(a)], [[1:placeholder(a)]]).
+:- spec_post(user:'='/2, [1:placeholder(a)], [[0:placeholder(a)]]).
 
 :- spec_pre(user:'\\='/2, [any, any]).
 % no spec post
 
 :- spec_pre(user:'=='/2, [any, any]).
-%% :- spec_post(user:'=='/2, [any, any], [compatible(X), compatible(X)]).
+:- spec_post(user:'=='/2, [0:placeholder(a)], [[1:placeholder(a)]]).
+:- spec_post(user:'=='/2, [1:placeholder(a)], [[0:placeholder(a)]]).
 
 :- spec_pre(user:'\\=='/2, [any, any]).
 % no spec post
@@ -476,16 +477,16 @@
 :- spec_post(lists:max_member/2, [1:list(placeholder(a))], [[0:placeholder(a)]]).
 
 :- spec_pre(lists:min_member/2, [any, list(any)]).
-%% :- spec_post(lists:min_member/2, [any,any], [compatible(X), list(union(X))]).
+:- spec_post(lists:min_member/2, [1:list(placeholder(a))], [[0:placeholder(a)]]).
 
 :- spec_pre(lists:sum_list/2, [list(number), maybe(number)]).
-%% :- spec_post(lists:sum_list/2, [any,any], [list(number), number]).
+:- spec_post(lists:sum_list/2, [], [[1:number]]).
 
 :- spec_pre(lists:max_list/2, [list(number), maybe(number)]).
-%% :- spec_post(lists:max_list/2, [any,any], [list(number), number]).
+:- spec_post(lists:max_list/2, [], [[1:number]]).
 
 :- spec_pre(lists:min_list/2, [list(number), maybe(number)]).
-%% :- spec_post(lists:min_list/2, [any,any], [list(number), number]).
+:- spec_post(lists:min_list/2, [], [[1:number]]).
 
 :- spec_pre(lists:numlist/3, [integer, integer, maybe(list(integer))]).
-%% :- spec_post(lists:numlist/3, [any,any,any], [integer, integer, list(integer)]).
+:- spec_post(lists:numlist/3, [], [2:list(integer)]).
