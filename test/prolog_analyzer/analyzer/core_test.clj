@@ -13,7 +13,7 @@
 (def PREAMBLE ":- module(tmp,[]).\n:- use_module('../prolog/annotations',[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).\n\n\n" )
 
 (defn parse-tmp [h s]
-  (Thread/sleep 500)
+  (Thread/sleep 1000)
   (let [path "resources/core_tmp.pl"
         res (do
               (io/make-parents path)

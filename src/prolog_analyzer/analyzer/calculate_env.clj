@@ -14,10 +14,10 @@
 
 (def ^:private DEEPNESS 3)
 
-(defn ^:private add-to-dom [env term spec {initial? :initial overwrite? :overwrite}]
+(defn ^:private blabla [env term spec {initial? :initial overwrite? :overwrite}]
   (if overwrite?
-    (dom/add-to-dom-post-spec env term spec)
-    (dom/add-to-dom env initial? term spec)))
+    (dom/blabla-post-spec env term spec)
+    (dom/blabla env initial? false term spec)))
 
 (defn ^:private compatible-with-head [{initial? :initial :as parameters} head-dom term-dom]
   (case+ (ru/spec-type term-dom)
@@ -75,8 +75,8 @@
         term-dom (utils/get-dom-of-term env term)
         filtered-dom (compatible-with-head parameters head-dom term-dom)]
     (if (singleton-list? term)
-      (add-to-dom env term (r/->TupleSpec [head-dom]) parameters)
-      (add-to-dom env term (or filtered-dom (r/DISJOINT "No term dom is compatible with head")) parameters))))
+      (blabla env term (r/->TupleSpec [head-dom]) parameters)
+      (blabla env term (or filtered-dom (r/DISJOINT "No term dom is compatible with head")) parameters))))
 
 (defmethod process-edge :is-tail [parameters env edge]
   (let [tail (uber/src edge)
@@ -91,7 +91,7 @@
                                                                (apply vector)))
                        r/LIST (update tail-dom :type #(r/->OneOfSpec (hash-set % head-dom)))
                        term-dom)]
-    (add-to-dom env term new-dom parameters)))
+    (blabla env term new-dom parameters)))
 
 (defmethod process-edge :arg-at-pos [parameters env edge]
   (let [child (uber/src edge)
@@ -108,7 +108,7 @@
                      (r/->CompoundSpec functor))]
     (if (> (deepness new-dom) DEEPNESS)
       env
-      (add-to-dom env parent new-dom parameters))))
+      (blabla env parent new-dom parameters))))
 
 (defmethod process-edge :default [defs env edge]
   env)
@@ -117,7 +117,7 @@
   (reduce (partial process-edge parameters) env (uber/edges env)))
 
 (defn ^:private process-post-specs [env parameters]
-  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
+  (reduce (fn [e [term spec]] (blabla e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
 
 (defn ^:private post-process-step [env parameters]
   (-> env
@@ -141,7 +141,7 @@
     (-> (uber/digraph)
         (utils/set-arguments arglist)
         (utils/set-title clause-id)
-        (add-to-dom (apply ru/to-head-tail-list arglist) prespec-as-spec parameters)
+        (blabla (apply ru/to-head-tail-list arglist) prespec-as-spec parameters)
         dom/add-structural-edges
         (post-process parameters)
         )))
@@ -152,7 +152,7 @@
   (log/trace (utils/format-log in-env "Calculate env for pre spec"))
   (let [parameters {:initial false}]
     (-> in-env
-        (add-to-dom (apply ru/to-head-tail-list arglist) prespec-as-spec parameters)
+        (blabla (apply ru/to-head-tail-list arglist) prespec-as-spec parameters)
         dom/add-structural-edges
         (post-process parameters))))
 

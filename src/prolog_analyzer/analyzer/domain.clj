@@ -10,26 +10,26 @@
             [prolog-analyzer.utils :as utils :refer [case+]]
             [ubergraph.core :as uber]))
 
-(declare add-to-dom)
+(declare blabla)
 
 (def DOM :dom)
 (def HIST :history)
 
 (defn-spec ^:private execute-step ::specs/env
-  [initial? boolean?,
-   env ::specs/env
+  [callback-fn any?,
+   env ::specs/env,
    [term spec] ::specs/step]
-  (add-to-dom env initial? term (ru/simplify spec initial?)))
+  (callback-fn env term spec)) ;; TODO: simplify with callback function?
 
 (defn-spec ^:private process-next-steps ::specs/env
   [env ::specs/env
    term ::specs/term
    spec ::specs/spec
-   initial? boolean?]
+   callback-fn any?]
   (reduce
-   (partial execute-step initial?)
+   (partial execute-step callback-fn)
    env
-   (next-steps/get-steps env term (ru/simplify spec initial?))))
+   (next-steps/get-steps env term spec))) ;; TODO: How to simplify without initial?
 
 (defn-spec ^:private has-dom? boolean?
   [env ::specs/env, term ::specs/term]
@@ -39,22 +39,22 @@
 
 (defn-spec ^:private first-add ::specs/env
   [env ::specs/env
-   initial? boolean?
    term ::specs/term
-   spec ::specs/spec]
+   spec ::specs/spec
+   callback-fn any?]
   (let [initial-spec (ru/initial-spec term)]
     (if (= initial-spec spec)
       (-> env
           (uber/add-nodes term)
           (uber/add-attr term DOM (r/->AnySpec))
           (uber/add-attr term HIST (ordered-set))
-          (add-to-dom initial? term spec))
+          (callback-fn term spec))
       (-> env
           (uber/add-nodes term)
           (uber/add-attr term DOM (r/->AnySpec))
           (uber/add-attr term HIST (ordered-set))
-          (add-to-dom initial? term (ru/initial-spec term))
-          (add-to-dom initial? term spec)))))
+          (callback-fn term (ru/initial-spec term))
+          (callback-fn term spec)))))
 
 (defn-spec ^:private fully-qualified-spec? boolean?
   [spec ::specs/spec]
@@ -79,41 +79,38 @@
    (r/->CompoundSpec "." [head-dom (r/->AnySpec)])))
 
 
-(defn-spec add-to-dom ::specs/env
-  "Adds a spec to a domain of a term and executes cascading steps"
-  ([env ::specs/env,
-    term ::specs/term
-    spec ::specs/spec]
-   (add-to-dom env false term spec))
-  ([env ::specs/env,
-    initial? boolean?,
-    term ::specs/term
-    spec ::specs/spec]
-   (letfn [(intersect-fn [a b]
-             (let [res (ru/intersect (or a (r/->AnySpec)) b initial?)]
-               res))]
+(defn blabla
+  ([env term spec]
+   (blabla env false false term spec))
+  ([env initial? overwrite? term spec]
+   (let [callback (fn [env term spec] (blabla env initial? overwrite? term spec))
+         intersect-fn (fn [a b]
+                        (let [left (or a (r/->AnySpec))]
+                          (if overwrite?
+                            (if (= ru/var-spec? left)
+                              b
+                              (ru/intersect left b initial?))
+                            (ru/intersect left b initial?))))]
      (cond
-       (not (has-dom? env term))      (first-add env initial? term spec)
-       (ru/and-spec? spec)            (reduce #(add-to-dom %1 initial? term %2) env (:arglist spec))
-       (incomplete-list? spec term)   (add-to-dom env initial? term (create-incomplete-list-spec))
-       :default                       (let [before (uber/attr env term DOM)
-                                            new (intersect-fn before spec)]
-                                        (if
-                                            (or
-                                             (= before new)
-                                             (old? new env term))
-                                          env
-                                          (-> env
-                                              (uber/add-attr term DOM new)
-                                              (utils/update-attr term HIST conj new)
-                                              (process-next-steps term new initial?)
-                                              )))))))
+       (not (has-dom? env term))     (first-add env term spec callback)
+       (ru/and-spec? spec)           (reduce #(callback %1 term %2) env (:arglist spec))
+       (incomplete-list? spec term)  (callback env term (create-incomplete-list-spec))
+       :default                      (let [before (uber/attr env term DOM)
+                                           new (intersect-fn before spec)]
+                                       (if
+                                           (or
+                                            (= before new)
+                                            (old? new env term))
+                                         env
+                                         (-> env
+                                             (uber/add-attr term DOM new)
+                                             (utils/update-attr term HIST conj new)
+                                             (process-next-steps term new callback))))))))
 
-(defn-spec add-to-dom-post-spec ::specs/env
+(defn-spec blabla-post-spec ::specs/env
   "Adds a spec obtained from a postspec to the environment"
   [env ::specs/env, term ::specs/term, spec ::specs/spec]
-  (add-to-dom env term (ru/replace-var-with-any (or spec (r/->AnySpec)))))
-
+  (blabla env false true term spec))
 
 ;;; Add structural Edges
 (s/fdef edges
