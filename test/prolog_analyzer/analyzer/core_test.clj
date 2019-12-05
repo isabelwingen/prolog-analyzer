@@ -14,7 +14,7 @@
 
 (defn parse-tmp [h s]
   (Thread/sleep 500)
-  (let [path "resources/test/core_tmp.pl"
+  (let [path "resources/core_tmp.pl"
         res (do
               (io/make-parents path)
               (spit path (str PREAMBLE s))
@@ -38,8 +38,6 @@
          sut/complete-analysis
          first
          utils/env->map)))
-
-(io/make-parents "resources/test/.ignore")
 
 (facts
  "Build-ins"

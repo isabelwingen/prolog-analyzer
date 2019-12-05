@@ -1,4 +1,5 @@
-:- module(playground, []).
+:- module(simple, []).
+
 
 foo(X) :-
-    atom(X).
+    append([[1,2,3],[a,b,c]], X).

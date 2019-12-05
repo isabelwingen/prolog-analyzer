@@ -16,7 +16,7 @@ grr(X, Y) :-
 :- spec_pre(bar/2, [int, atom]).
 :- spec_pre(bar/2, [atom, int]).
 bar(3, a).
-bar(a, 3),
+bar(a, 3).
 
 
 :- spec_pre(foo/2, [any, any]).
