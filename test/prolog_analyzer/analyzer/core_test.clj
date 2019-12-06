@@ -81,16 +81,15 @@
         "foo(1).")
        => (contains {"1" "Integer"})
        )
- (fact "member"
+ (fact "member - No Postspec given: Var overwritten with Any"
        (analyze
         ":- spec_pre(mmember/2, [int, list(int)]).\n"
         ":- spec_pre(mmember/2, [var, list(int)]).\n"
         ":- spec_pre(mmember/2, [int, var]).\n"
-        ;"mmember(H,[H|_]) :- !.\n"
         "mmember(E,[_|T]) :- mmember(E,T).\n")
-       => (contains {"E" "OneOf(Integer, Var)"
-                     "T" "List(Integer)"
-                     "[E, T]" "Tuple(OneOf(Integer, Var), List(Integer))"}))
+       => (contains {"E" "Any"
+                     "T" "Compound(.(Any, Any))"
+                     "[E, T]" "OneOf(Tuple(Any, List(Integer)), Tuple(Integer, Compound(.(Any, Any))))"}))
  (fact "nothing"
        (analyze "foo(X).")
        => (contains {"X" "Any"})))

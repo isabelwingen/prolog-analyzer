@@ -102,3 +102,46 @@
       "empty" "Exact(empty)"
       "3" "Integer"}
   ))
+
+(facts
+ "Overwrite"
+ (fact "Var -> Int"
+       (-> (uber/digraph)
+           (uber/add-nodes-with-attrs [(r/->CompoundTerm "foo" [(r/->VarTerm "X")]) {:dom (r/->CompoundSpec "foo" [(r/->VarSpec)])}]
+                                      [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
+           (sut/blabla false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->IntegerSpec)]))
+           utils/env->map)
+       => (contains {"X" "Integer"})
+       (-> (uber/digraph)
+           (uber/add-nodes-with-attrs [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
+           (sut/blabla false true (r/->VarTerm "X") (r/->IntegerSpec))
+           utils/env->map)
+       => (contains {"X" "Integer"})
+       )
+ (fact "Any -> Var"
+       (-> (uber/digraph)
+           (uber/add-nodes-with-attrs [(r/->CompoundTerm "foo" [(r/->VarTerm "X")]) {:dom (r/->CompoundSpec "foo" [(r/->AnySpec)])}]
+                                      [(r/->VarTerm "X") {:dom (r/->AnySpec)}])
+           (sut/blabla false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->VarSpec)]))
+           utils/env->map)
+       => (contains {"X" "Var"})
+       (-> (uber/digraph)
+           (uber/add-nodes-with-attrs [(r/->VarTerm "X") {:dom (r/->AnySpec)}])
+           (sut/blabla false true (r/->VarTerm "X") (r/->VarSpec))
+           utils/env->map)
+       => (contains {"X" "Var"})
+       )
+ (fact "Var -> Var"
+       (-> (uber/digraph)
+           (uber/add-nodes-with-attrs [(r/->CompoundTerm "foo" [(r/->VarTerm "X")]) {:dom (r/->CompoundSpec "foo" [(r/->VarSpec)])}]
+                                      [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
+           (sut/blabla false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->VarSpec)]))
+           utils/env->map)
+       => (contains {"X" "Var"})
+       (-> (uber/digraph)
+           (uber/add-nodes-with-attrs [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
+           (sut/blabla false true (r/->VarTerm "X") (r/->VarSpec))
+           utils/env->map)
+       => (contains {"X" "Var"})
+       )
+ )

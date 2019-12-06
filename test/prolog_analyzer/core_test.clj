@@ -15,29 +15,36 @@
   (spit (io/file TMP) (str PREAMBLE snippet))
   (sut/run TMP))
 
+
+
 (defn transform-to-types [data [_ _ arity :as pred-id]]
   (let [res (->> (get-in data [:post-specs pred-id])
-                 last
-                 :conclusion
-                 (map (partial sort-by :id))
-                 (map (partial map :type))
+                 (map :conclusion)
+                 (map (partial map (partial sort-by :id)))
+                 (map (partial map (partial map :type)))
+                 (map (partial apply map vector))
+                 (map (partial map set))
+                 (map (partial map r/->OneOfSpec))
+                 (map (partial map ru/simplify))
                  (apply map vector)
                  (map set)
-                 (map r/->OneOfSpec)
+                 (map r/->AndSpec)
                  (map ru/simplify)
                  (map r/to-string)
                  (interleave (range arity))
-                 (apply hash-map))]
-    (Thread/sleep 1000)
+                 (apply hash-map)
+                 )
+        ]
+    (Thread/sleep 5000)
     res))
 
 (facts
  "Simple types"
  (fact "Atom"
-  (-> "foo(X) :- atom(X)."
-      analyze-snippet
-      (transform-to-types ["tmp" "foo" 1]))
-  => (contains {0 "Atom"}))
+       (-> "foo(X) :- atom(X)."
+           analyze-snippet
+           (transform-to-types ["tmp" "foo" 1]))
+       => (contains {0 "Atom"}))
  (fact "Atomic"
        (-> "foo(X) :- atomic(X)."
            analyze-snippet
