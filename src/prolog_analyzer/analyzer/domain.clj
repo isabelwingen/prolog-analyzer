@@ -15,21 +15,24 @@
 (def DOM :dom)
 (def HIST :history)
 
+
 (defn-spec ^:private execute-step ::specs/env
   [callback-fn any?,
+   simplify-fn any?,
    env ::specs/env,
    [term spec] ::specs/step]
-  (callback-fn env term spec)) ;; TODO: simplify with callback function?
+  (callback-fn env term (simplify-fn spec)))
 
 (defn-spec ^:private process-next-steps ::specs/env
   [env ::specs/env
    term ::specs/term
    spec ::specs/spec
-   callback-fn any?]
+   callback-fn any?
+   simplify-fn any?]
   (reduce
-   (partial execute-step callback-fn)
+   (partial execute-step callback-fn simplify-fn)
    env
-   (next-steps/get-steps env term spec))) ;; TODO: How to simplify without initial?
+   (next-steps/get-steps env term (simplify-fn spec))))
 
 (defn-spec ^:private has-dom? boolean?
   [env ::specs/env, term ::specs/term]
@@ -87,10 +90,9 @@
          intersect-fn (fn [a b]
                         (let [left (or a (r/->AnySpec))]
                           (if overwrite?
-                            (if (= ru/var-spec? left)
-                              b
-                              (ru/intersect left b initial?))
-                            (ru/intersect left b initial?))))]
+                            (ru/intersect (ru/replace-var-with-any left) b initial?)
+                            (ru/intersect left b initial?))))
+         simplify-fn #(ru/simplify % initial?)]
      (cond
        (not (has-dom? env term))     (first-add env term spec callback)
        (ru/and-spec? spec)           (reduce #(callback %1 term %2) env (:arglist spec))
@@ -105,7 +107,7 @@
                                          (-> env
                                              (uber/add-attr term DOM new)
                                              (utils/update-attr term HIST conj new)
-                                             (process-next-steps term new callback))))))))
+                                             (process-next-steps term new callback simplify-fn))))))))
 
 (defn-spec blabla-post-spec ::specs/env
   "Adds a spec obtained from a postspec to the environment"
