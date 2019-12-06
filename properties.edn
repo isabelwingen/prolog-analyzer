@@ -1,0 +1,6 @@
+{
+ :dialect "swipl"
+ :expander "prolog/prolog_analyzer.pl"
+ :built-ins "prolog/builtins.pl"
+ :exe "swipl"
+ }
