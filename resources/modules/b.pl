@@ -8,3 +8,6 @@ foo(L,A) :-
     yo(A).
 
 days(3.6).
+
+yoyo(L) :-
+    bla(L,L).

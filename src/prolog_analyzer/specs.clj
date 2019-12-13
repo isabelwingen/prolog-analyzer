@@ -59,3 +59,7 @@
 
 (s/def ::step (s/tuple ::term ::spec))
 (s/def ::steps (s/coll-of ::step))
+
+
+(s/def ::module string?)
+(s/def ::predicate-name string?)
