@@ -48,7 +48,6 @@
 (s/def :key/body (s/coll-of ::goal))
 
 
-(s/def :key/self-calling? boolean?)
 (s/def ::clause (s/keys :req-un [::arglist :key/body]))
 (s/def :key/preds (s/map-of ::pred-id (s/map-of ::id ::clause)))
 (s/def ::singletons any? #_(s/map-of ::pred-id (s/map-of ::id ::arglist)))

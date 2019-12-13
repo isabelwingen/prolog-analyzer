@@ -8,9 +8,6 @@
 
 ;; for data extracted from a prolog file
 
-(defn self-calling? [[pred-id clause-number] data]
-  (get-in data [:preds pred-id clause-number :self-calling?]))
-
 (defn- default-spec [n]
   (repeat n (r/->AnySpec)))
 

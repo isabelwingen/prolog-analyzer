@@ -89,20 +89,6 @@
 (defn transform-singleton-lists [data]
   (reduce (fn [d [pred-id clause-number]] (update-in d [:singletons pred-id clause-number] #(apply vector (map r/map-to-term %)))) data (utils/get-clause-identities data)))
 
-(defn- mark-self-calling-clause
-  "Marks clauses that are calling themselves"
-  [[_ pred-name arity] {body :body :as clause}]
-  (if (some #(and (= pred-name (:goal %)) (= arity (:arity %))) body)
-    (assoc clause :self-calling? true)
-    (assoc clause :self-calling? false)))
-
-(defn mark-self-calling-clauses [data]
-  (loop [clause-ids (utils/get-clause-identities data)
-         result data]
-    (if-let [[pred-id clause-number] (first clause-ids)]
-      (recur (rest clause-ids) (update-in result [:preds pred-id clause-number] (partial mark-self-calling-clause pred-id)))
-      result)))
-
 (defn remove-not-needed-stuff [data]
   (-> data
       (dissoc :specs)
@@ -119,7 +105,6 @@
   (def sd data)
   (log/debug "Start Pre Process Single")
   (let [p (-> data
-              mark-self-calling-clauses
               transform-singleton-lists
               transform/transform-args-to-term-records
               anno/start
