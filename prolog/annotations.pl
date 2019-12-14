@@ -91,7 +91,7 @@ spec(Spec) :-
     NewSpec =.. [Functor|NewArglist],
     match_specs(Arglist,NewArglist),!.
 spec(Spec) :-
-    \+ compound(Spec),
+    % \+ compound(Spec),
     spec_alias(Spec,_).
 
 
@@ -109,14 +109,5 @@ check_if_vars_are_wrapped(Spec) :-
     Spec =.. [_|Arglist],
     maplist(check_if_vars_are_wrapped,Arglist).
 
-declare_spec(SpecName) :-
-    \+ spec(SpecName),
-    check_if_vars_are_wrapped(SpecName),
-    assert(spec_alias(SpecName,empty)).
-
-define_spec(SpecName,SpecAlias) :-
-    % only allow ground or vars wrapped in any
-    check_if_vars_are_wrapped(SpecName),
-    valid_spec(SpecAlias),
-    assert(spec_alias(SpecName,SpecAlias)),
-    retract(spec_alias(SpecName,empty)), !.
+declare_spec(_SpecName).
+define_spec(_SpecName,_SpecAlias).
