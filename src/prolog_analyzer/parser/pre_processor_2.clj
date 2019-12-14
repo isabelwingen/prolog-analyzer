@@ -10,21 +10,19 @@
             [prolog-analyzer.utils :as utils]
             [orchestra.spec.test :as stest]))
 
+(s/def ::strings (s/coll-of string?))
+(s/def ::short-id (s/tuple ::specs/predicate-name int?))
+(s/def ::short-ids-or-all (s/or :all keyword? :short-ids (s/coll-of ::short-id)))
 
-(defn- set-correct-goal-module [pred->module-map {goal-name :goal arity :arity goal-module :module :as goal}]
-  (if (= "self" goal-module)
-    (assoc goal :module (get pred->module-map goal-name "user"))
-    goal))
-
-(defn-spec get-complete-imported (s/coll-of string?)
+(defn-spec get-complete-imported ::strings
   [module-map (s/map-of string? (s/or :all keyword? :list seq?))]
   (->> module-map
        (filter #(= :all (second %)))
        (map first)
        ))
 
-(defn-spec switch-map (s/map-of keyword? keyword?)
-  [in (s/map-of keyword? (s/coll-of keyword?))]
+(defn-spec switch-map (s/map-of ::short-id ::specs/module)
+  [in (s/map-of ::specs/module (s/coll-of ::short-id))]
   (reduce-kv (fn [m k v] (reduce #(assoc %1 %2 k) m v)) {} in))
 
 (defn-spec intersect set?
@@ -32,10 +30,10 @@
   (clojure.set/intersection (set a) (set b)))
 
 
-(defn-spec calculate-pred-to-module-map (s/map-of ::specs/predicate-name ::specs/module)
-  [module->pred (s/map-of ::specs/module ::specs/predicate-name)
+(defn-spec calculate-pred-to-module-map any?
+  [module->pred (s/map-of ::specs/module (s/coll-of ::short-id))
    caller-module ::specs/module
-   imports (s/map-of ::specs/module (s/map-of ::specs/module ::specs/predicate-name))]
+   imports (s/map-of ::specs/module (s/map-of ::specs/module ::short-ids-or-all))]
   (let [used-modules (-> imports
                          (get caller-module)
                          (assoc "user" :all)
@@ -53,7 +51,7 @@
     (merge weak-mappings strong-mappings)))
 
 
-(defn-spec collect-predicates (s/coll-of ::specs/pred-id)
+(defn-spec collect-predicates ::specs/pred-ids
   [data map?]
   (->> (select-keys data [:pre-specs :post-specs :preds])
        (vals)
@@ -61,8 +59,8 @@
        set))
 
 (defn-spec create-module->pred (s/map-of ::specs/module ::specs/pred-id)
-  [predicates (s/coll-of ::specs/pred-id)]
-  (reduce (fn [res [module name arity]] (update res module #(conj % name))) {} predicates))
+  [predicates ::specs/pred-ids]
+  (reduce (fn [res [module name arity]] (update res module #(conj % [name arity]))) {} predicates))
 
 
 (defn-spec calculate-pred-to-module-maps (s/map-of ::specs/module (s/map-of ::specs/predicate-name ::specs/module))
@@ -74,6 +72,12 @@
         module->pred (create-module->pred predicates)]
     (apply merge (for [m modules]
                    {m (calculate-pred-to-module-map module->pred m (:imports data))}))))
+
+(defn- set-correct-goal-module [pred->module-map {goal-name :goal arity :arity goal-module :module :as goal}]
+  (if (= "self" goal-module)
+    (assoc goal :module (get pred->module-map [goal-name arity] "user"))
+    goal))
+
 
 (defn- set-correct-module-in-body [pred->module-maps data [[source-module & _ :as pred-id] clause-number]]
   (update-in data [:preds pred-id clause-number :body] (partial map (partial set-correct-goal-module (get pred->module-maps source-module)))))

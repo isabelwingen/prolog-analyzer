@@ -71,6 +71,11 @@
         {err :err} (time (sh/sh prolog-exe "--goal" goal "--noinfo" :env (into {} (System/getenv))))]
     err))
 
+(defn write-and-return-result [edn-file result]
+  (spit (io/file (str edn-file ".transformed")) (with-out-str (pprint result)))
+  result)
+
+
 (defn process-built-ins [dialect term-expander prolog-exe]
   (let [file-name "prolog/builtins.pl"
         edn-file (get-edn-file-name file-name)]

@@ -122,14 +122,12 @@
                       (map #(select-keys % [:module :preds :in]))
                       (reduce #(assoc-in %1 [(:in %2) (:module %2)] (->> %2
                                                                          :preds
-                                                                         (map first)
                                                                          set)) {}))
         libs (->> imports
                   (filter :lib)
                   (remove #(= :all (:preds %)))
                   (reduce #(assoc-in %1 [(:in %2) (:lib %2)] (->> %2
                                                                   :preds
-                                                                  (map first)
                                                                   set)) {}))
         libs-all (->> imports
                       (filter :lib)

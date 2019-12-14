@@ -33,6 +33,7 @@
 (s/def ::resolved-post-specs (s/coll-of ::resolved-post-spec))
 
 (s/def ::pred-id (s/tuple string? string? ::id))
+(s/def ::pred-ids (s/coll-of ::pred-id))
 (s/def ::clause-id (s/tuple string? string? ::id ::id))
 
 (s/def :key/pre-specs (s/map-of ::pred-id ::pre-specs))
