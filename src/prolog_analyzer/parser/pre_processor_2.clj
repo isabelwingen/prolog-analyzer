@@ -1,4 +1,4 @@
-(ns prolog-analyzer.parser.pre-processor
+(ns prolog-analyzer.parser.pre-processor-2
   (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [prolog-analyzer.parser.add-userdefs :as add-userdefs]
@@ -102,7 +102,6 @@
     :ret ::specs/data)
 
 (defn pre-process-single [data]
-  (def sd data)
   (log/debug "Start Pre Process Single")
   (let [p (-> data
               transform-singleton-lists
