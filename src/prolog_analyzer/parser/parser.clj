@@ -39,6 +39,7 @@
         (spit file "\n" :append true)))
     in))
 
+
 (defn read-in-data [clojure-file]
   (if (.exists (io/file clojure-file))
     (read-in-edn-file clojure-file)
@@ -46,28 +47,29 @@
       (log/error "No .edn file was created")
       [])))
 
-(defmulti ^{:private true} call-prolog (fn [dialect term-expander prolog-exe file edn-file] dialect))
+(defmulti ^{:private true} call-prolog (fn [dir? dialect term-expander prolog-exe file edn-file] dialect))
 
-(defmethod call-prolog "swipl" [dialect term-expander prolog-exe file edn-file]
+
+(defn prolog-goal [path-to-analyzer edn-file file dir?]
+  (let [dir (if dir? "is_dir," "")]
+    (str "use_module('" path-to-analyzer "', [set_file/1, is_dir/0, close_orphaned_stream/0]),"
+         "set_file('" edn-file "'),"
+         dir
+         "['" file "'],"
+         "close_orphaned_stream,"
+         "halt."))
+  )
+
+(defmethod call-prolog "swipl" [dir? dialect term-expander prolog-exe file edn-file]
   (log/info "Call prolog on" file)
-  (let [path-to-analyzer (str "'" term-expander "'")
-        goal (str "use_module(" path-to-analyzer ", [set_file/1, close_orphaned_stream/0]),"
-                  "set_file('" edn-file "'),"
-                  "['" file "'],"
-                  "close_orphaned_stream,"
-                  "halt.")
+  (let [goal (prolog-goal term-expander edn-file file dir?)
         {err :err} (sh/sh prolog-exe "-g" goal :env (into {} (System/getenv)))]
     err))
 
 
-(defmethod call-prolog "sicstus" [dialect term-expander prolog-exe file edn-file]
+(defmethod call-prolog "sicstus" [dir? dialect term-expander prolog-exe file edn-file]
   (log/info "Call prolog on" file)
-  (let [path-to-analyzer (str "'" term-expander "'")
-        goal (str "use_module(" path-to-analyzer ", [set_file/1, close_orphaned_stream/0]),"
-                  "set_file('" edn-file "'),"
-                  "['" file "'],"
-                  "close_orphaned_stream,"
-                  "halt.")
+  (let [goal (prolog-goal term-expander edn-file file dir?)
         {err :err} (time (sh/sh prolog-exe "--goal" goal "--noinfo" :env (into {} (System/getenv))))]
     err))
 
@@ -80,7 +82,7 @@
   (let [file-name "prolog/builtins.pl"
         edn-file (get-edn-file-name file-name)]
     (when (not (.exists (io/file edn-file)))
-      (call-prolog dialect term-expander prolog-exe file-name edn-file))
+      (call-prolog false dialect term-expander prolog-exe file-name edn-file))
     (->> edn-file
          read-in-data
          pre1/format-and-clean-up
@@ -104,7 +106,7 @@
         edn-file (get-edn-file-name file-name)]
     (when (.exists (io/file edn-file))
       (io/delete-file edn-file))
-    (if-let [err (call-prolog dialect term-expander prolog-exe file-name edn-file)]
+    (if-let [err (call-prolog false dialect term-expander prolog-exe file-name edn-file)]
       (log/warn err)
       nil)
     (process-edn edn-file built-ins)))
@@ -122,5 +124,5 @@
                             (map str)
                             (filter #(.endsWith % ".pl")))]
       (doseq [pl prolog-files]
-        (call-prolog dialect term-expander prolog-exe pl edn-file))
+        (call-prolog true dialect term-expander prolog-exe pl edn-file))
       (process-edn edn-file built-ins))))

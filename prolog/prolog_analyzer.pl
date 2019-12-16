@@ -1,4 +1,4 @@
-:- module(prolog_analyzer,[set_file/1, close_orphaned_stream/0]).
+:- module(prolog_analyzer,[set_file/1, close_orphaned_stream/0, is_dir/0]).
 :- use_module(annotations).
 :- use_module(library(lists)).
 
@@ -19,11 +19,17 @@ initialize_dialect :-
 :- multifile term_expansion/2.
 :- dynamic write_out/0.
 :- dynamic filename/1.
+:- dynamic original/1.
+:- dynamic prolog_analyzer:dir/0.
 :- public set_file/1.
 
 set_file(Filename) :-
     retractall(filename(_)),
     assert(filename(Filename)).
+
+is_dir :-
+    retractall(prolog_analyzer:dir),
+    assert(prolog_analyzer:dir).
 
 close_orphaned_stream :-
     (retract(edn_stream(_,S)) -> close(S); true).
@@ -624,14 +630,42 @@ write_singletons(Clause) :-
 
 write_singletons(_) :- !.
 
+
+set_original_module :-
+    original(_), !.
+set_original_module :-
+    prolog_load_context(module,prolog_analyzer),!.
+set_original_module :-
+    prolog_load_context(module,user),!.
+set_original_module :-
+    prolog_load_context(module,Module),
+    assert(original(Module)).
+
+wrapped_term_expander(A) :-
+    (A = ':-'(module(_));A=':-'(module(_,_));A=':-'(use_module(_));A=':-'(use_module(_,_))),!,
+    term_expander(A).
+wrapped_term_expander(A) :-
+    prolog_analyzer:dir,
+    original(Original),
+    prolog_load_context(module, Original),
+    print('expand '),print(A),nl,!,
+    term_expander(A).
+wrapped_term_expander(A) :-
+    prolog_analyzer:dir,print('not expand '),print(A),nl,!.
+wrapped_term_expander(A) :-
+    print('normal '), print(A), nl,!,
+    term_expander(A).
+
 user:term_expansion(A,Out) :-
     !,
-    term_expander(A),
+    set_original_module,
+    wrapped_term_expander(A),
     write_singletons(A),
     ((A = ':-'(module(_));A=':-'(module(_,_))) -> Out=A; Out=[]).
 
 :- multifile user:term_expansion/6.
 user:term_expansion(Term, Layout1, Ids, Out, Layout1, [plspec_token|Ids]) :-
     nonmember(plspec_token, Ids),!,
-    term_expander(Term),
+    set_original_module,
+    wrapped_term_expander(Term),
     ((Term = ':-'(module(_));Term=':-'(module(_,_))) -> Out=Term; Out= Term).
