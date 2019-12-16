@@ -10,7 +10,7 @@
             [prolog-analyzer.utils :as utils :refer [case+]]
             [ubergraph.core :as uber]))
 
-(declare blabla)
+(declare add-to-dom)
 
 (def DOM :dom)
 (def HIST :history)
@@ -86,11 +86,11 @@
     (utils/store-error-reason env term)
     env))
 
-(defn blabla
+(defn add-to-dom
   ([env term spec]
-   (blabla env false false term spec))
+   (add-to-dom env false false term spec))
   ([env initial? overwrite? term spec]
-   (let [callback (fn [env term spec] (blabla env initial? overwrite? term spec))
+   (let [callback (fn [env term spec] (add-to-dom env initial? overwrite? term spec))
          intersect-fn (fn [a b]
                         (let [left (or a (r/->AnySpec))]
                           (if overwrite?
@@ -114,10 +114,10 @@
                                              (check-for-errors term new)
                                              (process-next-steps term new callback simplify-fn))))))))
 
-(defn-spec blabla-post-spec ::specs/env
+(defn-spec add-to-dom-post-spec ::specs/env
   "Adds a spec obtained from a postspec to the environment"
   [env ::specs/env, term ::specs/term, spec ::specs/spec]
-  (blabla env false true term spec))
+  (add-to-dom env false true term spec))
 
 ;;; Add structural Edges
 (s/fdef edges
