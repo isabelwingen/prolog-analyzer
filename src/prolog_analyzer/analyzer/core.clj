@@ -82,5 +82,6 @@
 (defn-spec complete-analysis ::specs/envs
   "Analysis every clause in the data, and returns an environment for each"
   [data ::specs/data]
+  (send process (fn [_] 1))
   (let [tasks (build-tasks data)]
     (pmap (partial execute-task data) tasks)))
