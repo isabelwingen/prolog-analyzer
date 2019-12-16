@@ -178,15 +178,50 @@
   (= r/ERROR (r/spec-type (get-dom-of-term env term (r/->AnySpec)))))
 
 
+(defn merge-error-maps [error-reasons error-locations]
+  (reduce
+   (fn [m k]
+     (assoc m k (hash-map :reason (get error-reasons k (r/->ErrorSpec "Unknown")) :location (get error-locations k :unknown))))
+   {}
+   (set (concat (keys error-reasons) (keys error-locations)))))
+
 (defn errors [env]
-  (let [error-map (->> env
-                       get-terms
-                       (filter (partial error-dom? env))
-                       (map #(hash-map % (get-dom-of-term env %)))
-                       (apply merge))]
-    (if (nil? error-map)
+  (let [error-reasons (->> env
+                           get-terms
+                           (filter (partial error-dom? env))
+                           (map #(hash-map % (get-dom-of-term env %)))
+                           (apply merge))
+        error-locations (uber/attr env :environment :errors)]
+    (if (nil? error-reasons)
       {}
-      {:errors {(get-title env) error-map}})))
+      {:errors {(get-title env) (merge-error-maps error-reasons error-locations)}})))
+
 
 (defn faulty-env? [env]
   (not= {} (errors env)))
+
+(defn change-current-step [env step]
+  (-> env
+      (uber/add-nodes :environment)
+      (uber/add-attr :environment :current-step step)))
+
+(defn get-current-step [env]
+  (let [state (or
+               (if (uber/has-node? env :environment)
+                 (uber/attr env :environment :current-step)
+                 nil)
+               :unknown)]
+    (if (keyword? state)
+      state
+      (let [[module n arity] state]
+        (str module ":" n "/" arity)))))
+
+(defn store-error-reason [env term]
+  (let [reason (get-current-step env)]
+    (if (uber/has-node? env :environment)
+      (update-attr env :environment :errors update term #(or % reason))
+      (recur
+       (-> env
+           (uber/add-nodes :environment)
+           (change-current-step :unknown))
+       term))))

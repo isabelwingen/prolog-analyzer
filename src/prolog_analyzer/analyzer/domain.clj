@@ -81,6 +81,10 @@
   ([head-dom ::specs/spec]
    (r/->CompoundSpec "." [head-dom (r/->AnySpec)])))
 
+(defn- check-for-errors [env term new-type]
+  (if (ru/error-spec? new-type)
+    (utils/store-error-reason env term)
+    env))
 
 (defn blabla
   ([env term spec]
@@ -107,6 +111,7 @@
                                          (-> env
                                              (uber/add-attr term DOM new)
                                              (utils/update-attr term HIST conj new)
+                                             (check-for-errors term new)
                                              (process-next-steps term new callback simplify-fn))))))))
 
 (defn-spec blabla-post-spec ::specs/env

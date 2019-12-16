@@ -413,6 +413,7 @@
                               [r/PLACEHOLDER :idclol] (-> left
                                                           (update :alias #(or % (r/->AnySpec)))
                                                           (update :alias intersect right initial?))
+                              [r/ERROR r/ERROR] left
                               [r/ERROR :idclol] left
 
                               nil)]

@@ -233,15 +233,21 @@
   (print-pre-specs counter data)
   (print-post-specs counter data))
 
+(defn pr-str-errors-of-pred [error-map]
+  (reduce-kv
+   (fn [m term {reason :reason location :location}]
+     (assoc m (r/to-string term) (str (r/to-string reason) " - found in " location)))
+   {}
+   error-map))
+
 (defn- pr-str-errors [data file]
-  (let [inner-map (partial reduce-kv #(assoc %1 (r/to-string %2) (r/to-string %3)) {})
-        result-map (reduce-kv #(assoc %1 %2 (inner-map %3)) {} (:errors data))]
+  (let [result-map (reduce-kv (fn [m pred-id error-map] (assoc m pred-id (pr-str-errors-of-pred error-map))) {} (:errors data))]
     (clojure.pprint/pprint result-map (clojure.java.io/writer file))))
 
 (defn print-errors [counter data]
   (when (zero? counter)
     (delete-directory-recursive (io/file ERRORS)))
-  (let [file (io/file (str ERRORS "/errors_" counter ".txt"))]
+  (let [file (io/file (str ERRORS "/errors_" counter ".edn"))]
     (make-parents file)
     (pr-str-errors data file)))
 

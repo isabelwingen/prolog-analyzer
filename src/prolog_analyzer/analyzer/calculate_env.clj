@@ -141,6 +141,7 @@
     (-> (uber/digraph)
         (utils/set-arguments arglist)
         (utils/set-title clause-id)
+        (utils/change-current-step :head)
         (blabla (apply ru/to-head-tail-list arglist) prespec-as-spec parameters)
         dom/add-structural-edges
         (post-process parameters)
@@ -175,5 +176,6 @@
    post-specs ::specs/post-specs]
   (log/trace (utils/format-log in-env "Calculate env for subgoal"))
   (-> in-env
+      (utils/change-current-step subgoal-id)
       (get-env-for-pre-spec-of-subgoal arglist prespec-as-spec)
       (get-env-for-post-spec-of-subgoal arglist post-specs)))
