@@ -13,14 +13,14 @@
  (fact
   "Simple Tuple"
   (-> (uber/digraph)
-      (sut/blabla (ru/to-head-tail-list (r/->VarTerm "E") (r/->VarTerm "F")) (r/->TupleSpec [(r/->AtomSpec) (r/->IntegerSpec)]))
+      (sut/add-to-dom (ru/to-head-tail-list (r/->VarTerm "E") (r/->VarTerm "F")) (r/->TupleSpec [(r/->AtomSpec) (r/->IntegerSpec)]))
       utils/env->map)
   => (contains {"E" "Atom"
                 "F" "Integer"}))
  (fact
   "Complex Tuple"
   (-> (uber/digraph)
-      (sut/blabla
+      (sut/add-to-dom
        (ru/to-head-tail-list (r/->VarTerm "E") (r/->VarTerm "F"))
        (r/->TupleSpec [(r/->OneOfSpec #{(r/->ListSpec (r/->FloatSpec)), (r/->ListSpec (r/->ErrorSpec "NO!"))}) (r/->AndSpec #{(r/->GroundSpec) (r/->ListSpec (r/->AnySpec))})]))
       utils/env->map)
@@ -29,7 +29,7 @@
  (fact
   "Tuples in Or"
   (-> (uber/digraph)
-      (sut/blabla
+      (sut/add-to-dom
        (ru/to-head-tail-list (r/->VarTerm "E") (r/->VarTerm "F"))
        (r/->OneOfSpec #{(r/->TupleSpec [(r/->AtomSpec) (r/->IntegerSpec)]) (r/->TupleSpec [(r/->ErrorSpec "NO!") (r/->FloatSpec)])}))
       utils/env->map)
@@ -38,7 +38,7 @@
  (fact
   "Empty List"
   (-> (uber/digraph)
-      (sut/blabla
+      (sut/add-to-dom
        (r/->EmptyListTerm)
        (r/->TupleSpec []))
       utils/env->map)
@@ -46,7 +46,7 @@
  (fact
   "Empty List"
   (-> (uber/digraph)
-      (sut/blabla
+      (sut/add-to-dom
        (r/->EmptyListTerm)
        (r/->TupleSpec [(r/->FloatSpec)]))
       utils/env->map)
@@ -57,7 +57,7 @@
 
 (fact
  (-> (uber/digraph)
-     (sut/blabla
+     (sut/add-to-dom
       true
       false
       (r/->ListTerm (r/->VarTerm "X") (r/->EmptyListTerm))
@@ -82,21 +82,21 @@
   "simple Example"
   (-> (uber/digraph)
       set-userdefs
-      (sut/blabla (r/->VarTerm "X") (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]))
+      (sut/add-to-dom (r/->VarTerm "X") (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]))
       utils/env->map)
   => {"X" "OneOf(Compound(node(tree(Integer), Integer, tree(Integer))), Exact(empty))"})
  (fact
   "Unknown userdef"
 (-> (uber/digraph)
     set-userdefs
-    (sut/blabla (r/->VarTerm "X") (r/make-spec:user-defined "bla" [(r/->IntegerSpec)]))
+    (sut/add-to-dom (r/->VarTerm "X") (r/make-spec:user-defined "bla" [(r/->IntegerSpec)]))
     utils/env->map)
 => {"X" "Any"})
  (fact
   "Compound with userdef"
   (-> (uber/digraph)
       set-userdefs
-      (sut/blabla (r/->CompoundTerm "node" [(r/->AtomTerm "empty") (r/->IntegerTerm 3) (r/->AtomTerm "empty")]) (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]))
+      (sut/add-to-dom (r/->CompoundTerm "node" [(r/->AtomTerm "empty") (r/->IntegerTerm 3) (r/->AtomTerm "empty")]) (r/make-spec:user-defined "tree" [(r/->IntegerSpec)]))
       utils/env->map)
   => {"Compound(node(empty, 3, empty))" "Compound(node(Exact(empty), Integer, Exact(empty)))"
       "empty" "Exact(empty)"
@@ -109,12 +109,12 @@
        (-> (uber/digraph)
            (uber/add-nodes-with-attrs [(r/->CompoundTerm "foo" [(r/->VarTerm "X")]) {:dom (r/->CompoundSpec "foo" [(r/->VarSpec)])}]
                                       [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
-           (sut/blabla false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->IntegerSpec)]))
+           (sut/add-to-dom false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->IntegerSpec)]))
            utils/env->map)
        => (contains {"X" "Integer"})
        (-> (uber/digraph)
            (uber/add-nodes-with-attrs [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
-           (sut/blabla false true (r/->VarTerm "X") (r/->IntegerSpec))
+           (sut/add-to-dom false true (r/->VarTerm "X") (r/->IntegerSpec))
            utils/env->map)
        => (contains {"X" "Integer"})
        )
@@ -122,12 +122,12 @@
        (-> (uber/digraph)
            (uber/add-nodes-with-attrs [(r/->CompoundTerm "foo" [(r/->VarTerm "X")]) {:dom (r/->CompoundSpec "foo" [(r/->AnySpec)])}]
                                       [(r/->VarTerm "X") {:dom (r/->AnySpec)}])
-           (sut/blabla false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->VarSpec)]))
+           (sut/add-to-dom false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->VarSpec)]))
            utils/env->map)
        => (contains {"X" "Var"})
        (-> (uber/digraph)
            (uber/add-nodes-with-attrs [(r/->VarTerm "X") {:dom (r/->AnySpec)}])
-           (sut/blabla false true (r/->VarTerm "X") (r/->VarSpec))
+           (sut/add-to-dom false true (r/->VarTerm "X") (r/->VarSpec))
            utils/env->map)
        => (contains {"X" "Var"})
        )
@@ -135,12 +135,12 @@
        (-> (uber/digraph)
            (uber/add-nodes-with-attrs [(r/->CompoundTerm "foo" [(r/->VarTerm "X")]) {:dom (r/->CompoundSpec "foo" [(r/->VarSpec)])}]
                                       [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
-           (sut/blabla false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->VarSpec)]))
+           (sut/add-to-dom false true (r/->CompoundTerm "foo" [(r/->VarTerm "X")]) (r/->CompoundSpec "foo" [(r/->VarSpec)]))
            utils/env->map)
        => (contains {"X" "Var"})
        (-> (uber/digraph)
            (uber/add-nodes-with-attrs [(r/->VarTerm "X") {:dom (r/->VarSpec)}])
-           (sut/blabla false true (r/->VarTerm "X") (r/->VarSpec))
+           (sut/add-to-dom false true (r/->VarTerm "X") (r/->VarSpec))
            utils/env->map)
        => (contains {"X" "Var"})
        )
