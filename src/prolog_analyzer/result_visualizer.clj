@@ -147,83 +147,67 @@
   (doseq [m (concat (get-all-modules data) (get-program-modules data))]
     (subpage m data)))
 
-(defn- pr-str-pre-spec [v]
-  (vec (map r/to-string (seq v))))
-
-(defn- pr-str-guard [{id :id type :type}]
-  (str "$" id ":" (r/to-string type)))
-
-(defn- pr-str-guards [guards]
-  (clojure.string/join ", " (map pr-str-guard guards)))
-
-(defn- pr-str-conclusion [v]
-  (vec (map pr-str-guard v)))
-
-(defn- fill [length string]
-  (format (str "%1$" length "s") string))
-
-
-(defn- pr-str-conclusions [v]
-  (let [strs (map pr-str-conclusion v)
-        lengths (->> strs
-                     (apply map vector)
-                     (map (partial map count))
-                     (map (partial apply max))
-                     (map-indexed (fn [i v] #(update % i (partial fill v)))))
-        p (reduce (fn [x f] (map f x)) strs lengths)]
-    (vec (map (partial clojure.string/join ", ") p))))
-
-
-
-(defn- pr-str-post-spec [{guard :guard conc :conclusion}]
-  (if (empty? guard)
-    {:guard "true" :conclusion (pr-str-conclusions conc)}
-    {:guard (pr-str-guards guard) :conclusion (pr-str-conclusions conc)}))
-
 (defn- valid-module [module]
   (and (not= module "user")
        (not= module "lists")))
 
-(defn- print-pre-specs [counter data]
-  (let [file (io/file (str PRE_SPECS "/step-" counter ".txt"))
-        append #(spit file % :append true)]
-    (make-parents file)
-    (spit file "Pre Specs")
-    (doseq [[[module & _ :as k] v] (:pre-specs data)]
-      (when (valid-module module)
-        (append "\n\n")
-        (append k)
-        (doseq [x v]
-          (append "\n\t")
-          (append (with-out-str (clojure.pprint/pprint (pr-str-pre-spec x)))))))))
+(defn pr-str-typing [{id :id type :type}]
+  (str id ":" (r/to-prolog type)))
 
 
-(defn- as-table [postspecs]
-  (let [length (apply max (map (comp count :guard) postspecs))
-        fill-str (fill (+ length 5) "")
-        new-maps (map #(update % :guard (partial fill length)) postspecs)]
-    (clojure.string/join
-     "\n"
-     (for [x new-maps
-           :let [{guard :guard [c & cs] :conclusion} x]]
-       (clojure.string/join
-        "\n"
-        (cons (str guard " --> " c) (map (partial str fill-str) cs)))))))
+(defn pr-str-guard [guard]
+  (clojure.string/join "," (map pr-str-typing (sort-by :id guard))))
+
+(defn pr-str-conclusion [conclusion]
+  (str "[" (clojure.string/join ", " (map pr-str-typing (sort-by :id conclusion))) "]"))
+
+(defn pr-str-conclusions [conclusions]
+  (clojure.string/join ", " (map pr-str-conclusion conclusions)))
+
+
+(defn- pr-str-post-spec [[module name arity] {guard :guard conc :conclusion}]
+  (str
+   ":- spec_post(" module ":" name "/" arity ", ["
+   (pr-str-guard guard)
+   "], ["
+   (pr-str-conclusions conc)
+   "])."))
+
 
 (defn- print-post-specs [counter data]
-  (let [file (io/file (str POST_SPECS "/step-" counter ".txt"))
+  (let [file (io/file (str POST_SPECS "/step-" counter ".pl"))
         append #(spit file % :append true)]
     (make-parents file)
-    (spit file "Post Specs")
-    (doseq [[[module & _ :as k] v] (:post-specs data)]
+    (spit file ":- module(postspecs, []).\n\nspec_post(_,_,_).\n")
+    (doseq [[module post-specs] (group-by (fn [[[m _ _] _]] m) (:post-specs data))]
       (when (valid-module module)
-        (append "\n\n")
-        (append k)
-        (append "\n")
-        (append (as-table (map pr-str-post-spec v)))
-        #_(doseq [x v]
-          (append "\n\t")
-          (append (with-out-str (clojure.pprint/pprint (pr-str-post-spec x)))))))))
+        (append "\n\n%% ")
+        (append module)
+        (doseq [[[module & _ :as pred-id] v] post-specs]
+          (doseq [x v]
+            (append "\n")
+            (append (pr-str-post-spec pred-id x)))
+          (append "\n"))))))
+
+
+(defn- pr-str-pre-spec [[module name arity] v]
+  (str ":- spec_pre(" module ":" name "/" arity ", [" (clojure.string/join ", " (map r/to-prolog (seq v))) "])."))
+
+(defn- print-pre-specs [counter data]
+  (let [file (io/file (str PRE_SPECS "/step-" counter ".pl"))
+        append #(spit file % :append true)]
+    (make-parents file)
+    (spit file ":- module(prespecs, []).\n\nspec_pre(_,_).\n")
+    (doseq [[module pre-specs] (group-by (fn [[[m _ _] _]] m) (:pre-specs data))]
+      (when (valid-module module)
+        (append "\n\n%% ")
+        (append module)
+        (doseq [[[module & _ :as pred-id] v] pre-specs]
+          (doseq [x v]
+            (append "\n")
+            (append (pr-str-pre-spec pred-id x)))
+          (append "\n"))))))
+
 
 
 (defn print-intermediate-result [counter data]
@@ -271,7 +255,7 @@
       any-ratio
       (assoc :faulty? (utils/faulty-env? env))))
 
-(defn any-distributions [envs]
+(defn- any-distributions [envs]
   (->> envs
        (map #(hash-map (utils/get-title %) (any-distribution %)))
        (apply merge)))

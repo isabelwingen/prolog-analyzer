@@ -1,7 +1,8 @@
 (ns prolog-analyzer.records
   (:require clojure.string
             [clojure.tools.logging :as log]
-            [instaparse.core :as insta]))
+            [instaparse.core :as insta]
+            [prolog-analyzer.records :as r]))
 
 (def INTEGER :integer)
 (def FLOAT :float)
@@ -40,6 +41,9 @@
 (defprotocol printable
   (to-string [x]))
 
+(defprotocol prologable
+  (to-prolog [x]))
+
 (defprotocol spec
   (spec-type [spec])
   (length [x]))
@@ -60,7 +64,9 @@
   (spec-type [spec] ANY)
   (length [x] 1)
   printable
-  (to-string [x] "Any"))
+  (to-string [x] "Any")
+  prologable
+  (to-prolog [x] "any"))
 
 
 (defrecord ErrorSpec [reason]
@@ -68,7 +74,9 @@
   (spec-type [spec] ERROR)
   (length [x] (count reason))
   printable
-  (to-string [x] (str "ERROR: " reason)))
+  (to-string [x] (str "ERROR: " reason))
+  prologable
+  (to-prolog [x] "error"))
 
 (defn DISJOINT
   ([msg] (->ErrorSpec msg))
@@ -84,63 +92,81 @@
   (spec-type [spec] VAR)
   (length [x] 1)
   printable
-  (to-string [x] "Var"))
+  (to-string [x] "Var")
+  prologable
+  (to-prolog [x] "var"))
 
 (defrecord EmptyListSpec []
   spec
   (spec-type [spec] EMPTYLIST)
   (length [x] 1)
   printable
-  (to-string [x] "EmptyList"))
+  (to-string [x] "EmptyList")
+  prologable
+  (to-prolog [x] "tuple([])"))
 
 (defrecord StringSpec []
   spec
   (spec-type [spec] STRING)
   (length [x] 1)
   printable
-  (to-string [x] "String"))
+  (to-string [x] "String")
+  prologable
+  (to-prolog [x] "string"))
 
 (defrecord AtomSpec []
   spec
   (spec-type [spec] ATOM)
   (length [x] 1)
   printable
-  (to-string [x] "Atom"))
+  (to-string [x] "Atom")
+  prologable
+  (to-prolog [x] "atom"))
 
 (defrecord IntegerSpec []
   spec
   (spec-type [spec] INTEGER)
   (length [x] 1)
   printable
-  (to-string [x] "Integer"))
+  (to-string [x] "Integer")
+  prologable
+  (to-prolog [x] "integer"))
 
 (defrecord FloatSpec []
   spec
   (spec-type [spec] FLOAT)
   (length [x] 1)
   printable
-  (to-string [x] "Float"))
+  (to-string [x] "Float")
+  prologable
+  (to-prolog [x] "float"))
 
 (defrecord NumberSpec []
   spec
   (spec-type [spec] NUMBER)
   (length [x] 1)
   printable
-  (to-string [x] "Number"))
+  (to-string [x] "Number")
+  prologable
+  (to-prolog [x] "number"))
 
 (defrecord AtomicSpec []
   spec
   (spec-type [spec] ATOMIC)
   (length [x] 1)
   printable
-  (to-string [x] "Atomic"))
+  (to-string [x] "Atomic")
+  prologable
+  (to-prolog [x] "atomic"))
 
 (defrecord ExactSpec [value]
   spec
   (spec-type [spec] EXACT)
   (length [x] 1)
   printable
-  (to-string [x] (str "Exact(" value ")")))
+  (to-string [x] (str "Exact(" value ")"))
+  prologable
+  (to-prolog [x] (str "exact(" value ")")))
 
 (defn get-head-and-tail [term]
   {:head (first (.arglist term)) :tail (second (.arglist term))})
@@ -150,14 +176,19 @@
   (spec-type [spec] LIST)
   (length [x] 2)
   printable
-  (to-string [x] (str "List(" (to-string type) ")")))
+  (to-string [x] (str "List(" (to-string type) ")"))
+  prologable
+  (to-prolog [x] (str "list(" (to-prolog type) ")"))
+  )
 
 (defrecord TupleSpec [arglist]
   spec
   (spec-type [spec] TUPLE)
   (length [x] (apply + 1 (map length arglist)))
   printable
-  (to-string [x] (str "Tuple(" (to-arglist arglist) ")")))
+  (to-string [x] (str "Tuple(" (to-arglist arglist) ")"))
+  prologable
+  (to-prolog [x] (str "tuple([" (clojure.string/join ", " (map to-prolog arglist)) "])")))
 
 
 (defrecord CompoundSpec [functor arglist]
@@ -165,7 +196,9 @@
   (spec-type [spec] COMPOUND)
   (length [x] (apply + 1 (map length arglist)))
   printable
-  (to-string [x] (if (nil? functor) "Compound" (str "Compound(" functor "(" (to-arglist arglist) "))"))))
+  (to-string [x] (if (nil? functor) "Compound" (str "Compound(" functor "(" (to-arglist arglist) "))")))
+  prologable
+  (to-prolog [x] (str "compound(" functor "(" (clojure.string/join ", " (map to-prolog arglist))"))")))
 
 
 (defrecord GroundSpec []
@@ -173,7 +206,9 @@
   (spec-type [spec] GROUND)
   (length [x] 1)
   printable
-  (to-string [x] "Ground"))
+  (to-string [x] "Ground")
+  prologable
+  (to-prolog [x] "ground"))
 
 (defn- sort-specs [specs]
   (sort #(compare (to-string %1) (to-string %2)) specs))
@@ -184,14 +219,18 @@
   (spec-type [spec] AND)
   (length [x] (apply + 1 (map length arglist)))
   printable
-  (to-string [x] (str "And(" (to-arglist (sort-specs arglist)) ")")))
+  (to-string [x] (str "And(" (to-arglist (sort-specs arglist)) ")"))
+  prologable
+  (to-prolog [x] (str "and([" (clojure.string/join ", " (map to-prolog arglist)) "])")))
 
 (defrecord OneOfSpec [arglist]
   spec
   (spec-type [spec] OR)
   (length [x] (apply + 1 (map length arglist)))
   printable
-  (to-string [x] (str "OneOf(" (to-arglist (sort-specs arglist)) ")")))
+  (to-string [x] (str "OneOf(" (to-arglist (sort-specs arglist)) ")"))
+  prologable
+  (to-prolog [x] (str "one_of([" (clojure.string/join ", " (map to-prolog arglist)) "])")))
 
 (defrecord UserDefinedSpec [name]
   spec
@@ -202,14 +241,22 @@
   printable
   (to-string [x] (if (contains? x :arglist)
                    (str name "(" (to-arglist (:arglist x)) ")")
-                   (str name))))
+                   (str name)))
+  prologable
+  (to-prolog [x]
+    (if (contains? x :arglist)
+      (str name "(" (clojure.string/join "," (map to-prolog (:arglist x))) ")")
+      (str name))))
+
 
 (defrecord NonvarSpec []
   spec
   (spec-type [spec] NONVAR)
   (length [x] 1)
   printable
-  (to-string [x] "Nonvar"))
+  (to-string [x] "Nonvar")
+  prologable
+  (to-prolog [x] "nonvar"))
 
 (defrecord PlaceholderSpec [name]
   spec
@@ -218,7 +265,9 @@
   printable
   (to-string [x] (if (contains? x :alias)
                    (str "Placeholder(" name "):" (to-string (:alias x)))
-                   (str "Placeholder(" name ")"))))
+                   (str "Placeholder(" name ")")))
+  prologable
+  (to-prolog [x] (str "placeholder(" name ")")))
 
 
 (defrecord SpecvarSpec [name]
@@ -226,7 +275,9 @@
   (spec-type [spec] SPECVAR)
   (length [x] 2)
   printable
-  (to-string [x] (str "Specvar(" name ")")))
+  (to-string [x] (str "Specvar(" name ")"))
+  prologable
+  (to-prolog [x] (str "specvar(" name ")")))
 
 (defrecord VarTerm [name]
   term
