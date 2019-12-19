@@ -7,10 +7,14 @@
             [clojure.spec.alpha :as s]
             [clojure.test :as t]
             [prolog-analyzer.specs :as specs]
+            [clojure.java.io :as io]
             [midje.sweet :refer :all]))
 
+(defn properties []
+  (read-string (slurp (io/file "properties.edn"))))
+
 (defn f [path]
-  (sut/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))
+  (sut/process-prolog-file (properties) path))
 
 (facts
  (fact "About Post Specs"
