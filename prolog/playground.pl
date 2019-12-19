@@ -1,15 +1,13 @@
 :- module(tmp,[]).
 
-%foo2(R,H) :-
-%    var(R),
-%    [H|R] = [1,2,a].
+spec_post(_,_,_).
 
-%foo3(H,R) :-
-%    var(R),
-%    [H|R] = [1,2,a].
+:- spec_post(foo/3, [0:int,1:any], [[2:atom,1:atom],[2:float,1:list(int)]]).
 
+foo(_,_,_).
 
-foo4(L) :-
-    L = [H|T],
-    T = [1,2,3],
-    H = a.
+foo(L) :-
+    L = '.'(A,B).
+
+goo(X) :-
+    atom(X).

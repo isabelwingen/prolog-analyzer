@@ -24,6 +24,7 @@
 (defn- create-post-spec [envs]
   (->> envs
        (map create-single-conclusion)
+       set
        vec
        (r/->Postspec [])))
 
@@ -50,6 +51,8 @@
                                             (apply ordered-set %)))
         (update-in [:post-specs pred-id] #(conj % post-spec)))))
 
+;;TODO: remove group-envs. Iterate over envs, save created conclusion under pred-identities
+;; when done, merge together to postspec
 (defn- create-new-post-specs [in-data envs]
   (->> envs
        group-envs-by-pred-id
