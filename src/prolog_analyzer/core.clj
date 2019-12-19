@@ -16,18 +16,15 @@
 
 (defn run
   ([file]
-   (let [{dialect :dialect expander :expander exe :exe} (properties)]
-     (if (.isDirectory (io/file file))
-       (->> file
-            (parser/process-prolog-directory
-             dialect expander exe)
-            (global/global-analysis write)
-            )
-       (->> file
-            (parser/process-prolog-file dialect expander exe)
-            (global/global-analysis write)
-            )))))
-
+   (if (.isDirectory (io/file file))
+     (->> file
+          (parser/process-prolog-directory (properties))
+          (global/global-analysis write)
+          )
+     (->> file
+          (parser/process-prolog-file (properties))
+          (global/global-analysis write)
+          ))))
 
 (defn -main [& args]
   (apply run args)
