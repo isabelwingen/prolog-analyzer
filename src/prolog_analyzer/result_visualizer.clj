@@ -229,42 +229,70 @@
     (clojure.pprint/pprint result-map (clojure.java.io/writer file))))
 
 (defn print-errors [counter data]
-  (when (zero? counter)
-    (delete-directory-recursive (io/file ERRORS)))
-  (let [file (io/file (str ERRORS "/errors_" counter ".edn"))]
-    (make-parents file)
-    (pr-str-errors data file)))
+  (if (zero? counter)
+    (delete-directory-recursive (io/file ERRORS))
+    (let [file (io/file (str ERRORS "/errors_" counter ".edn"))]
+      (make-parents file)
+      (pr-str-errors data file))))
 
-(defn- any-ratio [{any :any total :total :as p}]
+
+;; TYPING
+(defn- any-ratio [{any :any not-any :not-any total :total :as p}]
   (if (or (nil? total) (zero? total))
-    (assoc p :any-ratio 0)
-    (assoc p :any-ratio (->> (/ any total)
-                             double
-                             (format "%.4f")))))
+    (-> p
+        (assoc :any-ratio 0.0)
+        (assoc :not-any-ratio 1.0))
+    (-> p
+        (assoc :any-ratio (->> (/ any total) double))
+        (assoc :not-any-ratio (->> (/ not-any total) double)))))
 
-(defn- any-distribution [env]
-  (-> (->> env
-           utils/get-arguments
-           (map (partial utils/get-dom-of-term env))
-           (map ru/any-spec?)
-           frequencies)
-      (clojure.set/rename-keys {false :not-any true :any})
-      (update :any #(or % 0))
-      (update :not-any #(or % 0))
-      (assoc :total (count (utils/get-arguments env)))
-      any-ratio
-      (assoc :faulty? (utils/faulty-env? env))))
+(defn- get-vars-in-head [env]
+  (loop [terms (vec (utils/get-arguments env))
+         vars (list)]
+    (if-let [f (first terms)]
+      (cond
+        (ru/var-term? f) (recur (vec (rest terms)) (conj vars f))
+        (contains? f :arglist) (recur (apply conj (vec (rest terms)) (:arglist f)) vars)
+        (contains? f :head) (recur (conj (vec (rest terms)) (:head f) (:tail f)) vars)
+        :else (recur (vec (rest terms)) vars))
+      vars)))
 
-(defn- any-distributions [envs]
+(defn- get-non-anon-vars-in-head [env]
+  (->> env
+       get-vars-in-head
+       (remove #(.startsWith (:name %) "_"))))
+
+(defn- freq-types [terms env]
+  (->> terms
+       (map (partial utils/get-dom-of-term env))
+       (map ru/any-spec?)
+       frequencies))
+
+(defn- typing-of-a-clause [env]
+  (let [fun (fn [x]
+              (-> x
+                  (freq-types env)
+                  (clojure.set/rename-keys {false :not-any true :any})
+                  (update :any #(or % 0))
+                  (update :not-any #(or % 0))
+                  (assoc :total (count x))
+                  any-ratio
+                  (assoc :faulty? (utils/faulty-env? env))
+                  ))]
+    {:all (fun (get-vars-in-head env)) :non-anon (fun (get-non-anon-vars-in-head env))}))
+
+
+(defn- typing [envs]
   (->> envs
-       (map #(hash-map (utils/get-title %) (any-distribution %)))
+       (map #(hash-map (utils/get-title %) (typing-of-a-clause %)))
        (apply merge)))
+
 
 (defn print-type-information [counter envs]
   (when (zero? counter)
     (delete-directory-recursive (io/file TYPES)))
-  (let [file (io/file (str TYPES "/types_" counter ".txt"))
+  (let [file (io/file (str TYPES "/types_" counter ".edn"))
         result {:number-of-clauses (count envs)
-                :distributions (any-distributions envs)}]
+                :distributions (typing envs)}]
     (make-parents file)
     (clojure.pprint/pprint result (clojure.java.io/writer file))))
