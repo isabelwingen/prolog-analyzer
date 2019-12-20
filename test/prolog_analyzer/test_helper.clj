@@ -4,6 +4,7 @@
             [prolog-analyzer.analyzer.domain :as dom]
             [prolog-analyzer.utils :as utils]
             [prolog-analyzer.parser.parser :as parser]
+            [clojure.java.io :as io]
             [ubergraph.core :as uber]))
 
 
@@ -81,7 +82,11 @@
 
 (to-spec ("Tuple" [("Compound" "foo" ["Atom" "Integer"])]))
 
+(defn properties []
+  (read-string (slurp (io/file "properties.edn"))))
+
+
 
 
 (defn read-in-file [path]
-  (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))
+  (parser/process-prolog-file (properties) path))

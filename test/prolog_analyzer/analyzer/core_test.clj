@@ -12,13 +12,18 @@
 
 (def PREAMBLE ":- module(tmp,[]).\n:- use_module('../prolog/annotations',[spec_pre/2,spec_post/3,declare_spec/1,define_spec/2]).\n\n\n" )
 
+(defn properties []
+  (read-string (slurp (io/file "properties.edn"))))
+
+
+
 (defn parse-tmp [h s]
   (Thread/sleep 1000)
   (let [path "resources/core_tmp.pl"
         res (do
               (io/make-parents path)
               (spit path (str PREAMBLE s))
-              (parser/process-prolog-file "swipl" "prolog/prolog_analyzer.pl" "swipl" path))]
+              (parser/process-prolog-file (properties) path))]
     (when (.exists (io/file path))
       (io/delete-file (io/file path)))
     (when (.exists (io/file "edns/core_tmp.edn"))
