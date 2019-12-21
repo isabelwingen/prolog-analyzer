@@ -74,7 +74,7 @@
   (spec-type [spec] ERROR)
   (length [x] (count reason))
   printable
-  (to-string [x] (str "ERROR: " reason))
+  (to-string [x] (str "ERROR"))
   prologable
   (to-prolog [x] "error"))
 
