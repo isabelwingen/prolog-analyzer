@@ -50,12 +50,12 @@
       (-> env
           (uber/add-nodes term)
           (uber/add-attr term DOM (r/->AnySpec))
-          (uber/add-attr term HIST (ordered-set))
+          (uber/add-attr term HIST (hash-set))
           (callback-fn term spec))
       (-> env
           (uber/add-nodes term)
           (uber/add-attr term DOM (r/->AnySpec))
-          (uber/add-attr term HIST (ordered-set))
+          (uber/add-attr term HIST (hash-set))
           (callback-fn term (ru/initial-spec term))
           (callback-fn term spec)))))
 
@@ -74,7 +74,7 @@
 
 (defn-spec ^:private old? boolean?
   [new ::specs/spec, env ::specs/env, term ::specs/term]
-  (contains? (apply hash-set (uber/attr env term HIST)) new))
+  (contains? (uber/attr env term HIST) new))
 
 (defn-spec ^:private create-incomplete-list-spec ::specs/spec
   ([] (create-incomplete-list-spec (r/->AnySpec)))

@@ -197,6 +197,17 @@
       {:errors {(get-title env) (merge-error-maps error-reasons error-locations)}})))
 
 
+(defn errors2 [env]
+  (let [error-reasons (->> env
+                           get-terms
+                           (filter (partial error-dom? env))
+                           (map #(hash-map % (get-dom-of-term env %)))
+                           (apply merge))
+        error-locations (uber/attr env :environment :errors)]
+    (if (nil? error-reasons)
+      {}
+      (merge-error-maps error-reasons error-locations))))
+
 (defn faulty-env? [env]
   (not= {} (errors env)))
 
