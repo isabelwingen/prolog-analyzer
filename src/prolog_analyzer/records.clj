@@ -68,13 +68,15 @@
   prologable
   (to-prolog [x] "any"))
 
+(defn cut [msg]
+  (.substring msg 0 (min (count msg) 500)))
 
 (defrecord ErrorSpec [reason]
   spec
   (spec-type [spec] ERROR)
   (length [x] (count reason))
   printable
-  (to-string [x] (str "ERROR"))
+  (to-string [x] (str "ERROR: " (cut reason)))
   prologable
   (to-prolog [x] "error"))
 
