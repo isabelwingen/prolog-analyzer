@@ -24,7 +24,7 @@
                  [tableflisp "0.1.0"]]
   :main ^:skip-aot prolog-analyzer.core
   :target-path "target/%s"
-  :jvm-opts ["-Xms2g" "-Xmx6g"]
+  :jvm-opts ["-Xms3g" "-Xmx8g" "-XX:+UseConcMarkSweepGC" "-XX:+CMSIncrementalMode" "-XX:+CMSIncrementalPacing"]
   :profiles {:dev {:dependencies [[midje "1.9.9"]]
                    :plugins [[lein-midje "3.2.1"]]}
              :uberjar {:aot :all}})
