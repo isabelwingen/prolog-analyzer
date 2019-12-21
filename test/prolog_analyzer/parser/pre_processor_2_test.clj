@@ -19,12 +19,12 @@
              (-> data
                  :pre-specs
                  count)
-             => 138)
+             => 54)
        (fact :post-specs
              (-> data
                  :post-specs
                  count)
-             => 89)
+             => 41)
        (fact :preds
              (-> data
                  :preds
