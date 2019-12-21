@@ -60,17 +60,6 @@
   [pred-id ::specs/pred-id, clause-number int?]
   (log/debug (utils/format-log (vec (conj pred-id clause-number)) "End")))
 
-(defn create-result [env]
-  (let [[m n a _ :as clause-id] (utils/get-title env)]
-    {:pred-id         [m n a]
-     :clause-id       clause-id
-     :conclusion      (->> env
-                           utils/get-arguments
-                           (map-indexed (fn [i elem] {:id i :type (ru/simplify (utils/get-dom-of-term env elem))}))
-                           vec
-                           hash-set)
-     :errors         (utils/errors2 env)}))
-
 (defn-spec ^:private execute-task ::specs/env
   [data ::specs/data, [pred-id clause-number] (s/tuple ::specs/pred-id ::specs/id)]
   (send process log-start pred-id clause-number)
@@ -79,7 +68,7 @@
         pre-spec (create-spec-from-prespecs data pred-id)
         res (analyze-clause data clause-id clause pre-spec)]
     (log-end pred-id clause-number)
-    (create-result res)))
+    res))
 
 (defn-spec ^:private build-tasks (s/coll-of (s/tuple ::specs/pred-id ::specs/id))
   [data ::specs/data]

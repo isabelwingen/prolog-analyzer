@@ -12,6 +12,22 @@
   (when (empty? (utils/get-pred-identities data))
     (println (pr-str "No predicates found"))))
 
+(defn- group-envs-by-pred-id [envs]
+  (group-by #(vec (drop-last (utils/get-title %))) envs))
+
+(defn- create-single-conclusion [env]
+  (->> env
+       utils/get-arguments
+       (map-indexed (fn [i elem] {:id i :type (ru/simplify (utils/get-dom-of-term env elem))}))
+       vec))
+
+(defn- create-post-spec [envs]
+  (->> envs
+       (map create-single-conclusion)
+       set
+       vec
+       (r/->Postspec [])))
+
 (defn length-of-post-spec [{guard :guard concl :conclusion}]
   (let [a (->> guard
                (map :type)
@@ -35,29 +51,23 @@
                                             (apply ordered-set %)))
         (update-in [:post-specs pred-id] #(conj % post-spec)))))
 
-;; (defn- add-errors [in-data envs]
-;;   (->> envs
-;;        (map utils/errors)
-;;        (apply merge-with merge in-data)))
-
-
-(defn add-postspecs [in-data results]
-  (->> results
-       (map #(hash-map (:pred-id %) (:conclusion %)))
-       (apply merge-with clojure.set/union)
-       (reduce-kv #(assoc %1 %2 (r/->Postspec [] (vec %3))) {})
+;;TODO: remove group-envs. Iterate over envs, save created conclusion under pred-identities
+;; when done, merge together to postspec
+(defn- create-new-post-specs [in-data envs]
+  (->> envs
+       group-envs-by-pred-id
+       (reduce-kv #(assoc %1 %2 (create-post-spec %3)) {})
        (reduce-kv add-if-new in-data)))
 
-(defn add-errors [in-data results]
-  (assoc in-data :errors (->> results
-                              (remove (comp empty? :errors))
-                              (map #(hash-map (:clause-id %) (:errors %)))
-                              (apply merge))))
+(defn- add-errors [in-data envs]
+  (->> envs
+       (map utils/errors)
+       (apply merge-with merge in-data)))
 
-(defn create-new-data [in-data results]
+(defn- create-new-data [in-data envs]
   (-> in-data
-      (add-postspecs results)
-      (add-errors results)))
+      (create-new-post-specs envs)
+      (add-errors envs)))
 
 (defn same [data-a data-b]
   (and
@@ -68,11 +78,13 @@
 (defn fixpoint [write counter in-data]
   (log/info "Fixpoint: Step " counter)
   (write in-data counter)
-  (let [results (clause-analysis/complete-analysis in-data)
-        new-data (create-new-data in-data results)]
+  (let [envs (clause-analysis/complete-analysis in-data)
+        new-data (create-new-data in-data envs)]
+    (print-type-information (inc counter) envs)
     (if (same in-data new-data)
       (do
         (log/info "Done")
+        (print-type-information 999 envs)
         new-data)
       (recur write (inc counter) new-data))))
 
