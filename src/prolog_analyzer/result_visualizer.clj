@@ -246,21 +246,33 @@
         (assoc :any-ratio (->> (/ any total) double))
         (assoc :not-any-ratio (->> (/ not-any total) double)))))
 
+(defn- get-vars
+  ([env]
+   (get-vars false env))
+  ([only-header? env]
+   (loop [terms (vec (if only-header? (utils/get-arguments env) (utils/get-terms env)))
+          vars (list)]
+     (if-let [f (first terms)]
+       (cond
+         (ru/var-term? f) (recur (vec (rest terms)) (conj vars f))
+         (contains? f :arglist) (recur (apply conj (vec (rest terms)) (:arglist f)) vars)
+         (contains? f :head) (recur (conj (vec (rest terms)) (:head f) (:tail f)) vars)
+         :else (recur (vec (rest terms)) vars))
+       (set vars)))))
+
 (defn- get-vars-in-head [env]
-  (loop [terms (vec (utils/get-arguments env))
-         vars (list)]
-    (if-let [f (first terms)]
-      (cond
-        (ru/var-term? f) (recur (vec (rest terms)) (conj vars f))
-        (contains? f :arglist) (recur (apply conj (vec (rest terms)) (:arglist f)) vars)
-        (contains? f :head) (recur (conj (vec (rest terms)) (:head f) (:tail f)) vars)
-        :else (recur (vec (rest terms)) vars))
-      vars)))
+  (get-vars true env))
+
+(defn get-non-anon-vars
+  ([env] (get-non-anon-vars false env))
+  ([only-header? env]
+   (->> env
+        (get-vars only-header?)
+        (remove #(.startsWith (:name %) "_"))
+        set)))
 
 (defn- get-non-anon-vars-in-head [env]
-  (->> env
-       get-vars-in-head
-       (remove #(.startsWith (:name %) "_"))))
+  (get-non-anon-vars true env))
 
 (defn- freq-types [terms env]
   (->> terms
@@ -279,7 +291,11 @@
                   any-ratio
                   (assoc :faulty? (utils/faulty-env? env))
                   ))]
-    {:all (fun (get-vars-in-head env)) :non-anon (fun (get-non-anon-vars-in-head env))}))
+    {:only-head
+     {:all (fun (get-vars-in-head env)) :non-anon (fun (get-non-anon-vars-in-head env))}
+     :all
+     {:all (fun (get-vars env)) :non-anon (fun (get-non-anon-vars env))}}
+    ))
 
 
 (defn- typing [envs]
@@ -289,7 +305,7 @@
 
 
 (defn print-type-information [counter envs]
-  (when (zero? counter)
+  (when (= 1 counter)
     (delete-directory-recursive (io/file TYPES)))
   (let [file (io/file (str TYPES "/types_" counter ".edn"))
         result {:number-of-clauses (count envs)
