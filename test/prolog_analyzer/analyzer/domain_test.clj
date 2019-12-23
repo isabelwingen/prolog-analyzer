@@ -50,7 +50,7 @@
        (r/->EmptyListTerm)
        (r/->TupleSpec [(r/->FloatSpec)]))
       utils/env->map)
-  => (contains {"[]" "ERROR"}))
+  => (contains {"[]" "ERROR: No valid intersection of EmptyList and Tuple(Float)"}))
 
 
  )

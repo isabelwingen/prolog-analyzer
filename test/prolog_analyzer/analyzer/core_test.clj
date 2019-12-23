@@ -107,7 +107,7 @@
        => (contains {"X" "List(OneOf(Atom, Integer))"}))
  (fact "Placeholder in member"
        (analyze "foo :- member(1,[a,b,c]).")
-       => (contains {"1" "ERROR"}))
+       => (contains {"1" "ERROR: No valid intersection of Atom and Integer" }))
  (fact "Placeholder in member 2"
        (analyze "foo(X) :- member(X,[p,b,2]).")
        => (contains {"X" "OneOf(Atom, Integer)"})))
