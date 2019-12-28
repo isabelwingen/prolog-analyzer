@@ -29,7 +29,7 @@
     (utils/update-attr env :environment :post-specs conj (replace-ids-with-args post-spec arglist))
     (-> env
         (uber/add-nodes :environment)
-        (uber/add-attr :environment :post-specs [])
+        (uber/add-attr :environment :post-specs #{})
         (register-post-spec arglist post-spec))))
 
 (defn-spec register-post-specs ::specs/env
@@ -131,7 +131,11 @@
 
 
 (defn remove-post-spec [env postspec]
-  (utils/update-attr env :environment :post-specs #(remove (partial = postspec) %)))
+  (-> env
+      (utils/update-attr :environment :post-specs #(remove (partial = postspec) %))
+      (utils/update-attr :environment :post-specs set)
+       ))
+
 
 (defn apply-post-specs [env]
   (let [post-specs (get-post-specs env)
@@ -139,4 +143,4 @@
         steps (->> applicable-post-specs (map (partial create-step env)) set)
         new-env (reduce remove-post-spec env applicable-post-specs)]
     {:new-env new-env
-     :steps steps}))
+     :steps (set steps)}))
