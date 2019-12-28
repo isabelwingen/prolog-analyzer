@@ -40,7 +40,23 @@
                (apply +))]
     (+ a b)))
 
+(defn faulty-postspec? [{guard :guard concs :conclusion}]
+  (->> concs
+       (apply concat guard)
+       (map :type)
+       (some ru/error-spec?)))
 
+
+(defn add-if-new-and-correct [data [_ _ arity :as pred-id] post-spec]
+  (if (faulty-postspec? post-spec)
+    data
+    (if (> (length-of-post-spec post-spec) 1000)
+      data
+      (-> data
+          (update-in [:post-specs pred-id] #(if (nil? %)
+                                              (ordered-set)
+                                              (apply ordered-set %)))
+          (update-in [:post-specs pred-id] #(conj % post-spec))))))
 
 (defn add-if-new [data [_ _ arity :as pred-id] post-spec]
   (if (> (length-of-post-spec post-spec) 1000)
@@ -57,7 +73,7 @@
   (->> envs
        group-envs-by-pred-id
        (reduce-kv #(assoc %1 %2 (create-post-spec %3)) {})
-       (reduce-kv add-if-new in-data)))
+       (reduce-kv add-if-new-and-correct in-data)))
 
 (defn- add-errors [in-data envs]
   (->> envs
