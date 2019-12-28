@@ -171,8 +171,8 @@
 % no spec post
 
 :- spec_pre(user:'='/2, [any, any]).
-:- spec_post(user:'='/2, [0:placeholder(a)], [[1:placeholder(a)]]).
-:- spec_post(user:'='/2, [1:placeholder(a)], [[0:placeholder(a)]]).
+:- spec_post(user:'='/2, [0:and([nonvar,placeholder(a)])], [[1:placeholder(a)]]).
+:- spec_post(user:'='/2, [1:and([nonvar,placeholder(a)])], [[0:placeholder(a)]]).
 
 :- spec_pre(user:'\\='/2, [any, any]).
 % no spec post
