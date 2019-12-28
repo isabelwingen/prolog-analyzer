@@ -37,7 +37,7 @@
   [env ::specs/env, arglist ::specs/arglist, post-specs ::specs/post-specs]
   (reduce #(register-post-spec %1 arglist %2) env post-specs))
 
-(defn-spec ^:private get-post-specs ::specs/resolved-post-specs
+(defn-spec get-post-specs ::specs/resolved-post-specs
   [env ::specs/env]
   (if (uber/has-node? env :environment)
     (or (uber/attr env :environment :post-specs) [])
@@ -128,3 +128,15 @@
          (map (partial create-step env))
          (remove nil?)
          set)))
+
+
+(defn remove-post-spec [env postspec]
+  (utils/update-attr env :environment :post-specs #(remove (partial = postspec) %)))
+
+(defn apply-post-specs [env]
+  (let [post-specs (get-post-specs env)
+        applicable-post-specs (->> post-specs (remove #(nil? (create-step env %))))
+        steps (->> applicable-post-specs (map (partial create-step env)) set)
+        new-env (reduce remove-post-spec env applicable-post-specs)]
+    {:new-env new-env
+     :steps steps}))

@@ -8,7 +8,8 @@
             [prolog-analyzer.records :as r]
             [prolog-analyzer.specs :as specs]
             [prolog-analyzer.utils :as utils :refer [case+]]
-            [ubergraph.core :as uber]))
+            [ubergraph.core :as uber]
+            ))
 
 (declare add-to-dom)
 
@@ -85,6 +86,7 @@
   (if (ru/error-spec? new-type)
     (utils/store-error-reason env term)
     env))
+
 
 (defn add-to-dom
   ([env term spec]

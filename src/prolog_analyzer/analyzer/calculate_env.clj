@@ -117,7 +117,8 @@
   (reduce (partial process-edge parameters) env (uber/edges env)))
 
 (defn ^:private process-post-specs [env parameters]
-  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
+  (let [{new-env :new-env steps :steps} (post-specs/apply-post-specs env)]
+    (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) new-env steps)))
 
 (defn ^:private post-process-step [env parameters]
   (-> env
