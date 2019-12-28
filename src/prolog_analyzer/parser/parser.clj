@@ -68,7 +68,7 @@
     err))
 
 
-(defmethod call-prolog "sicstus" [dir? {expander :expande exe :exe} file edn-file]
+(defmethod call-prolog "sicstus" [dir? {expander :expander exe :exe} file edn-file]
   (log/info "Call prolog on" file)
   (let [goal (prolog-goal expander edn-file file dir?)
         {err :err} (time (sh/sh exe "--goal" goal "--noinfo" :env (into {} (System/getenv))))]
