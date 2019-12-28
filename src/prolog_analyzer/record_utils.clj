@@ -175,7 +175,7 @@
     (if (empty? tuple-arglists)
       (r/->ErrorSpec "arglist of tuples empty")
       (if (apply = (map last tuple-arglists))
-        (r/->TupleSpec [(r/->OneOfSpec (set (map first tuple-arglists))) (last (first tuple-arglists))])
+        (r/->TupleSpec [(simplify (r/->OneOfSpec (set (map first tuple-arglists)))) (last (first tuple-arglists))])
         (if (apply = (map first tuple-arglists))
           (r/->TupleSpec [(first (first tuple-arglists)) (r/->OneOfSpec (set (map last tuple-arglists)))])
           spec)))))

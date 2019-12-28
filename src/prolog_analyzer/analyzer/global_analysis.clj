@@ -58,15 +58,6 @@
                                               (apply ordered-set %)))
           (update-in [:post-specs pred-id] #(conj % post-spec))))))
 
-(defn add-if-new [data [_ _ arity :as pred-id] post-spec]
-  (if (> (length-of-post-spec post-spec) 1000)
-    data
-    (-> data
-        (update-in [:post-specs pred-id] #(if (nil? %)
-                                            (ordered-set)
-                                            (apply ordered-set %)))
-        (update-in [:post-specs pred-id] #(conj % post-spec)))))
-
 ;;TODO: remove group-envs. Iterate over envs, save created conclusion under pred-identities
 ;; when done, merge together to postspec
 (defn- create-new-post-specs [in-data envs]
@@ -104,13 +95,6 @@
         new-data)
       (recur write (inc counter) new-data))))
 
-(defn- dummy-post-spec [arity]
-  (r/->Postspec [] [(vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 arity)))]))
-
-(defn- add-dummy-post-specs [data]
-  (reduce (fn [d [_ _ arity :as pred-id]] (update-in d [:post-specs pred-id] #(vec (conj % (dummy-post-spec arity))))) data (utils/get-pred-identities data)))
-
 (defn global-analysis [write data]
-  (let [cleared-data (add-dummy-post-specs data)]
-    (log-if-empty cleared-data)
-    (fixpoint write 0 cleared-data)))
+  (log-if-empty data)
+  (fixpoint write 0 data))

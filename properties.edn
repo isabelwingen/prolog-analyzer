@@ -1,6 +1,6 @@
 {
- :dialect "swipl"
+ :dialect "sicstus"
  :expander "prolog/prolog_analyzer.pl"
  :built-ins "prolog/builtins.pl"
- :exe "swipl"
+ :exe "/usr/local/sicstus4.4.1/bin/sicstus-4.4.1"
  }
