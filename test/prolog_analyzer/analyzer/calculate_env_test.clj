@@ -11,16 +11,7 @@
 
 (facts
  "About Lists"
- (fact
-  "Pass domain of head upwards"
-  (test-wrapper
-     ["H" "[H|T]"]
-     ("Tuple" ["Integer" ("OneOf" [("List" ("OneOf" ["Integer" "Atom"]))
-                                   ("List" "Float")])]))
-  =>
-  (contains {"H" "Integer"
-             "T" "List(OneOf(Atom, Integer))"
-             "[H|T]" "List(OneOf(Atom, Integer))"}))
+
  (fact
   "Pass domain of head upwards and pass it down to tail"
   (test-wrapper

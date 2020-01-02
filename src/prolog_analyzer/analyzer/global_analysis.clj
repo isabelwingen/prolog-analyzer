@@ -28,7 +28,7 @@
        vec
        (r/->Postspec [])))
 
-(defn length-of-post-spec [{guard :guard concl :conclusion}]
+(defn- length-of-post-spec [{guard :guard concl :conclusion}]
   (let [a (->> guard
                (map :type)
                (map r/length)
@@ -40,16 +40,23 @@
                (apply +))]
     (+ a b)))
 
+(defn- faulty-postspec? [{guard :guard concs :conclusion}]
+  (->> concs
+       (apply concat guard)
+       (map :type)
+       (some ru/error-spec?)))
 
 
-(defn add-if-new [data [_ _ arity :as pred-id] post-spec]
-  (if (> (length-of-post-spec post-spec) 1000)
+(defn- add-if-new-and-correct [data [_ _ arity :as pred-id] post-spec]
+  (if (faulty-postspec? post-spec)
     data
-    (-> data
-        (update-in [:post-specs pred-id] #(if (nil? %)
-                                            (ordered-set)
-                                            (apply ordered-set %)))
-        (update-in [:post-specs pred-id] #(conj % post-spec)))))
+    (if (> (length-of-post-spec post-spec) 1000)
+      data
+      (-> data
+          (update-in [:post-specs pred-id] #(if (nil? %)
+                                              (ordered-set)
+                                              (apply ordered-set %)))
+          (update-in [:post-specs pred-id] #(conj % post-spec))))))
 
 ;;TODO: remove group-envs. Iterate over envs, save created conclusion under pred-identities
 ;; when done, merge together to postspec
@@ -57,7 +64,7 @@
   (->> envs
        group-envs-by-pred-id
        (reduce-kv #(assoc %1 %2 (create-post-spec %3)) {})
-       (reduce-kv add-if-new in-data)))
+       (reduce-kv add-if-new-and-correct in-data)))
 
 (defn- add-errors [in-data envs]
   (->> envs
@@ -69,13 +76,18 @@
       (create-new-post-specs envs)
       (add-errors envs)))
 
-(defn same [data-a data-b]
+(defn- same [data-a data-b]
   (and
    (= (:post-specs data-a) (:post-specs data-b))
    (= (:pre-specs data-a) (:pre-specs data-b))
    (= (:errors data-a) (:errors data-b))))
 
-(defn fixpoint [write counter in-data]
+(defn fixpoint
+  "Calculates environments for every clause
+  add adds the newly gained knwledge back to the data.
+
+  Repeat until a fxpoint is reached"
+  [write counter in-data]
   (log/info "Fixpoint: Step " counter)
   (write in-data counter)
   (let [envs (clause-analysis/complete-analysis in-data)
@@ -88,13 +100,8 @@
         new-data)
       (recur write (inc counter) new-data))))
 
-(defn- dummy-post-spec [arity]
-  (r/->Postspec [] [(vec (map #(hash-map :id % :type (r/->AnySpec)) (range 0 arity)))]))
-
-(defn- add-dummy-post-specs [data]
-  (reduce (fn [d [_ _ arity :as pred-id]] (update-in d [:post-specs pred-id] #(vec (conj % (dummy-post-spec arity))))) data (utils/get-pred-identities data)))
-
-(defn global-analysis [write data]
-  (let [cleared-data (add-dummy-post-specs data)]
-    (log-if-empty cleared-data)
-    (fixpoint write 0 cleared-data)))
+(defn global-analysis
+  "Starts the two-phased analysis."
+  [write data]
+  (log-if-empty data)
+  (fixpoint write 0 data))

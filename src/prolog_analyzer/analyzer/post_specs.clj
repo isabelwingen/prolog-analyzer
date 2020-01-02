@@ -29,7 +29,7 @@
     (utils/update-attr env :environment :post-specs conj (replace-ids-with-args post-spec arglist))
     (-> env
         (uber/add-nodes :environment)
-        (uber/add-attr :environment :post-specs [])
+        (uber/add-attr :environment :post-specs #{})
         (register-post-spec arglist post-spec))))
 
 (defn-spec register-post-specs ::specs/env
@@ -37,7 +37,7 @@
   [env ::specs/env, arglist ::specs/arglist, post-specs ::specs/post-specs]
   (reduce #(register-post-spec %1 arglist %2) env post-specs))
 
-(defn-spec ^:private get-post-specs ::specs/resolved-post-specs
+(defn-spec get-post-specs ::specs/resolved-post-specs
   [env ::specs/env]
   (if (uber/has-node? env :environment)
     (or (uber/attr env :environment :post-specs) [])
@@ -128,3 +128,21 @@
          (map (partial create-step env))
          (remove nil?)
          set)))
+
+
+(defn- remove-post-spec [env postspec]
+  (-> env
+      (utils/update-attr :environment :post-specs #(remove (partial = postspec) %))
+      (utils/update-attr :environment :post-specs set)
+       ))
+
+
+(defn apply-post-specs
+  "Calculates steps from the registered, applicable postpsecs and removes them from the env"
+  [env]
+  (let [post-specs (get-post-specs env)
+        applicable-post-specs (->> post-specs (remove #(nil? (create-step env %))))
+        steps (->> applicable-post-specs (map (partial create-step env)) set)
+        new-env (reduce remove-post-spec env applicable-post-specs)]
+    {:new-env new-env
+     :steps (set steps)}))

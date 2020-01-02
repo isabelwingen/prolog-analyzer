@@ -26,12 +26,12 @@
   {[module functor arity] (vector (map transform-spec arglist))})
 
 
-(defn create-guard [guard]
+(defn- create-guard [guard]
   (->> guard
        (map #(update % :type transform-spec))
        (apply vector)))
 
-(defn create-conclusion [conc]
+(defn- create-conclusion [conc]
   (->> conc
        (map create-guard)
        (apply vector)))
@@ -71,14 +71,14 @@
        (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
        ))
 
-(defn order-post-specs [specs]
+(defn- order-post-specs [specs]
   (->> specs
        (map specs-to-map)
        (apply merge-with into)
        (reduce-kv (fn [m keys v] (update m keys #(into % v))) {})
        ))
 
-(defn order-preds [preds]
+(defn- order-preds [preds]
   (->> preds
        (group-by (juxt :module :name :arity))
        (reduce-kv (fn [m k v] (assoc m k (->> v
@@ -88,7 +88,7 @@
 
 
 
-(defn order-modules [modules]
+(defn- order-modules [modules]
   (reduce
    (fn [res {path :path module :module partial :partial}]
      (if partial
@@ -107,7 +107,7 @@
        remove-built-ins
        ))
 
-(defn order-imports [{module-mapping :module module-imports :use-module :as data}]
+(defn- order-imports [{module-mapping :module module-imports :use-module :as data}]
   (let [imports (map #(if (:non-lib %) (assoc % :path (.getAbsolutePath (io/file (:source-path %) (:non-lib %)))) %) module-imports)
         non-libs-all (->> imports
                           (remove :lib)
@@ -138,8 +138,9 @@
         (assoc :imports (merge-with into non-libs-all non-libs libs-all libs)))))
 
 
-;; main
-(defn format-and-clean-up [data]
+(defn format-and-clean-up
+  "Transform edn created by parser into a more suitable map"
+  [data]
   (log/info "Start formatting of edn")
   (let [p (-> data
               (group-by-and-apply :type (partial map :content))

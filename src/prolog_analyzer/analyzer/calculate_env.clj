@@ -19,26 +19,6 @@
     (dom/add-to-dom-post-spec env term spec)
     (dom/add-to-dom env initial? false term spec)))
 
-(defn ^:private compatible-with-head [{initial? :initial :as parameters} head-dom term-dom]
-  (case+ (ru/spec-type term-dom)
-         r/TUPLE (let [new-dom (update term-dom :arglist #(assoc % 0 head-dom))]
-                   (if (ru/non-empty-intersection new-dom term-dom initial?)
-                     new-dom
-                     nil))
-         r/OR (let [new-dom (-> term-dom
-                                (update :arglist (partial filter (partial compatible-with-head parameters head-dom)))
-                                (update :arglist set)
-                                (ru/simplify initial?))]
-                (if (ru/non-empty-intersection new-dom term-dom initial?)
-                  new-dom
-                  nil))
-         r/LIST (if (ru/non-empty-intersection head-dom (:type term-dom) initial?)
-                  term-dom
-                  nil)
-         (if (ru/non-empty-intersection (r/->ListSpec head-dom) term-dom initial?)
-           term-dom
-           nil)))
-
 (defn ^:private singleton-list? [term]
   (and (ru/empty-list-term? (ru/tail term))))
 
@@ -55,28 +35,7 @@
                    (apply max 0))
          r/LIST (-> spec :type deepness inc)
          1))
-
-(defn ^:private get-matching-head [tail pair-id env]
-  (let [head (some->> env
-                      uber/edges
-                      (filter #(= :is-head (uber/attr env % :relation)))
-                      (filter #(= pair-id (uber/attr env % :pair)))
-                      first
-                      uber/src)]
-    (assert (not (nil? head)) (str (utils/get-title env) " " (r/to-string tail)))
-    head))
-
 (defmulti ^:private process-edge (fn [_ env edge] (uber/attr env edge :relation)))
-
-(defmethod process-edge :is-head [parameters env edge]
-  (let [head (uber/src edge)
-        term (uber/dest edge)
-        head-dom (utils/get-dom-of-term env head)
-        term-dom (utils/get-dom-of-term env term)
-        filtered-dom (compatible-with-head parameters head-dom term-dom)]
-    (if (singleton-list? term)
-      (add-to-dom env term (r/->TupleSpec [head-dom]) parameters)
-      (add-to-dom env term (or filtered-dom (r/DISJOINT "No term dom is compatible with head")) parameters))))
 
 (defmethod process-edge :is-tail [parameters env edge]
   (let [tail (uber/src edge)
@@ -117,7 +76,8 @@
   (reduce (partial process-edge parameters) env (uber/edges env)))
 
 (defn ^:private process-post-specs [env parameters]
-  (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) env (post-specs/get-next-steps-from-post-specs env)))
+  (let [{new-env :new-env steps :steps} (post-specs/apply-post-specs env)]
+    (reduce (fn [e [term spec]] (add-to-dom e term spec (assoc parameters :overwrite true))) new-env steps)))
 
 (defn ^:private post-process-step [env parameters]
   (-> env

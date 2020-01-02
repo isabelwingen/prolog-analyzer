@@ -8,7 +8,8 @@
             [prolog-analyzer.records :as r]
             [prolog-analyzer.specs :as specs]
             [prolog-analyzer.utils :as utils :refer [case+]]
-            [ubergraph.core :as uber]))
+            [ubergraph.core :as uber]
+            ))
 
 (declare add-to-dom)
 
@@ -86,7 +87,9 @@
     (utils/store-error-reason env term)
     env))
 
+
 (defn add-to-dom
+  "Adds a type to term. Also cascades changes down to children."
   ([env term spec]
    (add-to-dom env false false term spec))
   ([env initial? overwrite? term spec]
@@ -115,7 +118,7 @@
                                              (process-next-steps term new callback simplify-fn))))))))
 
 (defn-spec add-to-dom-post-spec ::specs/env
-  "Adds a spec obtained from a postspec to the environment"
+  "Adds a type obtained from a postspec to the environment"
   [env ::specs/env, term ::specs/term, spec ::specs/spec]
   (add-to-dom env false true term spec))
 

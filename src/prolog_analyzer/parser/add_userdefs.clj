@@ -31,7 +31,7 @@
                                    (update :arglist vec))
          spec))
 
-(defn add-grounded-userdefs [data]
+(defn- add-grounded-userdefs [data]
   (doseq [p (keys @state/user-typedefs)
           initial [true false]
           :let [v (get @state/user-typedefs p)]]
@@ -39,7 +39,7 @@
   data)
 
 
-(defn assert-spec-defs [data]
+(defn- assert-spec-defs [data]
   (reset! state/user-typedefs (:specs data))
   data)
 

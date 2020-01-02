@@ -15,30 +15,40 @@
 (declare replace-placeholder-with-alias)
 (declare replace-var-with-ground)
 
-(defn-spec spec-type keyword? ;;TODO: improve return type
+(defn-spec spec-type keyword?
+  "Returns the type of a spec"
   [spec ::specs/spec]
   (r/spec-type spec))
 
-(defn-spec term-type keyword? ;;TODO: improve return type
+(defn-spec term-type keyword?
+  "Returns the type of a term"
   [term ::specs/term]
   (r/term-type term))
 
 (defn-spec initial-spec ::specs/spec
+  "Returns the intiial spec of a term"
   [term ::specs/term]
   (r/initial-spec term))
 
-(defmulti name-grounded (fn [_ i] i))
+(defmulti name-grounded
+  "Create a new name, which marks the spec as grounded"
+  (fn [_ i] i))
+
 (defmethod name-grounded true [spec _]
   (str (:name spec) "_g_i"))
 
 (defmethod name-grounded false [spec _]
   (str (:name spec) "_g_ni"))
 
-(defn already-grounded? [spec]
+(defn already-grounded?
+  "Checks if a spec is already ground"
+  [spec]
   (or (.endsWith (:name spec) "_g_i")
       (.endsWith (:name spec) "_g_ni")))
 
-(defn grounded-version [spec initial?]
+(defn grounded-version
+  "Create a ground version of a userdefined spec"
+  [spec initial?]
   (if (already-grounded? spec)
     spec
     (if (:arglist spec)
@@ -67,36 +77,52 @@
 (defn placeholder-spec? [spec]
   (= r/PLACEHOLDER (spec-type spec)))
 
-(defn error-spec? [spec]
+(defn error-spec?
+  "Checks, if a spec is of type error"
+  [spec]
   (or (nil? spec)
       (= r/ERROR (spec-type spec))))
 
 
-(defn recursive-error-spec? [spec]
+(defn recursive-error-spec?
+  "Checks, if a spec is of type error or contains one"
+  [spec]
   (or (nil? spec)
       (= r/ERROR (spec-type spec))
       (if (contains? spec :type) (error-spec? (.type spec)) false)
       (if (contains? spec :arglist) (some error-spec? (:arglist spec)) false)
       ))
 
-(defn empty-list-term? [term]
+(defn empty-list-term?
+  "Checks if a term is the empty list"
+  [term]
   (= r/EMPTYLIST (term-type term)))
 
-(defn var-term? [term]
+(defn var-term?
+  "Checks if a term is variable"
+  [term]
   (= r/VAR (term-type term)))
 
-(defn nonvar-term? [term]
+(defn nonvar-term?
+  "Checks if a term is nonvar"
+  [term]
   ((complement var-term?) term))
 
-(defn tuple-spec? [spec]
+(defn tuple-spec?
+  "Checks if a spec is a tuple"
+  [spec]
   (= r/TUPLE (spec-type spec)))
 
-(defn empty-list-spec? [spec]
+(defn empty-list-spec?
+  "Checks if a spec is the emptylist spec"
+  [spec]
   (= r/EMPTYLIST (spec-type spec)))
 
 (declare replace-specvars-with-spec)
 
-(defn replace-specvars-with-spec [type specvar-name replace-spec]
+(defn replace-specvars-with-spec
+  "Replace the specvar in the definition of userdefined spec by another spec"
+  [type specvar-name replace-spec]
   (case+ (spec-type type)
          r/SPECVAR (if (= specvar-name (:name type)) replace-spec type)
 
@@ -175,12 +201,13 @@
     (if (empty? tuple-arglists)
       (r/->ErrorSpec "arglist of tuples empty")
       (if (apply = (map last tuple-arglists))
-        (r/->TupleSpec [(r/->OneOfSpec (set (map first tuple-arglists))) (last (first tuple-arglists))])
+        (r/->TupleSpec [(simplify (r/->OneOfSpec (set (map first tuple-arglists)))) (last (first tuple-arglists))])
         (if (apply = (map first tuple-arglists))
           (r/->TupleSpec [(first (first tuple-arglists)) (r/->OneOfSpec (set (map last tuple-arglists)))])
           spec)))))
 
 (defn extract-singleton-tuples
+  "Simplifies a OneOf with one-sized Tuples to a single Tuple"
   ([{arglist :arglist :as spec} initial?]
    (if (and
         (or-spec? spec)
@@ -198,7 +225,9 @@
          spec))
      spec)))
 
-(defn remove-error-specs [spec]
+(defn remove-error-specs
+  "Remove errors specs from OneOf"
+  [spec]
   (if (or-spec? spec)
     (-> spec
         (update :arglist (partial remove #(recursive-error-spec? %)))
@@ -212,7 +241,9 @@
   (s/keys :req-un [::arglist]))
 
 
-(defn simplify-or [spec initial?]
+(defn simplify-or
+  "Simplifies a OneOf spec"
+  [spec initial?]
   (-> spec
       (update :arglist (partial mapcat #(if (or-spec? %) (:arglist %) [%])))
       remove-error-specs
@@ -237,6 +268,7 @@
   )
 
 (defn simplify
+  "Simplifies specs"
   ([spec] (simplify spec false))
   ([spec initial?]
    (case+ (spec-type spec)
@@ -300,7 +332,8 @@
          :initial? boolean?
          :swap? boolean?)
   :ret ::specs/spec)
-(defn intersect* [left right initial? swap?]
+(defn- intersect*
+  [left right initial? swap?]
   (let [swap (fn [] (when swap?
                      (intersect* right left initial? false)))
         intersection (duocase [(spec-type left) (spec-type right)]
@@ -422,24 +455,29 @@
     :args (s/cat :spec-a ::specs/spec :spec-b ::specs/spec :initial? boolean?)
     :ret ::specs/spec)
 
-(defn intersect [spec-a spec-b initial?]
+(defn intersect
+  "Intersects two specs"
+  [spec-a spec-b initial?]
   (if (= spec-a spec-b)
     spec-a
     (intersect* spec-a spec-b initial? true)))
 
 (defn to-tuple-spec
-  "Transforms a bunch of `specs` to a tuple spec."
+  "Transforms a bunch of specs to a Tuple spec."
   [& specs]
   (if (empty? specs)
     (r/->TupleSpec [])
     (r/->TupleSpec specs)))
 
-(defn to-head-tail-list [& terms]
+(defn to-head-tail-list
+  "Transforms a bunch of terms to a List term"
+  [& terms]
   (if (empty? terms)
     (r/->EmptyListTerm)
     (r/->ListTerm (first terms) (apply to-head-tail-list (rest terms)))))
 
-(defn replace-specvar-name-with-value [spec specvar-name replace-value]
+(defn- replace-specvar-name-with-value
+  [spec specvar-name replace-value]
   (case+ (spec-type spec)
          r/SPECVAR (if (= specvar-name (:name spec)) (assoc spec :name replace-value) spec)
 
@@ -467,18 +505,18 @@
        (reduce-kv #(assoc %1 %2 (if (empty? %3) nil (simplify (r/->OneOfSpec (set (map remove-alias %3))) false))) {})
        (reduce-kv #(conj %1 (if (nil? %3) (r/->PlaceholderSpec %2) (assoc (r/->PlaceholderSpec %2) :alias %3))) [])))
 
-(defn create-replace-map [placeholders]
+(defn- create-replace-map [placeholders]
   (->> placeholders
        (remove #(contains-placeholder? (or (:alias %) (r/->PlaceholderSpec "X"))))
        (reduce #(assoc %1 (:name %2) (:alias %2)) {})
        ))
 
-(defn replace-alias [replace-map placeholder-spec]
+(defn- replace-alias [replace-map placeholder-spec]
   (if (contains? placeholder-spec :alias)
     (update placeholder-spec :alias (partial replace-placeholder-with-alias replace-map))
     placeholder-spec))
 
-(defn simplify-placeholders [placeholders]
+(defn- simplify-placeholders [placeholders]
   (let [replace-map (create-replace-map placeholders)]
     (if (->> placeholders
              (map :alias)
@@ -487,7 +525,9 @@
       (simplify-placeholders (map (partial replace-alias replace-map) placeholders))
       placeholders)))
 
-(defn find-placeholders [spec]
+(defn find-placeholders
+  "Finds all Placeholders contained in the given spec"
+  [spec]
   (let [placeholders (case+ (spec-type spec)
                             r/PLACEHOLDER (if (contains-placeholder? (or (:alias spec) (r/->AnySpec))) (conj (find-placeholders (:alias spec)) spec) [spec])
                             (r/OR, r/AND, r/COMPOUND, r/TUPLE) (set (mapcat find-placeholders (.arglist spec)))
@@ -501,7 +541,9 @@
          set)))
 
 
-(defmulti contains-placeholder? (fn [t] (if (satisfies? spec t) :spec :postspec)))
+(defmulti contains-placeholder?
+  "checks if a given spec contains Placeholder"
+  (fn [t] (if (satisfies? spec t) :spec :postspec)))
 (defmethod contains-placeholder? :postspec [{guard :guard conclusion :conclusion}]
   (or
    (some (comp contains-placeholder? :type) guard)
@@ -527,7 +569,9 @@
     (get alias-map n (r/->AnySpec))
     (compatible (get alias-map n (r/->AnySpec)) (get alias-map super-of (r/->AnySpec)))))
 
-(defn replace-placeholder-with-alias [alias-map spec]
+(defn replace-placeholder-with-alias
+  "Replace all Placeholder in the given spec to their calculates alias, contained in the given map"
+  [alias-map spec]
   (case+ (spec-type spec)
          r/PLACEHOLDER (fill-placeholder spec alias-map)
          (r/OR, r/AND) (-> spec
@@ -545,7 +589,9 @@
          spec
          ))
 
-(defn replace-var [spec replacement]
+(defn replace-var
+  "Replaces every Var spec inside the given spec with another spec"
+  [spec replacement]
   (case+ (spec-type spec)
          r/VAR replacement
          r/PLACEHOLDER (if (contains? spec :alias) (update spec :alias replace-var replacement) spec)
@@ -561,13 +607,19 @@
          spec
          ))
 
-(defn replace-var-with-any [spec]
+(defn replace-var-with-any
+  "Replaces every Var spec inside the given spec with Any"
+  [spec]
   (replace-var spec (r/->AnySpec)))
 
-(defn replace-var-with-ground [spec]
+(defn replace-var-with-ground
+  "Replaces every Var spec inside the given spec with Ground"
+  [spec]
   (replace-var spec (r/->GroundSpec)))
 
-(defn length-of-list-term [{head :head tail :tail :as list}]
+(defn length-of-list-term
+  "Calculates the length of a List"
+  [{head :head tail :tail :as list}]
   (cond
     (nil? head) 0
     (nil? tail) 1
@@ -579,10 +631,14 @@
         (inc tail-length)))))
 
 
-(defn nonvar-term? [term]
+(defn nonvar-term?
+  "Checks if a term is Nonvar"
+  [term]
   (not= (term-type term) r/VAR))
 
-(defn maybe-spec [spec]
+(defn maybe-spec
+  "Create a spec, which is the given spec or Var"
+  [spec]
   (cond
     (:arglist spec) (r/->OneOfSpec #{(r/->VarSpec) (update spec :arglist (partial map (fn [x] (r/->AnySpec))))})
     (:type spec) (r/->OneOfSpec #{(r/->VarSpec) (assoc spec :type (r/->AnySpec))})
@@ -591,38 +647,60 @@
     :else (r/->OneOfSpec (hash-set (r/->VarSpec) spec))))
 
 
-(defn list-term? [term]
+(defn list-term?
+  "Checks if the given term is a List"
+  [term]
   (= r/LIST (term-type term)))
 
-(defn compound-term? [term]
+(defn compound-term?
+  "Checks if the given Term is a Compound"
+  [term]
   (= r/COMPOUND (term-type term)))
 
-(defn single-term? [term]
+(defn single-term?
+  "Checks if the given Term is atomic"
+  [term]
   (and (not (list-term? term))
        (not (compound-term? term))))
 
-(defn head [list-term]
+(defn head
+  "Get the head of a List"
+  [list-term]
   (:head list-term))
 
-(defn tail [list-term]
+(defn tail
+  "Get the tail of a List"
+  [list-term]
   (:tail list-term))
 
-(defn arg [compound-or-tuple n]
+(defn arg
+  "Get the nth argument of a Compound or Tuple"
+  [compound-or-tuple n]
   (nth (:arglist compound-or-tuple) n))
 
-(defn compound-with-anys [fun n]
+(defn compound-with-anys
+  "Create a Compound with functor `fun` of length `n` containing only Any"
+  [fun n]
   (r/->CompoundSpec fun (apply vector (repeat n (r/->AnySpec)))))
 
-(defn tuple-with-anys [n]
+(defn tuple-with-anys
+  "Create a Tupel of length `n` containing only Any"
+  [n]
   (r/->TupleSpec (apply vector (repeat n (r/->AnySpec)))))
 
-(defn list-with-anys []
+(defn list-with-anys
+  "Create a List of type Any"
+  []
   (r/->ListSpec (r/->AnySpec)))
 
-(defn non-empty-intersection [spec1 spec2 initial?]
+(defn non-empty-intersection
+  "Check if the intersection is not-empty"
+  [spec1 spec2 initial?]
   (not (error-spec? (intersect spec1 spec2 initial?))))
 
-(defn same? [spec1 spec2]
+(defn same?
+  "Checks if two specs are identical"
+  [spec1 spec2]
   (if (= (spec-type spec1) (spec-type spec2))
     (case+ (spec-type spec1)
            r/TUPLE (every? #(apply same? %) (map vector (:arglist spec1) (:arglist spec2)))

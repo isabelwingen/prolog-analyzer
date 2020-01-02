@@ -149,7 +149,10 @@
     (reset! tmp-data {})
     res))
 
-(defn start [data]
+(defn start
+  "Add annotations for clauses that have none.
+  Derives a basic pre- and postspec from the heads of the clauses."
+  [data]
   (log/trace "Add Pre Specs")
   (reset! tmp-data data)
   (reset! process 0)

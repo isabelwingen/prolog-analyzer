@@ -1,7 +1,7 @@
 (ns prolog-analyzer.parser.transform-spec
   (:require [prolog-analyzer.records :as r]))
 
-(defmulti  transform-spec "Transforms the raw edn of specs to a better suited format."
+(defmulti  transform-spec "Transforms the raw edn of specs to records."
   :type)
 
 (defmethod transform-spec :default [term]
