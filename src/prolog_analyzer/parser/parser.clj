@@ -29,7 +29,7 @@
        (map (partial apply str))
        (apply vector)))
 
-(defn read-in-edn-file [path]
+(defn- read-in-edn-file [path]
   (let [in (read-string (str \[ (slurp path) \]))
         file (io/file path)]
     (future
@@ -41,7 +41,7 @@
     in))
 
 
-(defn read-in-data [clojure-file]
+(defn- read-in-data [clojure-file]
   (if (.exists (io/file clojure-file))
     (read-in-edn-file clojure-file)
     (do
@@ -51,7 +51,7 @@
 (defmulti ^{:private true} call-prolog (fn [dir? properties file edn-file] (:dialect properties)))
 
 
-(defn prolog-goal [path-to-analyzer edn-file file dir?]
+(defn- prolog-goal [path-to-analyzer edn-file file dir?]
   (let [dir (if dir? "is_dir," "")]
     (str "use_module('" path-to-analyzer "', [set_file/1, is_dir/0, close_orphaned_stream/0]),"
          "set_file('" edn-file "'),"
@@ -74,12 +74,12 @@
         {err :err} (time (sh/sh exe "--goal" goal "--noinfo" :env (into {} (System/getenv))))]
     err))
 
-(defn write-and-return-result [edn-file result]
+(defn- write-and-return-result [edn-file result]
   (spit (io/file (str edn-file ".transformed")) (with-out-str (pprint result)))
   result)
 
 
-(defn process-built-ins [{file-name :built-ins :as properties}]
+(defn- process-built-ins [{file-name :built-ins :as properties}]
   (let [edn-file (get-edn-file-name (io/file file-name))]
     (log/info (str "EDN Path " edn-file))
     (when (not (.exists (io/file edn-file)))
@@ -89,7 +89,7 @@
          pre1/format-and-clean-up
          (write-and-return-result edn-file))))
 
-(defn process-edn
+(defn- process-edn
   [edn-file built-ins]
   (let [data (->> edn-file
                   read-in-data
@@ -99,7 +99,9 @@
          pre2/pre-process-single
          (write-and-return-result edn-file))))
 
-(defn process-prolog-file [properties file-name]
+(defn process-prolog-file
+  "Parses and transforms a single Prolog file"
+  [properties file-name]
   (let [built-ins (process-built-ins properties)
         edn-file (get-edn-file-name file-name)]
     (when (.exists (io/file edn-file))
@@ -109,7 +111,9 @@
       nil)
     (process-edn edn-file built-ins)))
 
-(defn process-prolog-directory [properties dir-name]
+(defn process-prolog-directory
+  "Parses and transforms a Prolog directory"
+  [properties dir-name]
   (let [built-ins (process-built-ins properties)
         edn-file (get-edn-file-name dir-name)]
     (when (.exists (io/file edn-file))

@@ -2,12 +2,12 @@
   (:require [prolog-analyzer.records :as r]
             [prolog-analyzer.utils :as utils]))
 
+(declare transform-body)
+
 (defn- transform-arglist [singletons args]
   (->> args
        (map (partial r/map-to-term singletons))
        (apply vector)))
-
-(declare transform-body)
 
 (defn- transform-body-elements [singletons {goal-name :goal arglist :arglist :as goal}]
   (case goal-name
@@ -20,7 +20,9 @@
   (map (partial transform-body-elements singletons) body))
 
 
-(defn transform-args-to-term-records [data]
+(defn transform-args-to-term-records
+  "Transform every term in every clause to a record"
+  [data]
   (reduce (fn [data [pred-id clause-number]]
             (let [singletons (get-in data [:singletons pred-id clause-number])]
               (-> data

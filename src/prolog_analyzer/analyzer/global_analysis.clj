@@ -28,7 +28,7 @@
        vec
        (r/->Postspec [])))
 
-(defn length-of-post-spec [{guard :guard concl :conclusion}]
+(defn- length-of-post-spec [{guard :guard concl :conclusion}]
   (let [a (->> guard
                (map :type)
                (map r/length)
@@ -40,14 +40,14 @@
                (apply +))]
     (+ a b)))
 
-(defn faulty-postspec? [{guard :guard concs :conclusion}]
+(defn- faulty-postspec? [{guard :guard concs :conclusion}]
   (->> concs
        (apply concat guard)
        (map :type)
        (some ru/error-spec?)))
 
 
-(defn add-if-new-and-correct [data [_ _ arity :as pred-id] post-spec]
+(defn- add-if-new-and-correct [data [_ _ arity :as pred-id] post-spec]
   (if (faulty-postspec? post-spec)
     data
     (if (> (length-of-post-spec post-spec) 1000)
@@ -76,13 +76,18 @@
       (create-new-post-specs envs)
       (add-errors envs)))
 
-(defn same [data-a data-b]
+(defn- same [data-a data-b]
   (and
    (= (:post-specs data-a) (:post-specs data-b))
    (= (:pre-specs data-a) (:pre-specs data-b))
    (= (:errors data-a) (:errors data-b))))
 
-(defn fixpoint [write counter in-data]
+(defn fixpoint
+  "Calculates environments for every clause
+  add adds the newly gained knwledge back to the data.
+
+  Repeat until a fxpoint is reached"
+  [write counter in-data]
   (log/info "Fixpoint: Step " counter)
   (write in-data counter)
   (let [envs (clause-analysis/complete-analysis in-data)
@@ -95,6 +100,8 @@
         new-data)
       (recur write (inc counter) new-data))))
 
-(defn global-analysis [write data]
+(defn global-analysis
+  "Starts the two-phased analysis."
+  [write data]
   (log-if-empty data)
   (fixpoint write 0 data))

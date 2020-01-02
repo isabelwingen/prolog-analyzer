@@ -158,7 +158,7 @@
 
 
 (defn-spec get-steps ::specs/steps
-  "Get next steps from term"
+  "Get next steps from term and its type"
   [env ::specs/env,
    term ::specs/term,
    spec ::specs/spec]

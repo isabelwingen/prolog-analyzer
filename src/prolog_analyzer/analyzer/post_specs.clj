@@ -130,14 +130,16 @@
          set)))
 
 
-(defn remove-post-spec [env postspec]
+(defn- remove-post-spec [env postspec]
   (-> env
       (utils/update-attr :environment :post-specs #(remove (partial = postspec) %))
       (utils/update-attr :environment :post-specs set)
        ))
 
 
-(defn apply-post-specs [env]
+(defn apply-post-specs
+  "Calculates steps from the registered, applicable postpsecs and removes them from the env"
+  [env]
   (let [post-specs (get-post-specs env)
         applicable-post-specs (->> post-specs (remove #(nil? (create-step env %))))
         steps (->> applicable-post-specs (map (partial create-step env)) set)

@@ -105,7 +105,9 @@
     :args (s/cat :data map?)
     :ret ::specs/data)
 
-(defn pre-process-single [data]
+(defn pre-process-single
+  "Add missing annotations, transform to records, calculate modules."
+  [data]
   (log/debug "Start Pre Process Single")
   (let [p (-> data
               transform-singleton-lists
